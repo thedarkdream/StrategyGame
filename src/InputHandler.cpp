@@ -449,13 +449,7 @@ void InputHandler::exitTargetingMode() {
 
 bool InputHandler::isPositionOnActionBar(sf::Vector2i screenPos) const {
     Player& player = m_game.getPlayer();
-    if (!player.hasSelection()) return false;
-    
-    const auto& selection = player.getSelection();
-    if (selection.empty()) return false;
-    
-    EntityPtr entity = selection[0];
-    if (!entity || entity->getTeam() != Team::Player) return false;
+    if (!player.getFirstOwnedSelectedEntity()) return false;
     
     // Fixed panel dimensions from Constants
     float panelX = (Constants::WINDOW_WIDTH - Constants::ACTION_BAR_WIDTH) / 2.0f;
@@ -467,13 +461,8 @@ bool InputHandler::isPositionOnActionBar(sf::Vector2i screenPos) const {
 
 int InputHandler::getActionButtonAtPosition(sf::Vector2i screenPos) const {
     Player& player = m_game.getPlayer();
-    if (!player.hasSelection()) return -1;
-    
-    const auto& selection = player.getSelection();
-    if (selection.empty()) return -1;
-    
-    EntityPtr entity = selection[0];
-    if (!entity || entity->getTeam() != Team::Player) return -1;
+    EntityPtr entity = player.getFirstOwnedSelectedEntity();
+    if (!entity) return -1;
     
     // Fixed panel dimensions
     float panelX = (Constants::WINDOW_WIDTH - Constants::ACTION_BAR_WIDTH) / 2.0f;
@@ -502,12 +491,9 @@ int InputHandler::getActionButtonAtPosition(sf::Vector2i screenPos) const {
 
 int InputHandler::getQueueItemAtPosition(sf::Vector2i screenPos) const {
     Player& player = m_game.getPlayer();
-    if (!player.hasSelection()) return -1;
+    EntityPtr entity = player.getFirstSelectedEntity();
+    if (!entity) return -1;
     
-    const auto& selection = player.getSelection();
-    if (selection.empty()) return -1;
-    
-    EntityPtr entity = selection[0];
     Building* building = dynamic_cast<Building*>(entity.get());
     if (!building || !building->isProducing()) return -1;
     
@@ -552,10 +538,9 @@ bool InputHandler::handleActionBarClick(sf::Vector2i screenPos) {
     if (!isPositionOnActionBar(screenPos)) return false;
     
     Player& player = m_game.getPlayer();
-    const auto& selection = player.getSelection();
-    if (selection.empty()) return false;
+    EntityPtr entity = player.getFirstOwnedSelectedEntity();
+    if (!entity) return false;
     
-    EntityPtr entity = selection[0];
     Building* building = dynamic_cast<Building*>(entity.get());
     Unit* unit = dynamic_cast<Unit*>(entity.get());
     
@@ -583,7 +568,7 @@ bool InputHandler::handleActionBarClick(sf::Vector2i screenPos) {
             
         case ActionDef::Type::Instant:
             // Stop action - apply to all selected units
-            for (auto& e : selection) {
+            for (auto& e : player.getSelection()) {
                 if (auto* u = dynamic_cast<Unit*>(e.get())) {
                     u->stop();
                 }

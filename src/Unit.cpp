@@ -2,6 +2,7 @@
 #include "Map.h"
 #include "Building.h"
 #include "Constants.h"
+#include "EntityData.h"
 #include <cmath>
 
 Unit::Unit(EntityType type, Team team, sf::Vector2f position,
@@ -17,6 +18,13 @@ Unit::Unit(EntityType type, Team team, sf::Vector2f position,
     m_maxHealth = health;
     m_health = m_maxHealth;
     m_targetPosition = position;
+    
+    // Load auto-attack settings from registry
+    if (auto* unitDef = ENTITY_DATA.getUnitDef(type)) {
+        m_autoAttackRangeBonus = unitDef->autoAttackRangeBonus;
+        m_isCombatUnit = unitDef->isCombatUnit;
+    }
+    
     updateShape();
 }
 
@@ -96,7 +104,14 @@ void Unit::takeDamage(int damage, EntityPtr attacker) {
 }
 
 void Unit::updateIdle(float deltaTime) {
-    // Base implementation does nothing
+    // Auto-attack: if idle combat unit and an enemy is in range, attack it
+    if (m_isCombatUnit && findNearestEnemy) {
+        float autoAttackRange = m_attackRange + m_autoAttackRangeBonus;
+        EntityPtr enemy = findNearestEnemy(m_position, autoAttackRange, m_team);
+        if (enemy && enemy->isAlive()) {
+            attack(enemy);
+        }
+    }
 }
 
 void Unit::updateMovement(float deltaTime) {

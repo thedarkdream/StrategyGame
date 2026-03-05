@@ -29,6 +29,8 @@ public:
     void selectEntities(const std::vector<EntityPtr>& entities);
     const std::vector<EntityPtr>& getSelection() const { return m_selection; }
     bool hasSelection() const { return !m_selection.empty(); }
+    EntityPtr getFirstSelectedEntity() const;      // Returns first selected entity, or nullptr
+    EntityPtr getFirstOwnedSelectedEntity() const; // Returns first selected entity belonging to this player, or nullptr
     
     // Team
     Team getTeam() const { return m_team; }

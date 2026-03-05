@@ -342,13 +342,8 @@ void Renderer::renderActionBar(Game& game) {
     Player& player = game.getPlayer();
     
     // Only show action bar for own units/buildings
-    if (!player.hasSelection()) return;
-    
-    const auto& selection = player.getSelection();
-    if (selection.empty()) return;
-    
-    EntityPtr entity = selection[0];
-    if (!entity || entity->getTeam() != Team::Player) return;
+    EntityPtr entity = player.getFirstOwnedSelectedEntity();
+    if (!entity) return;
     
     // Fixed panel dimensions from Constants
     const float panelWidth = Constants::ACTION_BAR_WIDTH;

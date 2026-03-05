@@ -1,6 +1,7 @@
 #include "Player.h"
 #include "Unit.h"
 #include "Building.h"
+#include "Entity.h"
 #include <algorithm>
 
 Player::Player(Team team, const Resources& startingResources)
@@ -127,4 +128,17 @@ void Player::cleanupDeadEntities() {
             [](const EntityPtr& entity) { return !entity || !entity->isAlive(); }),
         m_selection.end()
     );
+}
+
+EntityPtr Player::getFirstSelectedEntity() const {
+    if (m_selection.empty()) return nullptr;
+    EntityPtr entity = m_selection[0];
+    if (!entity || !entity->isAlive()) return nullptr;
+    return entity;
+}
+
+EntityPtr Player::getFirstOwnedSelectedEntity() const {
+    EntityPtr entity = getFirstSelectedEntity();
+    if (!entity || entity->getTeam() != m_team) return nullptr;
+    return entity;
 }
