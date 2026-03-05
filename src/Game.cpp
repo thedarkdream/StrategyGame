@@ -2,6 +2,7 @@
 #include "Unit.h"
 #include "Worker.h"
 #include "Building.h"
+#include "ResourceNode.h"
 #include "ResourceManager.h"
 #include "Constants.h"
 #include <algorithm>
@@ -250,6 +251,32 @@ EntityPtr Game::findNearestResource(sf::Vector2f pos, float radius) {
     return nearest;
 }
 
+EntityPtr Game::findNearestAvailableResource(sf::Vector2f pos, float radius, EntityPtr exclude) {
+    EntityPtr nearest = nullptr;
+    float nearestDist = radius;
+    
+    for (auto& entity : m_allEntities) {
+        if (!entity || !entity->isAlive()) continue;
+        if (entity->getType() != EntityType::MineralPatch && entity->getType() != EntityType::GasGeyser) continue;
+        if (entity == exclude) continue;  // Skip the excluded resource
+        
+        // Check if this resource is being actively mined
+        if (auto* resourceNode = dynamic_cast<ResourceNode*>(entity.get())) {
+            if (resourceNode->isBeingMined()) continue;
+        }
+        
+        sf::Vector2f diff = entity->getPosition() - pos;
+        float dist = std::sqrt(diff.x * diff.x + diff.y * diff.y);
+        
+        if (dist < nearestDist) {
+            nearestDist = dist;
+            nearest = entity;
+        }
+    }
+    
+    return nearest;
+}
+
 void Game::setupUnit(UnitPtr& unit) {
     unit->setMap(&m_map);
     unit->findNearestEnemy = [this](sf::Vector2f pos, float radius, Team excludeTeam) {
@@ -264,6 +291,9 @@ void Game::setupWorker(Worker* worker, EntityPtr homeBase, Team team) {
     worker->setHomeBase(homeBase);
     worker->findNearestResource = [this](sf::Vector2f pos, float radius) {
         return this->findNearestResource(pos, radius);
+    };
+    worker->findNearestAvailableResource = [this](sf::Vector2f pos, float radius, EntityPtr exclude) {
+        return this->findNearestAvailableResource(pos, radius, exclude);
     };
     if (team == Team::Player) {
         worker->onResourceDeposit = [this](int amount) {

@@ -1,5 +1,6 @@
 #include "Worker.h"
 #include "Building.h"
+#include "ResourceNode.h"
 #include "EntityData.h"
 #include "Constants.h"
 #include <cmath>
@@ -47,14 +48,21 @@ void Worker::gather(EntityPtr resource) {
         return;
     }
     
+    // Release any previous mining claim
+    releaseMiningClaim();
+    
     m_resourceTarget = resource;
     m_targetPosition = resource->getPosition();
     m_state = UnitState::Gathering;
     m_gatherTimer = 0.0f;
+    m_isActivelyMining = false;
     findPath(resource->getPosition());
 }
 
 void Worker::returnResources() {
+    // Release mining claim before leaving
+    releaseMiningClaim();
+    
     if (auto base = m_homeBase.lock()) {
         m_targetPosition = base->getPosition();
         m_state = UnitState::Returning;
@@ -80,9 +88,16 @@ void Worker::updateCustomState(float deltaTime) {
 void Worker::updateGathering(float deltaTime) {
     auto resource = m_resourceTarget.lock();
     if (!resource || !resource->isAlive()) {
-        // Resource gone or exhausted - try to find a nearby replacement
+        // Resource gone or exhausted - release claim and find replacement
+        releaseMiningClaim();
         m_resourceTarget.reset();
-        if (findNearestResource) {
+        if (findNearestAvailableResource) {
+            EntityPtr newResource = findNearestAvailableResource(m_position, 200.0f, nullptr);
+            if (newResource) {
+                gather(newResource);
+                return;
+            }
+        } else if (findNearestResource) {
             EntityPtr newResource = findNearestResource(m_position, 200.0f);
             if (newResource) {
                 gather(newResource);
@@ -97,21 +112,57 @@ void Worker::updateGathering(float deltaTime) {
     float distance = getDistanceTo(resource);
     
     if (distance > 40.0f) {
+        // Still traveling - not actively mining yet
+        if (m_isActivelyMining) {
+            releaseMiningClaim();
+        }
         followPath(deltaTime);
     } else {
+        // At the resource - try to claim if not already
+        if (!m_isActivelyMining) {
+            ResourceNode* resourceNode = dynamic_cast<ResourceNode*>(resource.get());
+            if (resourceNode) {
+                // Try to claim this mining spot
+                // Need shared_from_this - pass ourselves as claimer
+                auto self = std::dynamic_pointer_cast<Entity>(shared_from_this());
+                if (!resourceNode->tryClaimMining(self)) {
+                    // Spot is occupied - find another field
+                    if (findNearestAvailableResource) {
+                        EntityPtr newResource = findNearestAvailableResource(m_position, 200.0f, resource);
+                        if (newResource) {
+                            gather(newResource);
+                            return;
+                        }
+                    }
+                    // No alternative found - wait for spot to free up
+                    // (could also just stay here and retry next frame)
+                    return;
+                }
+                m_isActivelyMining = true;
+            }
+        }
+        
         // Gathering
         m_gatherTimer += deltaTime;
         if (m_gatherTimer >= Constants::GATHERING_TIME) {
             // Get resources from the resource node
-            if (auto* building = dynamic_cast<Building*>(resource.get())) {
-                m_carriedResources = building->harvestResource();
+            ResourceNode* resourceNode = dynamic_cast<ResourceNode*>(resource.get());
+            if (resourceNode) {
+                m_carriedResources = resourceNode->harvestResource();
             }
             if (m_carriedResources > 0) {
                 returnResources();
             } else {
-                // Resource depleted - try to find a nearby replacement
+                // Resource depleted - release claim and find replacement
+                releaseMiningClaim();
                 m_resourceTarget.reset();
-                if (findNearestResource) {
+                if (findNearestAvailableResource) {
+                    EntityPtr newResource = findNearestAvailableResource(m_position, 200.0f, nullptr);
+                    if (newResource) {
+                        gather(newResource);
+                        return;
+                    }
+                } else if (findNearestResource) {
                     EntityPtr newResource = findNearestResource(m_position, 200.0f);
                     if (newResource) {
                         gather(newResource);
@@ -155,7 +206,13 @@ void Worker::updateReturning(float deltaTime) {
         } else {
             // Original resource gone - try to find a nearby replacement
             m_resourceTarget.reset();
-            if (findNearestResource) {
+            if (findNearestAvailableResource) {
+                EntityPtr newResource = findNearestAvailableResource(m_position, 200.0f, nullptr);
+                if (newResource) {
+                    gather(newResource);
+                    return;
+                }
+            } else if (findNearestResource) {
                 EntityPtr newResource = findNearestResource(m_position, 200.0f);
                 if (newResource) {
                     gather(newResource);
@@ -165,4 +222,16 @@ void Worker::updateReturning(float deltaTime) {
             m_state = UnitState::Idle;
         }
     }
+}
+
+void Worker::releaseMiningClaim() {
+    if (!m_isActivelyMining) return;
+    
+    if (auto resource = m_resourceTarget.lock()) {
+        if (auto* resourceNode = dynamic_cast<ResourceNode*>(resource.get())) {
+            auto self = std::dynamic_pointer_cast<Entity>(shared_from_this());
+            resourceNode->releaseMining(self);
+        }
+    }
+    m_isActivelyMining = false;
 }

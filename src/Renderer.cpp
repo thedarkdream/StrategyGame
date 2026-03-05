@@ -5,6 +5,7 @@
 #include "EntityData.h"
 #include "Unit.h"
 #include "Building.h"
+#include "ResourceNode.h"
 #include "Player.h"
 #include "InputHandler.h"
 #include "ActionBar.h"
@@ -324,14 +325,12 @@ void Renderer::renderUnitPanel(Game& game) {
         m_window.draw(statsText2);
     }
     // Show resource info for mineral patches and gas geysers
-    else if (auto* building = dynamic_cast<Building*>(entity.get())) {
-        if (building->isResourceBuilding()) {
-            std::string resourceStr = "Remaining: " + std::to_string(building->getRemainingResources());
-            sf::Text resourceText(*m_font, resourceStr, 12);
-            resourceText.setFillColor(sf::Color(100, 200, 255));
-            resourceText.setPosition(sf::Vector2f(panelX, statsY));
-            m_window.draw(resourceText);
-        }
+    else if (auto* resourceNode = dynamic_cast<ResourceNode*>(entity.get())) {
+        std::string resourceStr = "Remaining: " + std::to_string(resourceNode->getRemainingResources());
+        sf::Text resourceText(*m_font, resourceStr, 12);
+        resourceText.setFillColor(sf::Color(100, 200, 255));
+        resourceText.setPosition(sf::Vector2f(panelX, statsY));
+        m_window.draw(resourceText);
     }
     
     // Show hotkeys (only for own units, not inspected entities)

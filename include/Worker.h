@@ -26,6 +26,9 @@ public:
     // Callback to find nearest mineral patch
     std::function<EntityPtr(sf::Vector2f pos, float radius)> findNearestResource;
     
+    // Callback to find nearest unoccupied mineral patch
+    std::function<EntityPtr(sf::Vector2f pos, float radius, EntityPtr exclude)> findNearestAvailableResource;
+    
 protected:
     void updateCustomState(float deltaTime) override;
     
@@ -36,6 +39,10 @@ private:
     // Resource gathering
     int m_carriedResources = 0;
     float m_gatherTimer = 0.0f;
+    bool m_isActivelyMining = false;  // True when at resource and mining (claimed spot)
     std::weak_ptr<Entity> m_resourceTarget;
     std::weak_ptr<Entity> m_homeBase;
+    
+    // Release any claimed mining spot
+    void releaseMiningClaim();
 };

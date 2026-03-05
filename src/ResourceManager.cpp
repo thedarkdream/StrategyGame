@@ -5,6 +5,7 @@
 #include "Soldier.h"
 #include "Brute.h"
 #include "Building.h"
+#include "ResourceNode.h"
 
 UnitPtr ResourceManager::createUnit(EntityType type, Team team, sf::Vector2f position) {
     switch (type) {
@@ -27,6 +28,13 @@ BuildingPtr ResourceManager::createBuilding(EntityType type, Team team, sf::Vect
             return createBarracks(team, position);
         case EntityType::Refinery:
             return createRefinery(team, position);
+        default:
+            return nullptr;
+    }
+}
+
+ResourceNodePtr ResourceManager::createResourceNode(EntityType type, sf::Vector2f position) {
+    switch (type) {
         case EntityType::MineralPatch:
             return createMineralPatch(position);
         case EntityType::GasGeyser:
@@ -60,12 +68,12 @@ BuildingPtr ResourceManager::createRefinery(Team team, sf::Vector2f position) {
     return std::make_shared<Building>(EntityType::Refinery, team, position);
 }
 
-BuildingPtr ResourceManager::createMineralPatch(sf::Vector2f position, int amount) {
-    return std::make_shared<Building>(EntityType::MineralPatch, Team::Neutral, position);
+ResourceNodePtr ResourceManager::createMineralPatch(sf::Vector2f position, int amount) {
+    return std::make_shared<ResourceNode>(EntityType::MineralPatch, position, amount);
 }
 
-BuildingPtr ResourceManager::createGasGeyser(sf::Vector2f position, int amount) {
-    return std::make_shared<Building>(EntityType::GasGeyser, Team::Neutral, position);
+ResourceNodePtr ResourceManager::createGasGeyser(sf::Vector2f position, int amount) {
+    return std::make_shared<ResourceNode>(EntityType::GasGeyser, position, amount);
 }
 
 int ResourceManager::getMineralCost(EntityType type) {

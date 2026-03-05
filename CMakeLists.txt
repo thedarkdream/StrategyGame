@@ -19,6 +19,7 @@ set(SOURCES
     src/Soldier.cpp
     src/Brute.cpp
     src/Building.cpp
+    src/ResourceNode.cpp
     src/Player.cpp
     src/InputHandler.cpp
     src/Renderer.cpp
@@ -37,6 +38,7 @@ set(HEADERS
     include/Soldier.h
     include/Brute.h
     include/Building.h
+    include/ResourceNode.h
     include/Player.h
     include/InputHandler.h
     include/Renderer.h

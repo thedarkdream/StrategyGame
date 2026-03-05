@@ -11,17 +11,20 @@ class Unit;
 class Worker;
 class Soldier;
 class Building;
+class ResourceNode;
 class Player;
 
 // Type aliases
 using EntityPtr = std::shared_ptr<Entity>;
 using UnitPtr = std::shared_ptr<Unit>;
 using BuildingPtr = std::shared_ptr<Building>;
+using ResourceNodePtr = std::shared_ptr<ResourceNode>;
 using PlayerPtr = std::shared_ptr<Player>;
 
 using EntityList = std::vector<EntityPtr>;
 using UnitList = std::vector<UnitPtr>;
 using BuildingList = std::vector<BuildingPtr>;
+using ResourceNodeList = std::vector<ResourceNodePtr>;
 
 // Enums
 enum class EntityType {

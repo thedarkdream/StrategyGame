@@ -32,11 +32,6 @@ public:
     void setRallyPoint(sf::Vector2f point) { m_rallyPoint = point; }
     sf::Vector2f getRallyPoint() const { return m_rallyPoint; }
     
-    // Resource buildings
-    bool isResourceBuilding() const;
-    int harvestResource();
-    int getRemainingResources() const { return m_resourceAmount; }
-    
     // Callback when unit is produced
     std::function<void(EntityType, sf::Vector2f)> onUnitProduced;
     
@@ -59,9 +54,6 @@ private:
     
     // Rally point for produced units
     sf::Vector2f m_rallyPoint;
-    
-    // Resources (for mineral patches / gas geysers)
-    int m_resourceAmount = 0;
     
     void updateProduction(float deltaTime);
     float getTrainingTime(EntityType unitType) const;

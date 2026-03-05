@@ -25,22 +25,6 @@ Building::Building(EntityType type, Team team, sf::Vector2f position)
             m_health = m_maxHealth;
             break;
             
-        case EntityType::MineralPatch:
-            m_size = sf::Vector2f(48.0f, 32.0f);
-            m_maxHealth = 1;
-            m_health = 1;
-            m_color = sf::Color(0, 206, 209);  // Cyan
-            m_resourceAmount = 1500;
-            break;
-            
-        case EntityType::GasGeyser:
-            m_size = sf::Vector2f(64.0f, 64.0f);
-            m_maxHealth = 1;
-            m_health = 1;
-            m_color = sf::Color(0, 255, 0);  // Green
-            m_resourceAmount = 2000;
-            break;
-            
         default:
             break;
     }
@@ -211,28 +195,6 @@ void Building::addConstructionProgress(float amount) {
         m_constructionProgress = 1.0f;
         m_isConstructing = false;
     }
-}
-
-bool Building::isResourceBuilding() const {
-    return m_type == EntityType::MineralPatch || m_type == EntityType::GasGeyser;
-}
-
-int Building::harvestResource() {
-    if (m_resourceAmount <= 0) {
-        // Resource exhausted - mark as dead so it gets cleaned up
-        m_health = 0;
-        return 0;
-    }
-    
-    int harvested = std::min(m_resourceAmount, Constants::MINERALS_PER_TRIP);
-    m_resourceAmount -= harvested;
-    
-    // If now exhausted, mark as dead
-    if (m_resourceAmount <= 0) {
-        m_health = 0;
-    }
-    
-    return harvested;
 }
 
 void Building::updateProduction(float deltaTime) {

@@ -36,6 +36,7 @@ public:
     std::vector<EntityPtr> getEntitiesInRect(sf::FloatRect rect, Team team);
     EntityPtr findNearestEnemy(sf::Vector2f pos, float radius, Team excludeTeam);
     EntityPtr findNearestResource(sf::Vector2f pos, float radius);
+    EntityPtr findNearestAvailableResource(sf::Vector2f pos, float radius, EntityPtr exclude = nullptr);
     
     // Collision
     bool checkPositionBlocked(sf::Vector2f pos, float radius, Entity* excludeSelf);
