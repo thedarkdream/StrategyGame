@@ -8,9 +8,7 @@ class Map;
 
 class Unit : public Entity {
 public:
-    Unit(EntityType type, Team team, sf::Vector2f position, 
-         float speed, int damage, float attackRange, float attackCooldown,
-         sf::Vector2f size, int health);
+    Unit(EntityType type, Team team, sf::Vector2f position);
     virtual ~Unit() = default;
     
     void update(float deltaTime) override;

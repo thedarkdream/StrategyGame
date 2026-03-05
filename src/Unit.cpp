@@ -3,24 +3,27 @@
 #include "Building.h"
 #include "Constants.h"
 #include "EntityData.h"
+#include "MathUtil.h"
 #include <cmath>
 
-Unit::Unit(EntityType type, Team team, sf::Vector2f position,
-           float speed, int damage, float attackRange, float attackCooldown,
-           sf::Vector2f size, int health)
+Unit::Unit(EntityType type, Team team, sf::Vector2f position)
     : Entity(type, team, position)
-    , m_speed(speed)
-    , m_damage(damage)
-    , m_attackRange(attackRange)
-    , m_attackCooldown(attackCooldown)
+    , m_speed(0.0f)
+    , m_damage(0)
+    , m_attackRange(0.0f)
+    , m_attackCooldown(1.0f)
 {
-    m_size = size;
-    m_maxHealth = health;
+    // Load all stats from ENTITY_DATA
+    m_size = ENTITY_DATA.getSize(type);
+    m_maxHealth = ENTITY_DATA.getHealth(type);
     m_health = m_maxHealth;
     m_targetPosition = position;
     
-    // Load auto-attack settings from registry
     if (auto* unitDef = ENTITY_DATA.getUnitDef(type)) {
+        m_speed = unitDef->speed;
+        m_damage = unitDef->damage;
+        m_attackRange = unitDef->attackRange;
+        m_attackCooldown = unitDef->attackCooldown;
         m_autoAttackRangeBonus = unitDef->autoAttackRangeBonus;
         m_isCombatUnit = unitDef->isCombatUnit;
     }
@@ -165,8 +168,7 @@ void Unit::followPath(float deltaTime) {
     
     // Move towards current waypoint
     sf::Vector2f waypoint = m_path[m_pathIndex];
-    sf::Vector2f diff = waypoint - m_position;
-    float distToWaypoint = std::sqrt(diff.x * diff.x + diff.y * diff.y);
+    float distToWaypoint = MathUtil::distance(waypoint, m_position);
     
     if (distToWaypoint < 10.0f) {
         // Reached this waypoint, move to next
@@ -187,8 +189,7 @@ void Unit::followPath(float deltaTime) {
 }
 
 void Unit::moveTowardsTarget(float deltaTime) {
-    sf::Vector2f diff = m_targetPosition - m_position;
-    float distance = std::sqrt(diff.x * diff.x + diff.y * diff.y);
+    float distance = MathUtil::distance(m_targetPosition, m_position);
     
     if (distance < 1.0f) {
         m_position = m_targetPosition;
@@ -196,6 +197,7 @@ void Unit::moveTowardsTarget(float deltaTime) {
     }
     
     // Normalize direction
+    sf::Vector2f diff = m_targetPosition - m_position;
     sf::Vector2f direction = diff / distance;
     
     // Calculate desired move
@@ -236,8 +238,7 @@ void Unit::moveTowardsTarget(float deltaTime) {
 }
 
 bool Unit::hasReachedTarget() const {
-    sf::Vector2f diff = m_targetPosition - m_position;
-    float distance = std::sqrt(diff.x * diff.x + diff.y * diff.y);
+    float distance = MathUtil::distance(m_targetPosition, m_position);
     return distance < 5.0f;
 }
 
@@ -256,8 +257,7 @@ void Unit::findPath(sf::Vector2f target) {
 }
 
 float Unit::getDistanceTo(sf::Vector2f pos) const {
-    sf::Vector2f diff = pos - m_position;
-    return std::sqrt(diff.x * diff.x + diff.y * diff.y);
+    return MathUtil::distance(pos, m_position);
 }
 
 float Unit::getDistanceTo(EntityPtr entity) const {

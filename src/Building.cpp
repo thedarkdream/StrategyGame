@@ -1,4 +1,5 @@
 #include "Building.h"
+#include "EntityData.h"
 #include "Constants.h"
 #include <cmath>
 #include <cstdint>
@@ -6,28 +7,10 @@
 Building::Building(EntityType type, Team team, sf::Vector2f position)
     : Entity(type, team, position)
 {
-    switch (type) {
-        case EntityType::Base:
-            m_size = sf::Vector2f(96.0f, 96.0f);  // 3x3 tiles
-            m_maxHealth = 1500;
-            m_health = m_maxHealth;
-            break;
-            
-        case EntityType::Barracks:
-            m_size = sf::Vector2f(64.0f, 64.0f);  // 2x2 tiles
-            m_maxHealth = 800;
-            m_health = m_maxHealth;
-            break;
-            
-        case EntityType::Refinery:
-            m_size = sf::Vector2f(64.0f, 64.0f);  // 2x2 tiles
-            m_maxHealth = 500;
-            m_health = m_maxHealth;
-            break;
-            
-        default:
-            break;
-    }
+    // Use ENTITY_DATA for size and health
+    m_size = ENTITY_DATA.getSize(type);
+    m_maxHealth = ENTITY_DATA.getHealth(type);
+    m_health = m_maxHealth;
     
     m_rallyPoint = position + sf::Vector2f(m_size.x, 0.0f);
     updateShape();
@@ -89,16 +72,15 @@ void Building::render(sf::RenderTarget& target) {
 bool Building::canTrain(EntityType unitType) const {
     if (!isConstructed()) return false;
     
-    switch (m_type) {
-        case EntityType::Base:
-            return unitType == EntityType::Worker;
-            
-        case EntityType::Barracks:
-            return unitType == EntityType::Soldier || unitType == EntityType::Brute;
-            
-        default:
-            return false;
+    // Check if this building can produce this unit type using ENTITY_DATA
+    if (auto* buildingDef = ENTITY_DATA.getBuildingDef(m_type)) {
+        for (EntityType produceable : buildingDef->producesUnits) {
+            if (produceable == unitType) {
+                return true;
+            }
+        }
     }
+    return false;
 }
 
 bool Building::trainUnit(EntityType unitType) {
@@ -109,7 +91,7 @@ bool Building::trainUnit(EntityType unitType) {
     order.timeRequired = getTrainingTime(unitType);
     order.timeElapsed = 0.0f;
     
-    m_productionQueue.push(order);
+    m_productionQueue.push_back(order);
     m_isProducing = true;
     
     return true;
@@ -123,14 +105,14 @@ float Building::getProductionProgress() const {
 }
 
 EntityType Building::getCurrentProductionType() const {
-    if (m_productionQueue.empty()) return EntityType::Worker;  // Default fallback
+    if (m_productionQueue.empty()) return EntityType::None;
     return m_productionQueue.front().unitType;
 }
 
 void Building::cancelProduction() {
     if (!m_productionQueue.empty()) {
         EntityType cancelledType = m_productionQueue.front().unitType;
-        m_productionQueue.pop();
+        m_productionQueue.pop_front();
         m_isProducing = !m_productionQueue.empty();
         
         // Refund resources via callback
@@ -145,46 +127,21 @@ void Building::cancelProductionAtIndex(int index) {
         return;
     }
     
-    // For index 0, use the normal cancel
-    if (index == 0) {
-        cancelProduction();
-        return;
-    }
-    
-    // Rebuild queue without the item at index
-    std::queue<ProductionOrder> newQueue;
-    int currentIndex = 0;
-    EntityType cancelledType = EntityType::None;
-    
-    while (!m_productionQueue.empty()) {
-        ProductionOrder order = m_productionQueue.front();
-        m_productionQueue.pop();
-        
-        if (currentIndex == index) {
-            // Skip this item (cancel it)
-            cancelledType = order.unitType;
-        } else {
-            newQueue.push(order);
-        }
-        currentIndex++;
-    }
-    
-    m_productionQueue = newQueue;
+    EntityType cancelledType = m_productionQueue[index].unitType;
+    m_productionQueue.erase(m_productionQueue.begin() + index);
     m_isProducing = !m_productionQueue.empty();
     
     // Refund resources via callback
-    if (onProductionCancelled && cancelledType != EntityType::None) {
+    if (onProductionCancelled) {
         onProductionCancelled(cancelledType);
     }
 }
 
 std::vector<EntityType> Building::getProductionQueue() const {
     std::vector<EntityType> result;
-    // Copy queue to iterate (can't iterate std::queue directly)
-    std::queue<ProductionOrder> tempQueue = m_productionQueue;
-    while (!tempQueue.empty()) {
-        result.push_back(tempQueue.front().unitType);
-        tempQueue.pop();
+    result.reserve(m_productionQueue.size());
+    for (const auto& order : m_productionQueue) {
+        result.push_back(order.unitType);
     }
     return result;
 }
@@ -212,22 +169,13 @@ void Building::updateProduction(float deltaTime) {
             onUnitProduced(current.unitType, getSpawnPoint());
         }
         
-        m_productionQueue.pop();
+        m_productionQueue.pop_front();
         m_isProducing = !m_productionQueue.empty();
     }
 }
 
 float Building::getTrainingTime(EntityType unitType) const {
-    switch (unitType) {
-        case EntityType::Worker:
-            return 3.0f;
-        case EntityType::Soldier:
-            return 5.0f;
-        case EntityType::Brute:
-            return 4.0f;  // Slightly faster than Soldier
-        default:
-            return 5.0f;
-    }
+    return ENTITY_DATA.getTrainingTime(unitType);
 }
 
 sf::Vector2f Building::getSpawnPoint() const {

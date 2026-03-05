@@ -92,4 +92,32 @@ private:
     // Unit setup helpers
     void setupUnit(UnitPtr& unit);
     void setupWorker(Worker* worker, EntityPtr homeBase, Team team);
+    
+    // Generic entity finder template
+    template<typename Predicate>
+    EntityPtr findNearest(sf::Vector2f pos, float radius, Predicate predicate);
 };
+
+// Template implementation (must be in header)
+#include "Entity.h"
+#include "MathUtil.h"
+
+template<typename Predicate>
+EntityPtr Game::findNearest(sf::Vector2f pos, float radius, Predicate predicate) {
+    EntityPtr nearest = nullptr;
+    float nearestDist = radius;
+    
+    for (auto& entity : m_allEntities) {
+        if (!entity || !entity->isAlive()) continue;
+        if (!predicate(entity)) continue;
+        
+        float dist = MathUtil::distance(entity->getPosition(), pos);
+        
+        if (dist < nearestDist) {
+            nearestDist = dist;
+            nearest = entity;
+        }
+    }
+    
+    return nearest;
+}

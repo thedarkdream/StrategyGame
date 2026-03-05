@@ -1,4 +1,5 @@
 #include "ResourceNode.h"
+#include "EntityData.h"
 #include "Constants.h"
 #include <cmath>
 
@@ -6,15 +7,17 @@ ResourceNode::ResourceNode(EntityType type, sf::Vector2f position, int resourceA
     : Entity(type, Team::Neutral, position)
     , m_resourceAmount(resourceAmount)
 {
+    // Load size from ENTITY_DATA
+    m_size = ENTITY_DATA.getSize(type);
+    
+    // Set color based on resource type
     switch (type) {
         case EntityType::MineralPatch:
-            m_size = sf::Vector2f(48.0f, 32.0f);
-            m_color = sf::Color(0, 206, 209);  // Cyan
+            m_color = sf::Color(Constants::Colors::MINERAL_COLOR);
             break;
             
         case EntityType::GasGeyser:
-            m_size = sf::Vector2f(64.0f, 64.0f);
-            m_color = sf::Color(0, 255, 0);  // Green
+            m_color = sf::Color(Constants::Colors::GAS_COLOR);
             break;
             
         default:
@@ -57,8 +60,11 @@ void ResourceNode::render(sf::RenderTarget& target) {
     barBg.setFillColor(sf::Color(40, 40, 40));
     target.draw(barBg);
     
-    // Determine max resources based on type (for percentage calculation)
-    int maxResources = (m_type == EntityType::MineralPatch) ? 1500 : 2500;
+    // Get max resources from ENTITY_DATA
+    int maxResources = 1500;  // default
+    if (auto* buildingDef = ENTITY_DATA.getBuildingDef(m_type)) {
+        maxResources = buildingDef->resourceAmount;
+    }
     float percentage = static_cast<float>(m_resourceAmount) / static_cast<float>(maxResources);
     percentage = std::max(0.0f, std::min(1.0f, percentage));
     

@@ -7,6 +7,7 @@
 #include "Map.h"
 #include "ResourceManager.h"
 #include "Constants.h"
+#include "MathUtil.h"
 #include <algorithm>
 
 AIController::AIController(Player& player, Game& game)
@@ -61,8 +62,7 @@ void AIController::manageEconomy() {
             
             for (auto& entity : m_game.getAllEntities()) {
                 if (entity->getType() == EntityType::MineralPatch) {
-                    sf::Vector2f diff = entity->getPosition() - unit->getPosition();
-                    float dist = std::sqrt(diff.x * diff.x + diff.y * diff.y);
+                    float dist = MathUtil::distance(entity->getPosition(), unit->getPosition());
                     if (dist < nearestDist) {
                         nearestDist = dist;
                         nearestMineral = entity;
@@ -231,8 +231,7 @@ EntityPtr AIController::findNearestEnemy(sf::Vector2f from) {
     // Check enemy units
     for (auto& unit : enemy.getUnits()) {
         if (unit->isAlive()) {
-            sf::Vector2f diff = unit->getPosition() - from;
-            float dist = std::sqrt(diff.x * diff.x + diff.y * diff.y);
+            float dist = MathUtil::distance(unit->getPosition(), from);
             if (dist < nearestDist) {
                 nearestDist = dist;
                 nearest = unit;
@@ -244,8 +243,7 @@ EntityPtr AIController::findNearestEnemy(sf::Vector2f from) {
     if (!nearest) {
         for (auto& building : enemy.getBuildings()) {
             if (building->isAlive()) {
-                sf::Vector2f diff = building->getPosition() - from;
-                float dist = std::sqrt(diff.x * diff.x + diff.y * diff.y);
+                float dist = MathUtil::distance(building->getPosition(), from);
                 if (dist < nearestDist) {
                     nearestDist = dist;
                     nearest = building;

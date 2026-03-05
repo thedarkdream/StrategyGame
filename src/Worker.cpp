@@ -6,13 +6,7 @@
 #include <cmath>
 
 Worker::Worker(Team team, sf::Vector2f position)
-    : Unit(EntityType::Worker, team, position,
-           ENTITY_DATA.getUnitDef(EntityType::Worker)->speed,
-           ENTITY_DATA.getUnitDef(EntityType::Worker)->damage,
-           ENTITY_DATA.getUnitDef(EntityType::Worker)->attackRange,
-           ENTITY_DATA.getUnitDef(EntityType::Worker)->attackCooldown,
-           ENTITY_DATA.getSize(EntityType::Worker),
-           ENTITY_DATA.getHealth(EntityType::Worker))
+    : Unit(EntityType::Worker, team, position)
 {
 }
 

@@ -5,6 +5,7 @@
 #include "ResourceNode.h"
 #include "ResourceManager.h"
 #include "Constants.h"
+#include "MathUtil.h"
 #include <algorithm>
 #include <cmath>
 
@@ -212,69 +213,30 @@ std::vector<EntityPtr> Game::getEntitiesInRect(sf::FloatRect rect, Team team) {
 }
 
 EntityPtr Game::findNearestEnemy(sf::Vector2f pos, float radius, Team excludeTeam) {
-    EntityPtr nearest = nullptr;
-    float nearestDist = radius;
-    
-    for (auto& entity : m_allEntities) {
-        if (!entity || !entity->isAlive()) continue;
-        if (entity->getTeam() == excludeTeam || entity->getTeam() == Team::Neutral) continue;
-        
-        sf::Vector2f diff = entity->getPosition() - pos;
-        float dist = std::sqrt(diff.x * diff.x + diff.y * diff.y);
-        
-        if (dist < nearestDist) {
-            nearestDist = dist;
-            nearest = entity;
-        }
-    }
-    
-    return nearest;
+    return findNearest(pos, radius, [excludeTeam](const EntityPtr& entity) {
+        return entity->getTeam() != excludeTeam && entity->getTeam() != Team::Neutral;
+    });
 }
 
 EntityPtr Game::findNearestResource(sf::Vector2f pos, float radius) {
-    EntityPtr nearest = nullptr;
-    float nearestDist = radius;
-    
-    for (auto& entity : m_allEntities) {
-        if (!entity || !entity->isAlive()) continue;
-        if (entity->getType() != EntityType::MineralPatch && entity->getType() != EntityType::GasGeyser) continue;
-        
-        sf::Vector2f diff = entity->getPosition() - pos;
-        float dist = std::sqrt(diff.x * diff.x + diff.y * diff.y);
-        
-        if (dist < nearestDist) {
-            nearestDist = dist;
-            nearest = entity;
-        }
-    }
-    
-    return nearest;
+    return findNearest(pos, radius, [](const EntityPtr& entity) {
+        return entity->getType() == EntityType::MineralPatch || 
+               entity->getType() == EntityType::GasGeyser;
+    });
 }
 
 EntityPtr Game::findNearestAvailableResource(sf::Vector2f pos, float radius, EntityPtr exclude) {
-    EntityPtr nearest = nullptr;
-    float nearestDist = radius;
-    
-    for (auto& entity : m_allEntities) {
-        if (!entity || !entity->isAlive()) continue;
-        if (entity->getType() != EntityType::MineralPatch && entity->getType() != EntityType::GasGeyser) continue;
-        if (entity == exclude) continue;  // Skip the excluded resource
+    return findNearest(pos, radius, [exclude](const EntityPtr& entity) {
+        if (entity->getType() != EntityType::MineralPatch && 
+            entity->getType() != EntityType::GasGeyser) return false;
+        if (entity == exclude) return false;
         
         // Check if this resource is being actively mined
         if (auto* resourceNode = dynamic_cast<ResourceNode*>(entity.get())) {
-            if (resourceNode->isBeingMined()) continue;
+            if (resourceNode->isBeingMined()) return false;
         }
-        
-        sf::Vector2f diff = entity->getPosition() - pos;
-        float dist = std::sqrt(diff.x * diff.x + diff.y * diff.y);
-        
-        if (dist < nearestDist) {
-            nearestDist = dist;
-            nearest = entity;
-        }
-    }
-    
-    return nearest;
+        return true;
+    });
 }
 
 void Game::setupUnit(UnitPtr& unit) {
@@ -316,8 +278,7 @@ bool Game::checkPositionBlocked(sf::Vector2f pos, float radius, Entity* excludeS
             if (!unit->isCollidable()) continue;
             
             float otherRadius = unit->getCollisionRadius();
-            sf::Vector2f diff = entity->getPosition() - pos;
-            float dist = std::sqrt(diff.x * diff.x + diff.y * diff.y);
+            float dist = MathUtil::distance(entity->getPosition(), pos);
             float minDist = radius + otherRadius;
             
             if (dist < minDist) {

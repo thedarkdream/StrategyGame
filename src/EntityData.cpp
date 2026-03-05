@@ -74,6 +74,11 @@ const BuildingDef* EntityRegistry::getBuildingDef(EntityType type) const {
     return (def && def->building) ? &def->building.value() : nullptr;
 }
 
+float EntityRegistry::getTrainingTime(EntityType type) const {
+    auto* unitDef = getUnitDef(type);
+    return unitDef ? unitDef->trainingTime : 5.0f;
+}
+
 void EntityRegistry::initializeDefaults() {
     // ==================== UNITS ====================
     
@@ -94,6 +99,7 @@ void EntityRegistry::initializeDefaults() {
         unit.attackRange = 30.0f;
         unit.attackCooldown = 1.5f;
         unit.autoAttackRangeBonus = 0.0f;
+        unit.trainingTime = 3.0f;
         unit.canGather = true;
         unit.canBuild = true;
         unit.isCombatUnit = false;
@@ -127,6 +133,7 @@ void EntityRegistry::initializeDefaults() {
         unit.attackRange = Constants::SOLDIER_ATTACK_RANGE;
         unit.attackCooldown = Constants::SOLDIER_ATTACK_COOLDOWN;
         unit.autoAttackRangeBonus = 50.0f;
+        unit.trainingTime = 5.0f;
         unit.canGather = false;
         unit.canBuild = false;
         unit.isCombatUnit = true;
@@ -159,6 +166,7 @@ void EntityRegistry::initializeDefaults() {
         unit.attackRange = Constants::BRUTE_ATTACK_RANGE;
         unit.attackCooldown = Constants::BRUTE_ATTACK_COOLDOWN;
         unit.autoAttackRangeBonus = 50.0f;
+        unit.trainingTime = 4.0f;
         unit.canGather = false;
         unit.canBuild = false;
         unit.isCombatUnit = true;

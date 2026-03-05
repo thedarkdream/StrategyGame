@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Entity.h"
-#include <queue>
+#include <deque>
 #include <vector>
 #include <functional>
 
@@ -49,7 +49,7 @@ private:
         float timeRequired;
         float timeElapsed = 0.0f;
     };
-    std::queue<ProductionOrder> m_productionQueue;
+    std::deque<ProductionOrder> m_productionQueue;
     bool m_isProducing = false;
     
     // Rally point for produced units

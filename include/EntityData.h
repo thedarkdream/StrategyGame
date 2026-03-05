@@ -36,6 +36,7 @@ struct UnitDef {
     float attackRange = 0.0f;
     float attackCooldown = 0.0f;
     float autoAttackRangeBonus = 0.0f;  // Extra range for auto-attack detection
+    float trainingTime = 5.0f;          // Time to train in seconds
     bool canGather = false;
     bool canBuild = false;
     bool isCombatUnit = false;          // Has auto-attack behavior
@@ -99,6 +100,7 @@ public:
     
     // Unit-specific
     const UnitDef* getUnitDef(EntityType type) const;
+    float getTrainingTime(EntityType type) const;
     
     // Building-specific  
     const BuildingDef* getBuildingDef(EntityType type) const;

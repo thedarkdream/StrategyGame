@@ -48,6 +48,7 @@ set(HEADERS
     include/Types.h
     include/EntityData.h
     include/ActionBar.h
+    include/MathUtil.h
 )
 
 # Create executable
