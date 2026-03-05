@@ -26,6 +26,9 @@ set(SOURCES
     src/ResourceManager.cpp
     src/AIController.cpp
     src/ActionBar.cpp
+    src/TextureManager.cpp
+    src/Animation.cpp
+    src/AnimatedSprite.cpp
 )
 
 # Header files
@@ -49,6 +52,9 @@ set(HEADERS
     include/EntityData.h
     include/ActionBar.h
     include/MathUtil.h
+    include/TextureManager.h
+    include/Animation.h
+    include/AnimatedSprite.h
 )
 
 # Create executable

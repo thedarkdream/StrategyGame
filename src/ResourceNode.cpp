@@ -29,6 +29,16 @@ ResourceNode::ResourceNode(EntityType type, sf::Vector2f position, int resourceA
     m_health = 1;
     
     updateShape();
+    
+    // Load static sprite for this resource type
+    switch (type) {
+        case EntityType::MineralPatch:
+            loadStaticSprite("resources/minerals.png");
+            break;
+        // Add more resource types here when textures are available
+        default:
+            break;
+    }
 }
 
 void ResourceNode::update(float deltaTime) {
@@ -44,7 +54,12 @@ void ResourceNode::update(float deltaTime) {
 }
 
 void ResourceNode::render(sf::RenderTarget& target) {
-    target.draw(m_shape);
+    // Draw sprite if available, otherwise draw shape fallback
+    if (m_hasSprite) {
+        m_animatedSprite.render(target, m_position);
+    } else {
+        target.draw(m_shape);
+    }
     
     // Draw selection indicator if selected
     renderSelectionIndicator(target);

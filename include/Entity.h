@@ -1,7 +1,9 @@
 #pragma once
 
 #include "Types.h"
+#include "AnimatedSprite.h"
 #include <SFML/Graphics.hpp>
+#include <memory>
 
 class Entity : public std::enable_shared_from_this<Entity> {
 public:
@@ -43,7 +45,18 @@ protected:
     sf::RectangleShape m_shape;
     sf::Color m_color;
     
+    // Animation system
+    std::unique_ptr<AnimationSet> m_animationSet;
+    AnimatedSprite m_animatedSprite;
+    bool m_hasSprite = false;
+    
     void updateShape();
     void renderHealthBar(sf::RenderTarget& target);
     void renderSelectionIndicator(sf::RenderTarget& target);
+    
+    // Animation helpers
+    void loadAnimations(const std::string& basePath);  // e.g., "units/worker"
+    void loadStaticSprite(const std::string& texturePath);  // For non-animated sprites
+    void playAnimation(const std::string& animName);
+    void updateSpriteDirection(sf::Vector2f movement);
 };

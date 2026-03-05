@@ -420,6 +420,23 @@ void InputHandler::performBoxSelection() {
     std::vector<EntityPtr> selected = m_game.getEntitiesInRect(
         selectionBox, m_game.getPlayer().getTeam());
     
+    // If we have both units and buildings, prefer units only
+    bool hasUnits = false;
+    for (const auto& entity : selected) {
+        if (dynamic_cast<Unit*>(entity.get())) {
+            hasUnits = true;
+            break;
+        }
+    }
+    
+    if (hasUnits) {
+        // Filter out buildings
+        selected.erase(
+            std::remove_if(selected.begin(), selected.end(),
+                [](const EntityPtr& e) { return dynamic_cast<Building*>(e.get()) != nullptr; }),
+            selected.end());
+    }
+    
     // Box selection only selects own units, clears any inspected enemy
     if (auto prev = m_inspectedEnemy.lock()) {
         prev->setSelected(false);

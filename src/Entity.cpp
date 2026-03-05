@@ -1,5 +1,6 @@
 #include "Entity.h"
 #include "Constants.h"
+#include "TextureManager.h"
 #include <cmath>
 
 Entity::Entity(EntityType type, Team team, sf::Vector2f position)
@@ -87,4 +88,132 @@ void Entity::renderSelectionIndicator(sf::RenderTarget& target) {
     circle.setOutlineThickness(2.0f);
     circle.setOutlineColor(sf::Color::Green);
     target.draw(circle);
+}
+
+void Entity::loadAnimations(const std::string& basePath) {
+    m_animationSet = std::make_unique<AnimationSet>();
+    
+    // Try to load common animation states
+    const std::vector<std::pair<std::string, std::string>> animFiles = {
+        {AnimationState::Idle, basePath + "_idle.png"},
+        {AnimationState::Walk, basePath + "_walk.png"},
+        {AnimationState::Attack, basePath + "_attack.png"},
+        {AnimationState::Gather, basePath + "_gather.png"},
+    };
+    
+    bool hasAnyAnim = false;
+    int frameHeight = 0;  // Will be set from first loaded texture
+    
+    for (const auto& [stateName, filePath] : animFiles) {
+        if (TEXTURES.load(filePath)) {
+            // Get texture to determine frame count
+            sf::Texture* tex = TEXTURES.get(filePath);
+            if (!tex) continue;
+            sf::Vector2u texSize = tex->getSize();
+            
+            // 8-directional sprite sheets: 8 rows (directions), N columns (frames)
+            // Frame height = texture height / 8 directions
+            // Frame width = frame height (assuming square frames)
+            int dirFrameHeight = static_cast<int>(texSize.y) / 8;
+            int frameWidth = dirFrameHeight;  // Square frames
+            int frameCount = static_cast<int>(texSize.x) / frameWidth;
+            
+            if (frameCount > 0 && dirFrameHeight > 0) {
+                Animation anim(stateName);
+                float frameDuration = (stateName == AnimationState::Idle) ? 0.2f : 0.1f;
+                // Load frames from row 0 (East) - direction offset applied at render time
+                anim.addFramesFromStrip(0, 0, frameWidth, dirFrameHeight, frameCount, frameDuration);
+                
+                // Non-looping attack animation
+                if (stateName == AnimationState::Attack) {
+                    anim.setLoops(false);
+                }
+                
+                m_animationSet->addAnimation(anim);
+                
+                // Store frame height for direction row calculation
+                if (!hasAnyAnim) {
+                    frameHeight = dirFrameHeight;
+                }
+                hasAnyAnim = true;
+            }
+        }
+    }
+    
+    if (hasAnyAnim) {
+        // Load idle as the main texture
+        std::string idlePath = basePath + "_idle.png";
+        if (TEXTURES.load(idlePath)) {
+            m_animationSet->setTexture(TEXTURES.get(idlePath));
+            m_animatedSprite.setAnimationSet(m_animationSet.get());
+            m_animatedSprite.setFrameHeight(frameHeight);
+            m_animatedSprite.centerOrigin();
+            m_hasSprite = true;
+            playAnimation(AnimationState::Idle);
+        }
+    }
+}
+
+void Entity::loadStaticSprite(const std::string& texturePath) {
+    // Load a static (non-animated, non-directional) sprite using the animation system
+    sf::Texture* tex = TEXTURES.load(texturePath);
+    if (!tex) return;
+    
+    m_animationSet = std::make_unique<AnimationSet>();
+    m_animationSet->setTexture(tex);
+    
+    // Create a single-frame animation covering the entire texture
+    sf::Vector2u texSize = tex->getSize();
+    Animation staticAnim(AnimationState::Idle, true);
+    staticAnim.addFrame(
+        sf::IntRect(sf::Vector2i(0, 0), sf::Vector2i(static_cast<int>(texSize.x), static_cast<int>(texSize.y))),
+        1.0f  // Duration doesn't matter for single frame
+    );
+    m_animationSet->addAnimation(std::move(staticAnim));
+    
+    m_animatedSprite.setAnimationSet(m_animationSet.get());
+    // frameHeight = 0 means no directional row offset
+    m_animatedSprite.setFrameHeight(0);
+    m_animatedSprite.centerOrigin();
+    m_animatedSprite.play(AnimationState::Idle);
+    
+    // Update entity size to match texture
+    m_size = sf::Vector2f(static_cast<float>(texSize.x), static_cast<float>(texSize.y));
+    
+    m_hasSprite = true;
+}
+
+void Entity::playAnimation(const std::string& animName) {
+    if (!m_hasSprite) return;
+    
+    // Switch texture if needed for this animation
+    std::string texPath;
+    if (animName == AnimationState::Idle) {
+        // Determine base path from entity type
+        if (m_type == EntityType::Worker) texPath = "units/worker_idle.png";
+    } else if (animName == AnimationState::Walk) {
+        if (m_type == EntityType::Worker) texPath = "units/worker_walk.png";
+    } else if (animName == AnimationState::Attack) {
+        if (m_type == EntityType::Worker) texPath = "units/worker_attack.png";
+    }
+    
+    if (!texPath.empty() && TEXTURES.load(texPath)) {
+        sf::Texture* tex = TEXTURES.get(texPath);
+        m_animationSet->setTexture(tex);
+        m_animatedSprite.setAnimationSet(m_animationSet.get());
+        
+        // Recalculate and set frame height for directional offset
+        if (tex) {
+            int frameHeight = static_cast<int>(tex->getSize().y) / 8;
+            m_animatedSprite.setFrameHeight(frameHeight);
+        }
+    }
+    
+    m_animatedSprite.play(animName);
+}
+
+void Entity::updateSpriteDirection(sf::Vector2f movement) {
+    if (std::abs(movement.x) > 0.01f || std::abs(movement.y) > 0.01f) {
+        m_animatedSprite.setDirectionFromMovement(movement);
+    }
 }

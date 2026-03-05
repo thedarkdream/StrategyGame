@@ -3,11 +3,14 @@
 #include "ResourceNode.h"
 #include "EntityData.h"
 #include "Constants.h"
+#include "Animation.h"
 #include <cmath>
 
 Worker::Worker(Team team, sf::Vector2f position)
     : Unit(EntityType::Worker, team, position)
 {
+    // Load worker sprites
+    loadAnimations("units/worker");
 }
 
 bool Worker::isCollidable() const {
@@ -17,8 +20,12 @@ bool Worker::isCollidable() const {
 }
 
 void Worker::render(sf::RenderTarget& target) {
-    // Draw the unit shape
-    target.draw(m_shape);
+    // Draw animated sprite if available, otherwise fallback to shape
+    if (m_hasSprite) {
+        m_animatedSprite.render(target, m_position);
+    } else {
+        target.draw(m_shape);
+    }
     
     // Draw selection indicator
     renderSelectionIndicator(target);

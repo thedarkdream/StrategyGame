@@ -4,6 +4,7 @@
 #include "Constants.h"
 #include "EntityData.h"
 #include "MathUtil.h"
+#include "Animation.h"
 #include <cmath>
 
 Unit::Unit(EntityType type, Team team, sf::Vector2f position)
@@ -37,6 +38,8 @@ void Unit::update(float deltaTime) {
     m_attackTimer -= deltaTime;
     if (m_attackTimer < 0.0f) m_attackTimer = 0.0f;
     
+    UnitState prevState = m_state;
+    
     switch (m_state) {
         case UnitState::Idle:
             updateIdle(deltaTime);
@@ -54,6 +57,32 @@ void Unit::update(float deltaTime) {
             // Custom states (Gathering, Returning, etc.) handled by subclasses
             updateCustomState(deltaTime);
             break;
+    }
+    
+    // Update animations
+    if (m_hasSprite) {
+        m_animatedSprite.update(deltaTime);
+        
+        // Switch animation based on state
+        if (m_state != prevState || m_animatedSprite.isFinished()) {
+            switch (m_state) {
+                case UnitState::Idle:
+                    playAnimation(AnimationState::Idle);
+                    break;
+                case UnitState::Moving:
+                case UnitState::Returning:
+                    playAnimation(AnimationState::Walk);
+                    break;
+                case UnitState::Attacking:
+                    playAnimation(AnimationState::Attack);
+                    break;
+                case UnitState::Gathering:
+                    playAnimation(AnimationState::Gather);
+                    break;
+                default:
+                    break;
+            }
+        }
     }
     
     updateShape();
@@ -199,6 +228,9 @@ void Unit::moveTowardsTarget(float deltaTime) {
     // Normalize direction
     sf::Vector2f diff = m_targetPosition - m_position;
     sf::Vector2f direction = diff / distance;
+    
+    // Update sprite facing direction
+    updateSpriteDirection(direction);
     
     // Calculate desired move
     float moveDistance = m_speed * deltaTime;
