@@ -6,6 +6,7 @@
 #include "InputHandler.h"
 #include "Renderer.h"
 #include "AIController.h"
+#include "ActionBar.h"
 #include <SFML/Graphics.hpp>
 #include <memory>
 #include <vector>
@@ -26,6 +27,7 @@ public:
     Player& getPlayer() { return *m_player; }
     Player& getEnemy() { return *m_enemy; }
     InputHandler& getInput() { return *m_input; }
+    ActionBar& getActionBar() { return m_actionBar; }
     
     // Entity access
     const EntityList& getAllEntities() const { return m_allEntities; }
@@ -61,6 +63,7 @@ private:
     
     // Core components
     Map m_map;
+    ActionBar m_actionBar;
     std::unique_ptr<Player> m_player;
     std::unique_ptr<Player> m_enemy;
     std::unique_ptr<InputHandler> m_input;

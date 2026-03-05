@@ -96,9 +96,4 @@ private:
     // Selection
     void performSelection(sf::Vector2f worldPos);
     void performBoxSelection();
-    
-    // Action bar helpers
-    bool isPositionOnActionBar(sf::Vector2i screenPos) const;
-    int getActionButtonAtPosition(sf::Vector2i screenPos) const;  // Returns -1 if none
-    int getQueueItemAtPosition(sf::Vector2i screenPos) const;     // Returns -1 if none
 };

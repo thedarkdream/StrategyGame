@@ -4,7 +4,7 @@
 #include "Entity.h"
 #include "Unit.h"
 #include "Building.h"
-#include "EntityData.h"
+#include "ActionBar.h"
 #include <cmath>
 #include <algorithm>
 
@@ -447,156 +447,34 @@ void InputHandler::exitTargetingMode() {
     m_targetingAction = TargetingAction::None;
 }
 
-bool InputHandler::isPositionOnActionBar(sf::Vector2i screenPos) const {
-    Player& player = m_game.getPlayer();
-    if (!player.getFirstOwnedSelectedEntity()) return false;
-    
-    // Fixed panel dimensions from Constants
-    float panelX = (Constants::WINDOW_WIDTH - Constants::ACTION_BAR_WIDTH) / 2.0f;
-    float panelY = Constants::WINDOW_HEIGHT - Constants::ACTION_BAR_HEIGHT - 10.0f;
-    
-    return screenPos.x >= panelX && screenPos.x <= panelX + Constants::ACTION_BAR_WIDTH &&
-           screenPos.y >= panelY && screenPos.y <= panelY + Constants::ACTION_BAR_HEIGHT;
-}
-
-int InputHandler::getActionButtonAtPosition(sf::Vector2i screenPos) const {
-    Player& player = m_game.getPlayer();
-    EntityPtr entity = player.getFirstOwnedSelectedEntity();
-    if (!entity) return -1;
-    
-    // Fixed panel dimensions
-    float panelX = (Constants::WINDOW_WIDTH - Constants::ACTION_BAR_WIDTH) / 2.0f;
-    float panelY = Constants::WINDOW_HEIGHT - Constants::ACTION_BAR_HEIGHT - 10.0f;
-    float buttonY = panelY + Constants::ACTION_BAR_PADDING;
-    
-    // Check if within button row
-    if (screenPos.y < buttonY || screenPos.y > buttonY + Constants::ACTION_BAR_BUTTON_SIZE) return -1;
-    
-    // Get action count from registry
-    const auto& actions = ENTITY_DATA.getActions(entity->getType());
-    int actionCount = static_cast<int>(actions.size());
-    if (actionCount == 0) return -1;
-    
-    // Check each button
-    float buttonX = panelX + Constants::ACTION_BAR_PADDING;
-    for (int i = 0; i < actionCount; ++i) {
-        if (screenPos.x >= buttonX && screenPos.x <= buttonX + Constants::ACTION_BAR_BUTTON_SIZE) {
-            return i;
-        }
-        buttonX += Constants::ACTION_BAR_BUTTON_SIZE + Constants::ACTION_BAR_BUTTON_SPACING;
-    }
-    
-    return -1;
-}
-
-int InputHandler::getQueueItemAtPosition(sf::Vector2i screenPos) const {
-    Player& player = m_game.getPlayer();
-    EntityPtr entity = player.getFirstSelectedEntity();
-    if (!entity) return -1;
-    
-    Building* building = dynamic_cast<Building*>(entity.get());
-    if (!building || !building->isProducing()) return -1;
-    
-    std::vector<EntityType> queue = building->getProductionQueue();
-    if (queue.empty()) return -1;
-    
-    // Fixed panel dimensions
-    float panelX = (Constants::WINDOW_WIDTH - Constants::ACTION_BAR_WIDTH) / 2.0f;
-    float panelY = Constants::WINDOW_HEIGHT - Constants::ACTION_BAR_HEIGHT - 10.0f;
-    float buttonY = panelY + Constants::ACTION_BAR_PADDING;
-    
-    // Queue area (below buttons)
-    float queueY = buttonY + Constants::ACTION_BAR_BUTTON_SIZE + 10.0f;
-    float queueX = panelX + Constants::ACTION_BAR_PADDING;
-    
-    const float mainIconSize = 32.0f;
-    const float queuedIconSize = 20.0f;
-    const float iconSpacing = 4.0f;
-    
-    // Check main icon (index 0)
-    if (screenPos.x >= queueX && screenPos.x <= queueX + mainIconSize &&
-        screenPos.y >= queueY && screenPos.y <= queueY + mainIconSize) {
-        return 0;
-    }
-    
-    // Check queued icons (indices 1+)
-    float queuedX = queueX + mainIconSize + iconSpacing * 2;
-    float queuedY = queueY + (mainIconSize - queuedIconSize) / 2.0f;
-    
-    for (size_t i = 1; i < queue.size() && i < 6; ++i) {
-        if (screenPos.x >= queuedX && screenPos.x <= queuedX + queuedIconSize &&
-            screenPos.y >= queuedY && screenPos.y <= queuedY + queuedIconSize) {
-            return static_cast<int>(i);
-        }
-        queuedX += queuedIconSize + iconSpacing;
-    }
-    
-    return -1;
-}
-
 bool InputHandler::handleActionBarClick(sf::Vector2i screenPos) {
-    if (!isPositionOnActionBar(screenPos)) return false;
-    
+    ActionBar& actionBar = m_game.getActionBar();
     Player& player = m_game.getPlayer();
-    EntityPtr entity = player.getFirstOwnedSelectedEntity();
-    if (!entity) return false;
     
-    Building* building = dynamic_cast<Building*>(entity.get());
-    Unit* unit = dynamic_cast<Unit*>(entity.get());
+    ActionBarClickResult result = actionBar.handleClick(screenPos, player);
     
-    // Check if clicking a queue item
-    int queueIndex = getQueueItemAtPosition(screenPos);
-    if (queueIndex >= 0 && building) {
-        building->cancelProductionAtIndex(queueIndex);
-        return true;
-    }
-    
-    // Check if clicking an action button
-    int buttonIndex = getActionButtonAtPosition(screenPos);
-    if (buttonIndex < 0) return true;  // Clicked on panel but not on a button
-    
-    // Get action from registry
-    const auto& actions = ENTITY_DATA.getActions(entity->getType());
-    if (buttonIndex >= static_cast<int>(actions.size())) return true;
-    
-    const ActionDef& action = actions[buttonIndex];
-    
-    switch (action.type) {
-        case ActionDef::Type::TargetMove:
+    switch (result.type) {
+        case ActionBarClickResult::Type::None:
+            return false;  // Not on action bar
+            
+        case ActionBarClickResult::Type::TargetMove:
             enterTargetingMode(TargetingAction::Move);
             break;
             
-        case ActionDef::Type::Instant:
-            // Stop action - apply to all selected units
-            for (auto& e : player.getSelection()) {
-                if (auto* u = dynamic_cast<Unit*>(e.get())) {
-                    u->stop();
-                }
-            }
-            break;
-            
-        case ActionDef::Type::TargetAttack:
+        case ActionBarClickResult::Type::TargetAttack:
             enterTargetingMode(TargetingAction::Attack);
             break;
             
-        case ActionDef::Type::TargetGather:
+        case ActionBarClickResult::Type::TargetGather:
             enterTargetingMode(TargetingAction::Gather);
             break;
             
-        case ActionDef::Type::Train:
-            if (building && action.producesType != EntityType::None) {
-                int mineralCost = ENTITY_DATA.getMineralCost(action.producesType);
-                int gasCost = ENTITY_DATA.getGasCost(action.producesType);
-                if (player.canAfford(mineralCost, gasCost)) {
-                    if (building->trainUnit(action.producesType)) {
-                        player.spendResources(mineralCost, gasCost);
-                    }
-                }
-            }
+        case ActionBarClickResult::Type::TargetBuild:
+            enterBuildMode(result.buildType);
             break;
             
-        case ActionDef::Type::Build:
-            // TODO: Implement building placement mode
+        case ActionBarClickResult::Type::Handled:
+            // Action was executed by ActionBar (Stop, Train, Cancel queue)
             break;
     }
     

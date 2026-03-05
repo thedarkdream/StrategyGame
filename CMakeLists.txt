@@ -24,6 +24,7 @@ set(SOURCES
     src/Renderer.cpp
     src/ResourceManager.cpp
     src/AIController.cpp
+    src/ActionBar.cpp
 )
 
 # Header files
@@ -44,6 +45,7 @@ set(HEADERS
     include/Constants.h
     include/Types.h
     include/EntityData.h
+    include/ActionBar.h
 )
 
 # Create executable

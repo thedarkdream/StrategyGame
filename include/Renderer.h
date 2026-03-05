@@ -30,7 +30,6 @@ private:
     void renderMinimap(Game& game);
     void renderResourceBar(Player& player);
     void renderUnitPanel(Game& game);
-    void renderActionBar(Game& game);
     void renderTargetingModeIndicator(Game& game);
     
     // Helper
