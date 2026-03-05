@@ -94,23 +94,38 @@ void AIController::manageProduction() {
         }
     }
     
-    // Train soldiers
+    // Train soldiers or brutes
     if (barracksCount > 0) {
         auto barracks = findIdleBarracks();
-        if (barracks && m_player.canAfford(Constants::SOLDIER_COST_MINERALS, 0)) {
-            barracks->trainUnit(EntityType::Soldier);
-            m_player.spendResources(Constants::SOLDIER_COST_MINERALS, 0);
+        if (barracks) {
+            // Randomly choose between Soldier and Brute (60% Soldier, 40% Brute)
+            std::uniform_int_distribution<int> dist(1, 10);
+            if (dist(m_rng) <= 6) {
+                // Train Soldier
+                if (m_player.canAfford(Constants::SOLDIER_COST_MINERALS, 0)) {
+                    barracks->trainUnit(EntityType::Soldier);
+                    m_player.spendResources(Constants::SOLDIER_COST_MINERALS, 0);
+                }
+            } else {
+                // Train Brute
+                if (m_player.canAfford(Constants::BRUTE_COST_MINERALS, 0)) {
+                    barracks->trainUnit(EntityType::Brute);
+                    m_player.spendResources(Constants::BRUTE_COST_MINERALS, 0);
+                }
+            }
         }
     }
 }
 
 void AIController::manageArmy() {
     int soldierCount = countUnitsOfType(EntityType::Soldier);
+    int bruteCount = countUnitsOfType(EntityType::Brute);
+    int armySize = soldierCount + bruteCount;
     
-    // Attack when we have enough soldiers
+    // Attack when we have enough combat units
     int attackThreshold = 3 + m_difficulty * 2;
     
-    if (soldierCount >= attackThreshold) {
+    if (armySize >= attackThreshold) {
         attackEnemy();
     }
 }
@@ -120,6 +135,9 @@ void AIController::sendScout() {
 }
 
 void AIController::attackEnemy() {
+    // Need at least one building to determine position
+    if (m_player.getBuildings().empty()) return;
+    
     // Find an enemy target
     EntityPtr target = findNearestEnemy(m_player.getBuildings()[0]->getPosition());
     

@@ -2,9 +2,9 @@
 
 #include "Unit.h"
 
-class Soldier : public Unit {
+class Brute : public Unit {
 public:
-    Soldier(Team team, sf::Vector2f position);
+    Brute(Team team, sf::Vector2f position);
     
 protected:
     void updateIdle(float deltaTime) override;

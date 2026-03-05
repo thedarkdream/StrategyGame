@@ -21,6 +21,9 @@ public:
     virtual void attack(EntityPtr target);
     void stop();
     
+    // Combat - override to auto-retaliate when attacked while idle
+    void takeDamage(int damage, EntityPtr attacker) override;
+    
     // State
     UnitState getState() const { return m_state; }
     bool isIdle() const { return m_state == UnitState::Idle; }
@@ -68,6 +71,8 @@ protected:
     float m_attackRange;
     float m_attackCooldown;
     float m_attackTimer = 0.0f;
+    float m_autoAttackRangeBonus = 0.0f;  // Extra range for auto-attack detection
+    bool m_isCombatUnit = false;          // Has auto-attack behavior
     
     // Movement
     sf::Vector2f m_targetPosition;

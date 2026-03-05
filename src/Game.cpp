@@ -98,6 +98,9 @@ void Game::setupStartingUnits() {
     playerBase->onUnitProduced = [this](EntityType type, sf::Vector2f pos) {
         spawnUnit(type, Team::Player, pos);
     };
+    playerBase->onProductionCancelled = [this](EntityType type) {
+        m_player->addResources(ResourceManager::getMineralCost(type), 0);
+    };
     m_player->addBuilding(playerBase);
     addEntity(playerBase);
     
@@ -105,19 +108,10 @@ void Game::setupStartingUnits() {
     for (int i = 0; i < 4; ++i) {
         sf::Vector2f workerPos = playerStart + sf::Vector2f(60.0f + i * 30.0f, 70.0f);
         auto worker = ResourceManager::createWorker(Team::Player, workerPos);
+        setupUnit(worker);
         if (auto* w = dynamic_cast<Worker*>(worker.get())) {
-            w->setHomeBase(playerBase);
-            w->onResourceDeposit = [this](int amount) {
-                m_player->addResources(amount, 0);
-            };
+            setupWorker(w, playerBase, Team::Player);
         }
-        worker->setMap(&m_map);
-        worker->findNearestEnemy = [this](sf::Vector2f pos, float radius, Team excludeTeam) {
-            return this->findNearestEnemy(pos, radius, excludeTeam);
-        };
-        worker->checkPositionBlocked = [this](sf::Vector2f pos, float radius, Entity* excludeSelf) {
-            return this->checkPositionBlocked(pos, radius, excludeSelf);
-        };
         m_player->addUnit(worker);
         addEntity(worker);
     }
@@ -127,6 +121,9 @@ void Game::setupStartingUnits() {
     enemyBase->onUnitProduced = [this](EntityType type, sf::Vector2f pos) {
         spawnUnit(type, Team::Enemy, pos);
     };
+    enemyBase->onProductionCancelled = [this](EntityType type) {
+        m_enemy->addResources(ResourceManager::getMineralCost(type), 0);
+    };
     m_enemy->addBuilding(enemyBase);
     addEntity(enemyBase);
     
@@ -134,19 +131,10 @@ void Game::setupStartingUnits() {
     for (int i = 0; i < 4; ++i) {
         sf::Vector2f workerPos = enemyStart + sf::Vector2f(-60.0f - i * 30.0f, -70.0f);
         auto worker = ResourceManager::createWorker(Team::Enemy, workerPos);
+        setupUnit(worker);
         if (auto* w = dynamic_cast<Worker*>(worker.get())) {
-            w->setHomeBase(enemyBase);
-            w->onResourceDeposit = [this](int amount) {
-                m_enemy->addResources(amount, 0);
-            };
+            setupWorker(w, enemyBase, Team::Enemy);
         }
-        worker->setMap(&m_map);
-        worker->findNearestEnemy = [this](sf::Vector2f pos, float radius, Team excludeTeam) {
-            return this->findNearestEnemy(pos, radius, excludeTeam);
-        };
-        worker->checkPositionBlocked = [this](sf::Vector2f pos, float radius, Entity* excludeSelf) {
-            return this->checkPositionBlocked(pos, radius, excludeSelf);
-        };
         m_enemy->addUnit(worker);
         addEntity(worker);
     }
@@ -240,6 +228,52 @@ EntityPtr Game::findNearestEnemy(sf::Vector2f pos, float radius, Team excludeTea
     }
     
     return nearest;
+}
+
+EntityPtr Game::findNearestResource(sf::Vector2f pos, float radius) {
+    EntityPtr nearest = nullptr;
+    float nearestDist = radius;
+    
+    for (auto& entity : m_allEntities) {
+        if (!entity || !entity->isAlive()) continue;
+        if (entity->getType() != EntityType::MineralPatch && entity->getType() != EntityType::GasGeyser) continue;
+        
+        sf::Vector2f diff = entity->getPosition() - pos;
+        float dist = std::sqrt(diff.x * diff.x + diff.y * diff.y);
+        
+        if (dist < nearestDist) {
+            nearestDist = dist;
+            nearest = entity;
+        }
+    }
+    
+    return nearest;
+}
+
+void Game::setupUnit(UnitPtr& unit) {
+    unit->setMap(&m_map);
+    unit->findNearestEnemy = [this](sf::Vector2f pos, float radius, Team excludeTeam) {
+        return this->findNearestEnemy(pos, radius, excludeTeam);
+    };
+    unit->checkPositionBlocked = [this](sf::Vector2f pos, float radius, Entity* excludeSelf) {
+        return this->checkPositionBlocked(pos, radius, excludeSelf);
+    };
+}
+
+void Game::setupWorker(Worker* worker, EntityPtr homeBase, Team team) {
+    worker->setHomeBase(homeBase);
+    worker->findNearestResource = [this](sf::Vector2f pos, float radius) {
+        return this->findNearestResource(pos, radius);
+    };
+    if (team == Team::Player) {
+        worker->onResourceDeposit = [this](int amount) {
+            m_player->addResources(amount, 0);
+        };
+    } else {
+        worker->onResourceDeposit = [this](int amount) {
+            m_enemy->addResources(amount, 0);
+        };
+    }
 }
 
 bool Game::checkPositionBlocked(sf::Vector2f pos, float radius, Entity* excludeSelf) {
@@ -336,22 +370,15 @@ void Game::spawnUnit(EntityType type, Team team, sf::Vector2f position) {
         case EntityType::Soldier:
             unit = ResourceManager::createSoldier(team, spawnPos);
             break;
+        case EntityType::Brute:
+            unit = ResourceManager::createBrute(team, spawnPos);
+            break;
         default:
             return;
     }
     
     if (unit) {
-        unit->setMap(&m_map);
-        
-        // Set up enemy finder callback for auto-attack
-        unit->findNearestEnemy = [this](sf::Vector2f pos, float radius, Team excludeTeam) {
-            return this->findNearestEnemy(pos, radius, excludeTeam);
-        };
-        
-        // Set up collision checking callback
-        unit->checkPositionBlocked = [this](sf::Vector2f pos, float radius, Entity* excludeSelf) {
-            return this->checkPositionBlocked(pos, radius, excludeSelf);
-        };
+        setupUnit(unit);
         
         // Set home base for workers
         if (type == EntityType::Worker) {
@@ -359,16 +386,7 @@ void Game::spawnUnit(EntityType type, Team team, sf::Vector2f position) {
             for (auto& building : player.getBuildings()) {
                 if (building->getType() == EntityType::Base) {
                     if (auto* w = dynamic_cast<Worker*>(unit.get())) {
-                        w->setHomeBase(building);
-                        if (team == Team::Player) {
-                            w->onResourceDeposit = [this](int amount) {
-                                m_player->addResources(amount, 0);
-                            };
-                        } else {
-                            w->onResourceDeposit = [this](int amount) {
-                                m_enemy->addResources(amount, 0);
-                            };
-                        }
+                        setupWorker(w, building, team);
                     }
                     break;
                 }
@@ -405,6 +423,10 @@ void Game::spawnBuilding(EntityType type, Team team, sf::Vector2f position) {
     if (building) {
         building->onUnitProduced = [this, team](EntityType unitType, sf::Vector2f pos) {
             spawnUnit(unitType, team, pos);
+        };
+        building->onProductionCancelled = [this, team](EntityType unitType) {
+            Player& player = (team == Team::Player) ? *m_player : *m_enemy;
+            player.addResources(ResourceManager::getMineralCost(unitType), 0);
         };
         
         // Place on map

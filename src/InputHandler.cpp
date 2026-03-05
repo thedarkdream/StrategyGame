@@ -4,6 +4,7 @@
 #include "Entity.h"
 #include "Unit.h"
 #include "Building.h"
+#include "EntityData.h"
 #include <cmath>
 #include <algorithm>
 
@@ -154,10 +155,42 @@ void InputHandler::handleMousePress(sf::Vector2i position, sf::Mouse::Button but
         return;
     }
     
+    // Check if clicking on action bar (left-click only)
+    if (button == sf::Mouse::Button::Left && handleActionBarClick(position)) {
+        return;  // Action bar handled the click
+    }
+    
     sf::Vector2f worldPos = screenToWorld(position);
     
     if (button == sf::Mouse::Button::Left) {
-        if (m_buildMode) {
+        if (m_targetingMode) {
+            // Execute the targeted action
+            Player& player = m_game.getPlayer();
+            EntityPtr target = m_game.getEntityAtPosition(worldPos);
+            
+            switch (m_targetingAction) {
+                case TargetingAction::Move:
+                    m_game.issueMoveCommand(worldPos);
+                    break;
+                case TargetingAction::Attack:
+                    if (target && target->getTeam() != player.getTeam()) {
+                        m_game.issueAttackCommand(target);
+                    } else {
+                        // Attack-move to location
+                        m_game.issueMoveCommand(worldPos);
+                    }
+                    break;
+                case TargetingAction::Gather:
+                    if (target && (target->getType() == EntityType::MineralPatch || 
+                                   target->getType() == EntityType::GasGeyser)) {
+                        m_game.issueGatherCommand(target);
+                    }
+                    break;
+                default:
+                    break;
+            }
+            exitTargetingMode();
+        } else if (m_buildMode) {
             // Place building
             m_game.issueBuildCommand(m_buildingToBuild, worldPos);
             exitBuildMode();
@@ -168,7 +201,10 @@ void InputHandler::handleMousePress(sf::Vector2i position, sf::Mouse::Button but
             m_selectionEnd = worldPos;
         }
     } else if (button == sf::Mouse::Button::Right) {
-        if (m_buildMode) {
+        if (m_targetingMode) {
+            // Cancel targeting mode
+            exitTargetingMode();
+        } else if (m_buildMode) {
             exitBuildMode();
         } else {
             // Issue command to selected units
@@ -254,10 +290,25 @@ void InputHandler::handleKeyPress(sf::Keyboard::Key code) {
     
     switch (code) {
         case sf::Keyboard::Key::Escape:
-            if (m_buildMode) {
+            if (m_targetingMode) {
+                exitTargetingMode();
+            } else if (m_buildMode) {
                 exitBuildMode();
             } else {
-                player.clearSelection();
+                // Check if selected building is producing - cancel production
+                bool cancelledProduction = false;
+                for (auto& entity : player.getSelection()) {
+                    if (auto* building = dynamic_cast<Building*>(entity.get())) {
+                        if (building->isProducing()) {
+                            building->cancelProduction();
+                            cancelledProduction = true;
+                            break;
+                        }
+                    }
+                }
+                if (!cancelledProduction) {
+                    player.clearSelection();
+                }
             }
             break;
             
@@ -307,6 +358,24 @@ void InputHandler::handleKeyPress(sf::Keyboard::Key code) {
                 }
             }
             break;
+        
+        case sf::Keyboard::Key::Y:
+            // Train Brute from Barracks
+            if (player.hasSelection()) {
+                auto& selection = player.getSelection();
+                for (auto& entity : selection) {
+                    if (auto* building = dynamic_cast<Building*>(entity.get())) {
+                        if (building->getType() == EntityType::Barracks) {
+                            if (player.canAfford(Constants::BRUTE_COST_MINERALS, 0)) {
+                                if (building->trainUnit(EntityType::Brute)) {
+                                    player.spendResources(Constants::BRUTE_COST_MINERALS, 0);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            break;
             
         default:
             break;
@@ -331,16 +400,12 @@ void InputHandler::performSelection(sf::Vector2f worldPos) {
             // Select own unit/building
             clearInspected();
             player.selectEntity(entity);
-        } else if (entity->getTeam() != Team::Neutral) {
-            // Inspect enemy unit/building (view stats only)
+        } else {
+            // Inspect enemy or neutral entity (view stats only)
             player.clearSelection();
             clearInspected();
             m_inspectedEnemy = entity;
             entity->setSelected(true);
-        } else {
-            // Clicked on neutral entity (resources) - clear all
-            player.clearSelection();
-            clearInspected();
         }
     } else {
         // Clicked empty space
@@ -370,4 +435,185 @@ sf::FloatRect InputHandler::getSelectionBox() const {
     float height = std::abs(m_selectionEnd.y - m_selectionStart.y);
     
     return sf::FloatRect(sf::Vector2f(left, top), sf::Vector2f(width, height));
+}
+
+void InputHandler::enterTargetingMode(TargetingAction action) {
+    m_targetingMode = true;
+    m_targetingAction = action;
+}
+
+void InputHandler::exitTargetingMode() {
+    m_targetingMode = false;
+    m_targetingAction = TargetingAction::None;
+}
+
+bool InputHandler::isPositionOnActionBar(sf::Vector2i screenPos) const {
+    Player& player = m_game.getPlayer();
+    if (!player.hasSelection()) return false;
+    
+    const auto& selection = player.getSelection();
+    if (selection.empty()) return false;
+    
+    EntityPtr entity = selection[0];
+    if (!entity || entity->getTeam() != Team::Player) return false;
+    
+    // Fixed panel dimensions from Constants
+    float panelX = (Constants::WINDOW_WIDTH - Constants::ACTION_BAR_WIDTH) / 2.0f;
+    float panelY = Constants::WINDOW_HEIGHT - Constants::ACTION_BAR_HEIGHT - 10.0f;
+    
+    return screenPos.x >= panelX && screenPos.x <= panelX + Constants::ACTION_BAR_WIDTH &&
+           screenPos.y >= panelY && screenPos.y <= panelY + Constants::ACTION_BAR_HEIGHT;
+}
+
+int InputHandler::getActionButtonAtPosition(sf::Vector2i screenPos) const {
+    Player& player = m_game.getPlayer();
+    if (!player.hasSelection()) return -1;
+    
+    const auto& selection = player.getSelection();
+    if (selection.empty()) return -1;
+    
+    EntityPtr entity = selection[0];
+    if (!entity || entity->getTeam() != Team::Player) return -1;
+    
+    // Fixed panel dimensions
+    float panelX = (Constants::WINDOW_WIDTH - Constants::ACTION_BAR_WIDTH) / 2.0f;
+    float panelY = Constants::WINDOW_HEIGHT - Constants::ACTION_BAR_HEIGHT - 10.0f;
+    float buttonY = panelY + Constants::ACTION_BAR_PADDING;
+    
+    // Check if within button row
+    if (screenPos.y < buttonY || screenPos.y > buttonY + Constants::ACTION_BAR_BUTTON_SIZE) return -1;
+    
+    // Get action count from registry
+    const auto& actions = ENTITY_DATA.getActions(entity->getType());
+    int actionCount = static_cast<int>(actions.size());
+    if (actionCount == 0) return -1;
+    
+    // Check each button
+    float buttonX = panelX + Constants::ACTION_BAR_PADDING;
+    for (int i = 0; i < actionCount; ++i) {
+        if (screenPos.x >= buttonX && screenPos.x <= buttonX + Constants::ACTION_BAR_BUTTON_SIZE) {
+            return i;
+        }
+        buttonX += Constants::ACTION_BAR_BUTTON_SIZE + Constants::ACTION_BAR_BUTTON_SPACING;
+    }
+    
+    return -1;
+}
+
+int InputHandler::getQueueItemAtPosition(sf::Vector2i screenPos) const {
+    Player& player = m_game.getPlayer();
+    if (!player.hasSelection()) return -1;
+    
+    const auto& selection = player.getSelection();
+    if (selection.empty()) return -1;
+    
+    EntityPtr entity = selection[0];
+    Building* building = dynamic_cast<Building*>(entity.get());
+    if (!building || !building->isProducing()) return -1;
+    
+    std::vector<EntityType> queue = building->getProductionQueue();
+    if (queue.empty()) return -1;
+    
+    // Fixed panel dimensions
+    float panelX = (Constants::WINDOW_WIDTH - Constants::ACTION_BAR_WIDTH) / 2.0f;
+    float panelY = Constants::WINDOW_HEIGHT - Constants::ACTION_BAR_HEIGHT - 10.0f;
+    float buttonY = panelY + Constants::ACTION_BAR_PADDING;
+    
+    // Queue area (below buttons)
+    float queueY = buttonY + Constants::ACTION_BAR_BUTTON_SIZE + 10.0f;
+    float queueX = panelX + Constants::ACTION_BAR_PADDING;
+    
+    const float mainIconSize = 32.0f;
+    const float queuedIconSize = 20.0f;
+    const float iconSpacing = 4.0f;
+    
+    // Check main icon (index 0)
+    if (screenPos.x >= queueX && screenPos.x <= queueX + mainIconSize &&
+        screenPos.y >= queueY && screenPos.y <= queueY + mainIconSize) {
+        return 0;
+    }
+    
+    // Check queued icons (indices 1+)
+    float queuedX = queueX + mainIconSize + iconSpacing * 2;
+    float queuedY = queueY + (mainIconSize - queuedIconSize) / 2.0f;
+    
+    for (size_t i = 1; i < queue.size() && i < 6; ++i) {
+        if (screenPos.x >= queuedX && screenPos.x <= queuedX + queuedIconSize &&
+            screenPos.y >= queuedY && screenPos.y <= queuedY + queuedIconSize) {
+            return static_cast<int>(i);
+        }
+        queuedX += queuedIconSize + iconSpacing;
+    }
+    
+    return -1;
+}
+
+bool InputHandler::handleActionBarClick(sf::Vector2i screenPos) {
+    if (!isPositionOnActionBar(screenPos)) return false;
+    
+    Player& player = m_game.getPlayer();
+    const auto& selection = player.getSelection();
+    if (selection.empty()) return false;
+    
+    EntityPtr entity = selection[0];
+    Building* building = dynamic_cast<Building*>(entity.get());
+    Unit* unit = dynamic_cast<Unit*>(entity.get());
+    
+    // Check if clicking a queue item
+    int queueIndex = getQueueItemAtPosition(screenPos);
+    if (queueIndex >= 0 && building) {
+        building->cancelProductionAtIndex(queueIndex);
+        return true;
+    }
+    
+    // Check if clicking an action button
+    int buttonIndex = getActionButtonAtPosition(screenPos);
+    if (buttonIndex < 0) return true;  // Clicked on panel but not on a button
+    
+    // Get action from registry
+    const auto& actions = ENTITY_DATA.getActions(entity->getType());
+    if (buttonIndex >= static_cast<int>(actions.size())) return true;
+    
+    const ActionDef& action = actions[buttonIndex];
+    
+    switch (action.type) {
+        case ActionDef::Type::TargetMove:
+            enterTargetingMode(TargetingAction::Move);
+            break;
+            
+        case ActionDef::Type::Instant:
+            // Stop action - apply to all selected units
+            for (auto& e : selection) {
+                if (auto* u = dynamic_cast<Unit*>(e.get())) {
+                    u->stop();
+                }
+            }
+            break;
+            
+        case ActionDef::Type::TargetAttack:
+            enterTargetingMode(TargetingAction::Attack);
+            break;
+            
+        case ActionDef::Type::TargetGather:
+            enterTargetingMode(TargetingAction::Gather);
+            break;
+            
+        case ActionDef::Type::Train:
+            if (building && action.producesType != EntityType::None) {
+                int mineralCost = ENTITY_DATA.getMineralCost(action.producesType);
+                int gasCost = ENTITY_DATA.getGasCost(action.producesType);
+                if (player.canAfford(mineralCost, gasCost)) {
+                    if (building->trainUnit(action.producesType)) {
+                        player.spendResources(mineralCost, gasCost);
+                    }
+                }
+            }
+            break;
+            
+        case ActionDef::Type::Build:
+            // TODO: Implement building placement mode
+            break;
+    }
+    
+    return true;
 }

@@ -83,6 +83,18 @@ void Unit::stop() {
     m_path.clear();
 }
 
+void Unit::takeDamage(int damage, EntityPtr attacker) {
+    // Apply the damage first
+    Entity::takeDamage(damage);
+    
+    // Auto-retaliate if idle and not a worker
+    if (m_state == UnitState::Idle && m_type != EntityType::Worker) {
+        if (attacker && attacker->isAlive() && attacker->getTeam() != m_team) {
+            attack(attacker);
+        }
+    }
+}
+
 void Unit::updateIdle(float deltaTime) {
     // Base implementation does nothing
 }
@@ -119,7 +131,7 @@ void Unit::updateCombat(float deltaTime) {
     } else {
         // In range - attack if cooldown ready
         if (m_attackTimer <= 0.0f) {
-            target->takeDamage(m_damage);
+            target->takeDamage(m_damage, shared_from_this());
             m_attackTimer = m_attackCooldown;
         }
     }

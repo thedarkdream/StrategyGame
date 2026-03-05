@@ -2,6 +2,7 @@
 
 #include "Entity.h"
 #include <queue>
+#include <vector>
 #include <functional>
 
 class Building : public Entity {
@@ -16,7 +17,11 @@ public:
     bool trainUnit(EntityType unitType);
     bool isProducing() const { return m_isProducing; }
     float getProductionProgress() const;
-    void cancelProduction();
+    void cancelProduction();                   // Cancel front of queue
+    void cancelProductionAtIndex(int index);   // Cancel specific queue item
+    EntityType getCurrentProductionType() const;
+    int getQueueSize() const { return static_cast<int>(m_productionQueue.size()); }
+    std::vector<EntityType> getProductionQueue() const;
     
     // Building state
     bool isConstructed() const { return m_constructionProgress >= 1.0f; }
@@ -34,6 +39,9 @@ public:
     
     // Callback when unit is produced
     std::function<void(EntityType, sf::Vector2f)> onUnitProduced;
+    
+    // Callback when production is cancelled (for refunding resources)
+    std::function<void(EntityType)> onProductionCancelled;
     
 private:
     // Construction

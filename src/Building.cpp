@@ -110,7 +110,7 @@ bool Building::canTrain(EntityType unitType) const {
             return unitType == EntityType::Worker;
             
         case EntityType::Barracks:
-            return unitType == EntityType::Soldier;
+            return unitType == EntityType::Soldier || unitType == EntityType::Brute;
             
         default:
             return false;
@@ -138,11 +138,71 @@ float Building::getProductionProgress() const {
     return current.timeElapsed / current.timeRequired;
 }
 
+EntityType Building::getCurrentProductionType() const {
+    if (m_productionQueue.empty()) return EntityType::Worker;  // Default fallback
+    return m_productionQueue.front().unitType;
+}
+
 void Building::cancelProduction() {
     if (!m_productionQueue.empty()) {
+        EntityType cancelledType = m_productionQueue.front().unitType;
         m_productionQueue.pop();
         m_isProducing = !m_productionQueue.empty();
+        
+        // Refund resources via callback
+        if (onProductionCancelled) {
+            onProductionCancelled(cancelledType);
+        }
     }
+}
+
+void Building::cancelProductionAtIndex(int index) {
+    if (index < 0 || index >= static_cast<int>(m_productionQueue.size())) {
+        return;
+    }
+    
+    // For index 0, use the normal cancel
+    if (index == 0) {
+        cancelProduction();
+        return;
+    }
+    
+    // Rebuild queue without the item at index
+    std::queue<ProductionOrder> newQueue;
+    int currentIndex = 0;
+    EntityType cancelledType = EntityType::None;
+    
+    while (!m_productionQueue.empty()) {
+        ProductionOrder order = m_productionQueue.front();
+        m_productionQueue.pop();
+        
+        if (currentIndex == index) {
+            // Skip this item (cancel it)
+            cancelledType = order.unitType;
+        } else {
+            newQueue.push(order);
+        }
+        currentIndex++;
+    }
+    
+    m_productionQueue = newQueue;
+    m_isProducing = !m_productionQueue.empty();
+    
+    // Refund resources via callback
+    if (onProductionCancelled && cancelledType != EntityType::None) {
+        onProductionCancelled(cancelledType);
+    }
+}
+
+std::vector<EntityType> Building::getProductionQueue() const {
+    std::vector<EntityType> result;
+    // Copy queue to iterate (can't iterate std::queue directly)
+    std::queue<ProductionOrder> tempQueue = m_productionQueue;
+    while (!tempQueue.empty()) {
+        result.push_back(tempQueue.front().unitType);
+        tempQueue.pop();
+    }
+    return result;
 }
 
 void Building::addConstructionProgress(float amount) {
@@ -158,10 +218,20 @@ bool Building::isResourceBuilding() const {
 }
 
 int Building::harvestResource() {
-    if (m_resourceAmount <= 0) return 0;
+    if (m_resourceAmount <= 0) {
+        // Resource exhausted - mark as dead so it gets cleaned up
+        m_health = 0;
+        return 0;
+    }
     
     int harvested = std::min(m_resourceAmount, Constants::MINERALS_PER_TRIP);
     m_resourceAmount -= harvested;
+    
+    // If now exhausted, mark as dead
+    if (m_resourceAmount <= 0) {
+        m_health = 0;
+    }
+    
     return harvested;
 }
 
@@ -191,6 +261,8 @@ float Building::getTrainingTime(EntityType unitType) const {
             return 3.0f;
         case EntityType::Soldier:
             return 5.0f;
+        case EntityType::Brute:
+            return 4.0f;  // Slightly faster than Soldier
         default:
             return 5.0f;
     }

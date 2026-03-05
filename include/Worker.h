@@ -23,6 +23,9 @@ public:
     // Callback when resources are deposited (int = amount deposited)
     std::function<void(int)> onResourceDeposit;
     
+    // Callback to find nearest mineral patch
+    std::function<EntityPtr(sf::Vector2f pos, float radius)> findNearestResource;
+    
 protected:
     void updateCustomState(float deltaTime) override;
     

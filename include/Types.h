@@ -29,6 +29,7 @@ enum class EntityType {
     // Units
     Worker,
     Soldier,
+    Brute,  // Melee soldier
     // Buildings
     Base,
     Barracks,

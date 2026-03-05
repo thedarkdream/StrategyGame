@@ -1,16 +1,17 @@
 #include "Worker.h"
 #include "Building.h"
+#include "EntityData.h"
 #include "Constants.h"
 #include <cmath>
 
 Worker::Worker(Team team, sf::Vector2f position)
     : Unit(EntityType::Worker, team, position,
-           Constants::WORKER_SPEED,      // speed
-           5,                            // damage
-           30.0f,                        // attack range
-           1.5f,                         // attack cooldown
-           sf::Vector2f(20.0f, 20.0f),   // size
-           Constants::WORKER_HEALTH)     // health
+           ENTITY_DATA.getUnitDef(EntityType::Worker)->speed,
+           ENTITY_DATA.getUnitDef(EntityType::Worker)->damage,
+           ENTITY_DATA.getUnitDef(EntityType::Worker)->attackRange,
+           ENTITY_DATA.getUnitDef(EntityType::Worker)->attackCooldown,
+           ENTITY_DATA.getSize(EntityType::Worker),
+           ENTITY_DATA.getHealth(EntityType::Worker))
 {
 }
 
@@ -78,7 +79,16 @@ void Worker::updateCustomState(float deltaTime) {
 
 void Worker::updateGathering(float deltaTime) {
     auto resource = m_resourceTarget.lock();
-    if (!resource) {
+    if (!resource || !resource->isAlive()) {
+        // Resource gone or exhausted - try to find a nearby replacement
+        m_resourceTarget.reset();
+        if (findNearestResource) {
+            EntityPtr newResource = findNearestResource(m_position, 200.0f);
+            if (newResource) {
+                gather(newResource);
+                return;
+            }
+        }
         m_state = UnitState::Idle;
         return;
     }
@@ -99,6 +109,15 @@ void Worker::updateGathering(float deltaTime) {
             if (m_carriedResources > 0) {
                 returnResources();
             } else {
+                // Resource depleted - try to find a nearby replacement
+                m_resourceTarget.reset();
+                if (findNearestResource) {
+                    EntityPtr newResource = findNearestResource(m_position, 200.0f);
+                    if (newResource) {
+                        gather(newResource);
+                        return;
+                    }
+                }
                 m_state = UnitState::Idle;
             }
         }
@@ -107,7 +126,13 @@ void Worker::updateGathering(float deltaTime) {
 
 void Worker::updateReturning(float deltaTime) {
     auto base = m_homeBase.lock();
-    if (!base) {
+    if (!base || !base->isAlive()) {
+        // Base destroyed - try to find another base
+        m_homeBase.reset();
+        
+        // Search for a new base using the map callback (would need to be added)
+        // For now, just drop resources and go idle
+        m_carriedResources = 0;
         m_state = UnitState::Idle;
         return;
     }
@@ -124,9 +149,19 @@ void Worker::updateReturning(float deltaTime) {
         m_carriedResources = 0;
         
         // Resume gathering
-        if (auto resource = m_resourceTarget.lock()) {
+        auto resource = m_resourceTarget.lock();
+        if (resource && resource->isAlive()) {
             gather(resource);
         } else {
+            // Original resource gone - try to find a nearby replacement
+            m_resourceTarget.reset();
+            if (findNearestResource) {
+                EntityPtr newResource = findNearestResource(m_position, 200.0f);
+                if (newResource) {
+                    gather(newResource);
+                    return;
+                }
+            }
             m_state = UnitState::Idle;
         }
     }

@@ -13,9 +13,11 @@ set(SOURCES
     src/Game.cpp
     src/Map.cpp
     src/Entity.cpp
+    src/EntityData.cpp
     src/Unit.cpp
     src/Worker.cpp
     src/Soldier.cpp
+    src/Brute.cpp
     src/Building.cpp
     src/Player.cpp
     src/InputHandler.cpp
@@ -32,6 +34,7 @@ set(HEADERS
     include/Unit.h
     include/Worker.h
     include/Soldier.h
+    include/Brute.h
     include/Building.h
     include/Player.h
     include/InputHandler.h
@@ -40,6 +43,7 @@ set(HEADERS
     include/AIController.h
     include/Constants.h
     include/Types.h
+    include/EntityData.h
 )
 
 # Create executable

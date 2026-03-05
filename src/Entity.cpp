@@ -40,6 +40,11 @@ void Entity::takeDamage(int damage) {
     }
 }
 
+void Entity::takeDamage(int damage, EntityPtr attacker) {
+    // Base implementation just applies damage
+    takeDamage(damage);
+}
+
 void Entity::updateShape() {
     m_shape.setSize(m_size);
     m_shape.setOrigin(sf::Vector2f(m_size.x / 2.0f, m_size.y / 2.0f));

@@ -8,6 +8,14 @@
 class Game;
 class Entity;
 
+// Action type for targeting mode
+enum class TargetingAction {
+    None,
+    Move,
+    Attack,
+    Gather
+};
+
 class InputHandler {
 public:
     InputHandler(sf::RenderWindow& window, Game& game);
@@ -31,6 +39,15 @@ public:
     EntityPtr getInspectedEnemy() const { return m_inspectedEnemy.lock(); }
     void clearInspectedEnemy() { m_inspectedEnemy.reset(); }
     
+    // Targeting mode (for action bar commands)
+    void enterTargetingMode(TargetingAction action);
+    void exitTargetingMode();
+    bool isInTargetingMode() const { return m_targetingMode; }
+    TargetingAction getTargetingAction() const { return m_targetingAction; }
+    
+    // Action bar click handling
+    bool handleActionBarClick(sf::Vector2i screenPos);
+    
     // Selection box
     bool isSelecting() const { return m_isSelecting; }
     sf::FloatRect getSelectionBox() const;
@@ -52,6 +69,10 @@ private:
     bool m_buildMode = false;
     EntityType m_buildingToBuild = EntityType::None;
     sf::Vector2f m_buildPreviewPos;
+    
+    // Targeting mode (for action bar commands)
+    bool m_targetingMode = false;
+    TargetingAction m_targetingAction = TargetingAction::None;
     
     // Enemy inspection (view stats without selecting)
     std::weak_ptr<Entity> m_inspectedEnemy;
@@ -75,4 +96,9 @@ private:
     // Selection
     void performSelection(sf::Vector2f worldPos);
     void performBoxSelection();
+    
+    // Action bar helpers
+    bool isPositionOnActionBar(sf::Vector2i screenPos) const;
+    int getActionButtonAtPosition(sf::Vector2i screenPos) const;  // Returns -1 if none
+    int getQueueItemAtPosition(sf::Vector2i screenPos) const;     // Returns -1 if none
 };

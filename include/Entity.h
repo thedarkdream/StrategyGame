@@ -28,6 +28,7 @@ public:
     
     // Combat
     virtual void takeDamage(int damage);
+    virtual void takeDamage(int damage, EntityPtr attacker);  // For retaliation
     
 protected:
     EntityType m_type;

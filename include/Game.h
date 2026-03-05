@@ -33,6 +33,7 @@ public:
     std::vector<EntityPtr> getEntitiesInRect(sf::FloatRect rect);
     std::vector<EntityPtr> getEntitiesInRect(sf::FloatRect rect, Team team);
     EntityPtr findNearestEnemy(sf::Vector2f pos, float radius, Team excludeTeam);
+    EntityPtr findNearestResource(sf::Vector2f pos, float radius);
     
     // Collision
     bool checkPositionBlocked(sf::Vector2f pos, float radius, Entity* excludeSelf);
@@ -83,4 +84,8 @@ private:
     void setupStartingUnits();
     void cleanupDeadEntities();
     void checkVictoryConditions();
+    
+    // Unit setup helpers
+    void setupUnit(UnitPtr& unit);
+    void setupWorker(Worker* worker, EntityPtr homeBase, Team team);
 };
