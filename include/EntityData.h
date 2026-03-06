@@ -27,6 +27,7 @@ struct ActionDef {
     Type type = Type::Instant;
     
     EntityType producesType = EntityType::None;  // For Train/Build actions
+    int row = 0;  // Which row in the action bar (0 = first row, 1 = second row)
 };
 
 // Unit-specific data

@@ -328,17 +328,6 @@ void Renderer::renderUnitPanel(Game& game) {
         resourceText.setPosition(sf::Vector2f(panelX, statsY));
         m_window.draw(resourceText);
     }
-    
-    // Show hotkeys (only for own units, not inspected entities)
-    if (!isInspection) {
-        sf::Text hotkeyText(*m_font, "[T] Train | [B] Barracks | [H] Base", 11);
-        hotkeyText.setFillColor(sf::Color(150, 150, 150));
-        hotkeyText.setPosition(sf::Vector2f(
-            Constants::WINDOW_WIDTH - panelWidth - padding + 10.0f,
-            Constants::WINDOW_HEIGHT - panelHeight - padding + 115.0f
-        ));
-        m_window.draw(hotkeyText);
-    }
 }
 
 void Renderer::renderTargetingModeIndicator(Game& game) {

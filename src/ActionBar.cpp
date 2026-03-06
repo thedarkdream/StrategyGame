@@ -15,12 +15,17 @@ float ActionBar::getPanelY() const {
     return Constants::WINDOW_HEIGHT - Constants::ACTION_BAR_HEIGHT - 10.0f;
 }
 
-float ActionBar::getButtonY() const {
+float ActionBar::getRow0Y() const {
     return getPanelY() + Constants::ACTION_BAR_PADDING;
 }
 
+float ActionBar::getRow1Y() const {
+    return getRow0Y() + Constants::ACTION_BAR_BUTTON_SIZE + 5.0f;
+}
+
 float ActionBar::getQueueY() const {
-    return getButtonY() + Constants::ACTION_BAR_BUTTON_SIZE + 10.0f;
+    // Position queue below both button rows
+    return getRow1Y() + Constants::ACTION_BAR_BUTTON_SIZE + 10.0f;
 }
 
 bool ActionBar::isPositionOnPanel(sf::Vector2i screenPos, Player& player) const {
@@ -37,23 +42,45 @@ int ActionBar::getButtonAtPosition(sf::Vector2i screenPos, EntityPtr entity) con
     if (!entity) return -1;
     
     float panelX = getPanelX();
-    float buttonY = getButtonY();
+    float row0Y = getRow0Y();
+    float row1Y = getRow1Y();
+    float buttonSize = Constants::ACTION_BAR_BUTTON_SIZE;
+    float buttonSpacing = Constants::ACTION_BAR_BUTTON_SPACING;
     
-    // Check if within button row
-    if (screenPos.y < buttonY || screenPos.y > buttonY + Constants::ACTION_BAR_BUTTON_SIZE) return -1;
-    
-    // Get action count from registry
     const auto& actions = ENTITY_DATA.getActions(entity->getType());
-    int actionCount = static_cast<int>(actions.size());
-    if (actionCount == 0) return -1;
+    if (actions.empty()) return -1;
     
-    // Check each button
-    float buttonX = panelX + Constants::ACTION_BAR_PADDING;
-    for (int i = 0; i < actionCount; ++i) {
-        if (screenPos.x >= buttonX && screenPos.x <= buttonX + Constants::ACTION_BAR_BUTTON_SIZE) {
-            return i;
+    // Separate actions by row
+    std::vector<int> row0Indices;
+    std::vector<int> row1Indices;
+    for (size_t i = 0; i < actions.size(); ++i) {
+        if (actions[i].row == 0) {
+            row0Indices.push_back(static_cast<int>(i));
+        } else {
+            row1Indices.push_back(static_cast<int>(i));
         }
-        buttonX += Constants::ACTION_BAR_BUTTON_SIZE + Constants::ACTION_BAR_BUTTON_SPACING;
+    }
+    
+    // Check row 0
+    if (screenPos.y >= row0Y && screenPos.y <= row0Y + buttonSize) {
+        float buttonX = panelX + Constants::ACTION_BAR_PADDING;
+        for (int idx : row0Indices) {
+            if (screenPos.x >= buttonX && screenPos.x <= buttonX + buttonSize) {
+                return idx;
+            }
+            buttonX += buttonSize + buttonSpacing;
+        }
+    }
+    
+    // Check row 1
+    if (screenPos.y >= row1Y && screenPos.y <= row1Y + buttonSize) {
+        float buttonX = panelX + Constants::ACTION_BAR_PADDING;
+        for (int idx : row1Indices) {
+            if (screenPos.x >= buttonX && screenPos.x <= buttonX + buttonSize) {
+                return idx;
+            }
+            buttonX += buttonSize + buttonSpacing;
+        }
     }
     
     return -1;
@@ -204,13 +231,26 @@ void ActionBar::renderButtons(sf::RenderWindow& window, EntityPtr entity, Player
     Building* building = dynamic_cast<Building*>(entity.get());
     Unit* unit = dynamic_cast<Unit*>(entity.get());
     
-    float buttonX = getPanelX() + Constants::ACTION_BAR_PADDING;
-    float buttonY = getButtonY();
+    float panelX = getPanelX();
+    float row0Y = getRow0Y();
+    float row1Y = getRow1Y();
     float buttonSize = Constants::ACTION_BAR_BUTTON_SIZE;
     float buttonSpacing = Constants::ACTION_BAR_BUTTON_SPACING;
     
+    // Separate actions by row
+    std::vector<size_t> row0Indices;
+    std::vector<size_t> row1Indices;
     for (size_t i = 0; i < registryActions.size(); ++i) {
-        const auto& action = registryActions[i];
+        if (registryActions[i].row == 0) {
+            row0Indices.push_back(i);
+        } else {
+            row1Indices.push_back(i);
+        }
+    }
+    
+    // Helper lambda to render a single button
+    auto renderButton = [&](size_t actionIndex, float buttonX, float buttonY) {
+        const auto& action = registryActions[actionIndex];
         
         bool isActive = false;
         bool isAvailable = true;
@@ -231,6 +271,14 @@ void ActionBar::renderButtons(sf::RenderWindow& window, EntityPtr entity, Player
                 case ActionDef::Type::TargetGather:
                     isActive = (state == UnitState::Gathering || state == UnitState::Returning);
                     break;
+                case ActionDef::Type::Build:
+                    // Check if player can afford the building
+                    {
+                        int mineralCost = ENTITY_DATA.getMineralCost(action.producesType);
+                        int gasCost = ENTITY_DATA.getGasCost(action.producesType);
+                        isAvailable = player.canAfford(mineralCost, gasCost);
+                    }
+                    break;
                 default:
                     break;
             }
@@ -239,7 +287,7 @@ void ActionBar::renderButtons(sf::RenderWindow& window, EntityPtr entity, Player
                 int mineralCost = ENTITY_DATA.getMineralCost(action.producesType);
                 int gasCost = ENTITY_DATA.getGasCost(action.producesType);
                 isAvailable = player.canAfford(mineralCost, gasCost);
-                if (i == 0 && building->isProducing()) {
+                if (actionIndex == 0 && building->isProducing()) {
                     isActive = true;
                 }
             }
@@ -282,7 +330,19 @@ void ActionBar::renderButtons(sf::RenderWindow& window, EntityPtr entity, Player
             buttonY + buttonSize - 18.0f
         ));
         window.draw(hotkeyText);
-        
+    };
+    
+    // Render row 0
+    float buttonX = panelX + Constants::ACTION_BAR_PADDING;
+    for (size_t idx : row0Indices) {
+        renderButton(idx, buttonX, row0Y);
+        buttonX += buttonSize + buttonSpacing;
+    }
+    
+    // Render row 1
+    buttonX = panelX + Constants::ACTION_BAR_PADDING;
+    for (size_t idx : row1Indices) {
+        renderButton(idx, buttonX, row1Y);
         buttonX += buttonSize + buttonSpacing;
     }
 }

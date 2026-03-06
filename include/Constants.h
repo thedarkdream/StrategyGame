@@ -21,7 +21,7 @@ namespace Constants {
     
     // Action bar settings (fixed size)
     constexpr float ACTION_BAR_WIDTH = 280.0f;
-    constexpr float ACTION_BAR_HEIGHT = 130.0f;
+    constexpr float ACTION_BAR_HEIGHT = 180.0f;
     constexpr float ACTION_BAR_BUTTON_SIZE = 50.0f;
     constexpr float ACTION_BAR_BUTTON_SPACING = 5.0f;
     constexpr float ACTION_BAR_PADDING = 10.0f;

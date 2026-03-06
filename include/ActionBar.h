@@ -44,7 +44,8 @@ private:
     // Layout helpers
     float getPanelX() const;
     float getPanelY() const;
-    float getButtonY() const;
+    float getRow0Y() const;
+    float getRow1Y() const;
     float getQueueY() const;
     
     // Rendering helpers

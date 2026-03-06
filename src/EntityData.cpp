@@ -106,11 +106,27 @@ void EntityRegistry::initializeDefaults() {
         def.unit = unit;
         
         // Worker actions
+        ActionDef buildBarracks;
+        buildBarracks.label = "Barracks";
+        buildBarracks.hotkey = "B";
+        buildBarracks.type = ActionDef::Type::Build;
+        buildBarracks.producesType = EntityType::Barracks;
+        buildBarracks.row = 1;
+        
+        ActionDef buildBase;
+        buildBase.label = "Base";
+        buildBase.hotkey = "H";
+        buildBase.type = ActionDef::Type::Build;
+        buildBase.producesType = EntityType::Base;
+        buildBase.row = 1;
+        
         def.actions = {
             {"Move", "M", ActionDef::Type::TargetMove},
             {"Stop", "S", ActionDef::Type::Instant},
             {"Attack", "A", ActionDef::Type::TargetAttack},
-            {"Gather", "G", ActionDef::Type::TargetGather}
+            {"Gather", "G", ActionDef::Type::TargetGather},
+            buildBarracks,
+            buildBase
         };
         
         registerEntity(std::move(def));
