@@ -147,7 +147,22 @@ void Entity::loadAnimations(const std::string& basePath) {
             m_animationSet->setTexture(TEXTURES.get(idlePath));
             m_animatedSprite.setAnimationSet(m_animationSet.get());
             m_animatedSprite.setFrameHeight(frameHeight);
-            m_animatedSprite.centerOrigin();
+            
+            // Scale sprite to match entity's defined size
+            if (frameHeight > 0) {
+                // Assuming square frames for units
+                float scaleX = m_size.x / static_cast<float>(frameHeight);
+                float scaleY = m_size.y / static_cast<float>(frameHeight);
+                m_animatedSprite.setScale(sf::Vector2f(scaleX, scaleY));
+                // Set origin for centered positioning
+                m_animatedSprite.setOrigin(sf::Vector2f(
+                    static_cast<float>(frameHeight) / 2.0f,
+                    static_cast<float>(frameHeight) / 2.0f
+                ));
+            } else {
+                m_animatedSprite.centerOrigin();
+            }
+            
             m_hasSprite = true;
             playAnimation(AnimationState::Idle);
         }
@@ -177,8 +192,17 @@ void Entity::loadStaticSprite(const std::string& texturePath) {
     m_animatedSprite.centerOrigin();
     m_animatedSprite.play(AnimationState::Idle);
     
-    // Update entity size to match texture
-    m_size = sf::Vector2f(static_cast<float>(texSize.x), static_cast<float>(texSize.y));
+    // Scale sprite to match entity's defined size
+    if (texSize.x > 0 && texSize.y > 0) {
+        float scaleX = m_size.x / static_cast<float>(texSize.x);
+        float scaleY = m_size.y / static_cast<float>(texSize.y);
+        m_animatedSprite.setScale(sf::Vector2f(scaleX, scaleY));
+        // Re-center origin after scaling
+        m_animatedSprite.setOrigin(sf::Vector2f(
+            static_cast<float>(texSize.x) / 2.0f,
+            static_cast<float>(texSize.y) / 2.0f
+        ));
+    }
     
     m_hasSprite = true;
 }
