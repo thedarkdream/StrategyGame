@@ -2,9 +2,11 @@
 #include "Game.h"
 #include "Constants.h"
 #include "Entity.h"
+#include "EntityData.h"
 #include "Unit.h"
 #include "Building.h"
 #include "ActionBar.h"
+#include "ResourceManager.h"
 #include <cmath>
 #include <algorithm>
 
@@ -275,12 +277,14 @@ void InputHandler::handleMouseMove(sf::Vector2i position) {
     }
     
     if (m_buildMode) {
-        // Snap to grid
+        // Snap to grid and calculate center position for preview
+        sf::Vector2f pixelSize = ENTITY_DATA.getSize(m_buildingToBuild);
         int tileX = static_cast<int>(worldPos.x / Constants::TILE_SIZE);
         int tileY = static_cast<int>(worldPos.y / Constants::TILE_SIZE);
+        // Center position: top-left corner + half the pixel size
         m_buildPreviewPos = sf::Vector2f(
-            tileX * Constants::TILE_SIZE + Constants::TILE_SIZE / 2.0f,
-            tileY * Constants::TILE_SIZE + Constants::TILE_SIZE / 2.0f
+            tileX * Constants::TILE_SIZE + pixelSize.x / 2.0f,
+            tileY * Constants::TILE_SIZE + pixelSize.y / 2.0f
         );
     }
 }

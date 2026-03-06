@@ -6,6 +6,7 @@
 #include "Building.h"
 #include "Map.h"
 #include "ResourceManager.h"
+#include "EntityData.h"
 #include "Constants.h"
 #include "MathUtil.h"
 #include <algorithm>
@@ -210,9 +211,11 @@ sf::Vector2f AIController::findBuildLocation(EntityType buildingType) {
                 int tileY = static_cast<int>(basePos.y / Constants::TILE_SIZE) + dy;
                 
                 if (m_map->canPlaceBuilding(tileX, tileY, buildingSize.x, buildingSize.y)) {
-                    return m_map->tileToWorldCenter(
-                        tileX + buildingSize.x / 2, 
-                        tileY + buildingSize.y / 2
+                    // Calculate center position: top-left corner + half the pixel size
+                    sf::Vector2f pixelSize = ENTITY_DATA.getSize(buildingType);
+                    return sf::Vector2f(
+                        tileX * Constants::TILE_SIZE + pixelSize.x / 2.0f,
+                        tileY * Constants::TILE_SIZE + pixelSize.y / 2.0f
                     );
                 }
             }

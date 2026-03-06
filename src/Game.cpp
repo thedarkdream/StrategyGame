@@ -500,20 +500,22 @@ void Game::issueBuildCommand(EntityType buildingType, sf::Vector2f position) {
     }
     
     // Check if location is valid
-    sf::Vector2i buildingSize = ResourceManager::getBuildingSize(buildingType);
+    sf::Vector2i buildingTileSize = ResourceManager::getBuildingSize(buildingType);
     int tileX = static_cast<int>(position.x / Constants::TILE_SIZE);
     int tileY = static_cast<int>(position.y / Constants::TILE_SIZE);
     
-    if (!m_map.canPlaceBuilding(tileX, tileY, buildingSize.x, buildingSize.y)) {
+    if (!m_map.canPlaceBuilding(tileX, tileY, buildingTileSize.x, buildingTileSize.y)) {
         return;
     }
     
     // Spend resources and spawn building
     m_player->spendResources(cost, 0);
     
-    sf::Vector2f buildPos = m_map.tileToWorldCenter(
-        tileX + buildingSize.x / 2, 
-        tileY + buildingSize.y / 2
+    // Calculate center position: top-left corner + half the pixel size
+    sf::Vector2f pixelSize = ENTITY_DATA.getSize(buildingType);
+    sf::Vector2f buildPos(
+        tileX * Constants::TILE_SIZE + pixelSize.x / 2.0f,
+        tileY * Constants::TILE_SIZE + pixelSize.y / 2.0f
     );
     spawnBuilding(buildingType, Team::Player, buildPos);
 }

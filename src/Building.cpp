@@ -20,6 +20,9 @@ Building::Building(EntityType type, Team team, sf::Vector2f position)
         case EntityType::Base:
             loadStaticSprite("buildings/base.png");
             break;
+        case EntityType::Barracks:
+            loadStaticSprite("buildings/barracks.png");
+            break;
         default:
             break;
     }
@@ -55,6 +58,18 @@ void Building::render(sf::RenderTarget& target) {
     
     // Draw selection indicator
     renderSelectionIndicator(target);
+}
+
+void Building::renderPreview(sf::RenderTarget& target, sf::Color tint) {
+    if (m_hasSprite) {
+        m_animatedSprite.setColor(tint);
+        m_animatedSprite.render(target, m_position);
+        m_animatedSprite.setColor(sf::Color::White);  // Reset tint
+    } else {
+        sf::RectangleShape shape = m_shape;
+        shape.setFillColor(tint);
+        target.draw(shape);
+    }
     
     // Draw health bar
     renderHealthBar(target);

@@ -96,36 +96,32 @@ void Renderer::renderBuildPreview(const InputHandler& input, Map& map) {
     sf::Vector2f pos = input.getBuildPreviewPosition();
     EntityType buildType = input.getBuildingType();
     
-    sf::Vector2f size;
-    switch (buildType) {
-        case EntityType::Base:
-            size = sf::Vector2f(96.0f, 96.0f);
-            break;
-        case EntityType::Barracks:
-        case EntityType::Refinery:
-            size = sf::Vector2f(64.0f, 64.0f);
-            break;
-        default:
-            size = sf::Vector2f(32.0f, 32.0f);
-            break;
-    }
+    // Get size from EntityData
+    sf::Vector2f size = ENTITY_DATA.getSize(buildType);
     
-    // Check if placement is valid
-    int tileX = static_cast<int>((pos.x - size.x / 2.0f) / Constants::TILE_SIZE);
-    int tileY = static_cast<int>((pos.y - size.y / 2.0f) / Constants::TILE_SIZE);
+    // Calculate tile position matching actual placement logic
+    // The preview position is already at the center where the building will be placed
+    // Work backwards to get the top-left tile for canPlaceBuilding check
     int tilesW = static_cast<int>(size.x / Constants::TILE_SIZE);
     int tilesH = static_cast<int>(size.y / Constants::TILE_SIZE);
+    int tileX = static_cast<int>((pos.x - size.x / 2.0f) / Constants::TILE_SIZE);
+    int tileY = static_cast<int>((pos.y - size.y / 2.0f) / Constants::TILE_SIZE);
     
     bool canPlace = map.canPlaceBuilding(tileX, tileY, tilesW, tilesH);
     
+    // Draw placeholder rectangle
     sf::RectangleShape preview(size);
     preview.setOrigin(sf::Vector2f(size.x / 2.0f, size.y / 2.0f));
     preview.setPosition(pos);
     preview.setFillColor(canPlace ? sf::Color(0, 255, 0, 100) : sf::Color(255, 0, 0, 100));
     preview.setOutlineThickness(2.0f);
     preview.setOutlineColor(canPlace ? sf::Color::Green : sf::Color::Red);
-    
     m_window.draw(preview);
+    
+    // Create a temporary building to render its sprite preview
+    Building previewBuilding(buildType, Team::Player, pos);
+    sf::Color tint = canPlace ? sf::Color(150, 255, 150, 180) : sf::Color(255, 150, 150, 180);
+    previewBuilding.renderPreview(m_window, tint);
 }
 
 void Renderer::renderMinimap(Game& game) {

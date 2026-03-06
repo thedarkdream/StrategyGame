@@ -193,7 +193,7 @@ void EntityRegistry::initializeDefaults() {
         def.mineralCost = Constants::BASE_COST_MINERALS;
         def.gasCost = 0;
         def.health = 1500;
-        def.size = {96.0f, 96.0f};  // 3 tiles
+        def.size = {96.0f, 96.0f};
         
         BuildingDef building;
         building.tileSize = {3, 3};
@@ -222,7 +222,7 @@ void EntityRegistry::initializeDefaults() {
         def.mineralCost = Constants::BARRACKS_COST_MINERALS;
         def.gasCost = 0;
         def.health = 1000;
-        def.size = {64.0f, 64.0f};  // 2 tiles
+        def.size = {96.0f, 64.0f};
         
         BuildingDef building;
         building.tileSize = {2, 2};
