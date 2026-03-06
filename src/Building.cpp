@@ -14,6 +14,15 @@ Building::Building(EntityType type, Team team, sf::Vector2f position)
     
     m_rallyPoint = position + sf::Vector2f(m_size.x, 0.0f);
     updateShape();
+    
+    // Load building sprite
+    switch (type) {
+        case EntityType::Base:
+            loadStaticSprite("buildings/base.png");
+            break;
+        default:
+            break;
+    }
 }
 
 void Building::update(float deltaTime) {
@@ -35,9 +44,14 @@ void Building::render(sf::RenderTarget& target) {
         renderColor.a = static_cast<std::uint8_t>(128 + 127 * m_constructionProgress);
     }
     
-    sf::RectangleShape shape = m_shape;
-    shape.setFillColor(renderColor);
-    target.draw(shape);
+    // Draw sprite if available, otherwise draw shape fallback
+    if (m_hasSprite) {
+        m_animatedSprite.render(target, m_position);
+    } else {
+        sf::RectangleShape shape = m_shape;
+        shape.setFillColor(renderColor);
+        target.draw(shape);
+    }
     
     // Draw selection indicator
     renderSelectionIndicator(target);
