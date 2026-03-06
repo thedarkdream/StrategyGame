@@ -223,6 +223,14 @@ void InputHandler::handleMousePress(sf::Vector2i position, sf::Mouse::Button but
                                target->getType() == EntityType::GasGeyser) {
                         // Gather resources
                         m_game.issueGatherCommand(target);
+                    } else if (auto* building = dynamic_cast<Building*>(target.get())) {
+                        // Check if incomplete building - send workers to continue building
+                        if (!building->isConstructed() && target->getTeam() == player.getTeam()) {
+                            m_game.issueContinueBuildCommand(target);
+                        } else {
+                            // Move to location (right-click on own completed building)
+                            m_game.issueMoveCommand(worldPos);
+                        }
                     } else {
                         // Move to location
                         m_game.issueMoveCommand(worldPos);
@@ -292,97 +300,130 @@ void InputHandler::handleMouseMove(sf::Vector2i position) {
 void InputHandler::handleKeyPress(sf::Keyboard::Key code) {
     Player& player = m_game.getPlayer();
     
-    switch (code) {
-        case sf::Keyboard::Key::Escape:
-            if (m_targetingMode) {
-                exitTargetingMode();
-            } else if (m_buildMode) {
-                exitBuildMode();
-            } else {
-                // Check if selected building is producing - cancel production
-                bool cancelledProduction = false;
-                for (auto& entity : player.getSelection()) {
-                    if (auto* building = dynamic_cast<Building*>(entity.get())) {
-                        if (building->isProducing()) {
-                            building->cancelProduction();
-                            cancelledProduction = true;
-                            break;
-                        }
-                    }
-                }
-                if (!cancelledProduction) {
-                    player.clearSelection();
-                }
-            }
-            break;
-            
-        case sf::Keyboard::Key::B:
-            // Build barracks
-            if (player.canAfford(Constants::BARRACKS_COST_MINERALS, 0)) {
-                enterBuildMode(EntityType::Barracks);
-            }
-            break;
-            
-        case sf::Keyboard::Key::H:
-            // Build base/command center
-            if (player.canAfford(Constants::BASE_COST_MINERALS, 0)) {
-                enterBuildMode(EntityType::Base);
-            }
-            break;
-            
-        case sf::Keyboard::Key::T:
-            // Train unit from selected building
-            if (player.hasSelection()) {
-                auto& selection = player.getSelection();
-                for (auto& entity : selection) {
-                    if (auto* building = dynamic_cast<Building*>(entity.get())) {
-                        if (building->getType() == EntityType::Base) {
-                            if (player.canAfford(Constants::WORKER_COST_MINERALS, 0)) {
-                                if (building->trainUnit(EntityType::Worker)) {
-                                    player.spendResources(Constants::WORKER_COST_MINERALS, 0);
-                                }
-                            }
-                        } else if (building->getType() == EntityType::Barracks) {
-                            if (player.canAfford(Constants::SOLDIER_COST_MINERALS, 0)) {
-                                if (building->trainUnit(EntityType::Soldier)) {
-                                    player.spendResources(Constants::SOLDIER_COST_MINERALS, 0);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            break;
-            
-        case sf::Keyboard::Key::Q:
-            // Stop command
+    // Handle escape separately - it's a global key
+    if (code == sf::Keyboard::Key::Escape) {
+        if (m_targetingMode) {
+            exitTargetingMode();
+        } else if (m_buildMode) {
+            exitBuildMode();
+        } else {
+            // Check if selected building is producing - cancel production
+            bool cancelledProduction = false;
             for (auto& entity : player.getSelection()) {
-                if (auto* unit = dynamic_cast<Unit*>(entity.get())) {
-                    unit->stop();
-                }
-            }
-            break;
-        
-        case sf::Keyboard::Key::Y:
-            // Train Brute from Barracks
-            if (player.hasSelection()) {
-                auto& selection = player.getSelection();
-                for (auto& entity : selection) {
-                    if (auto* building = dynamic_cast<Building*>(entity.get())) {
-                        if (building->getType() == EntityType::Barracks) {
-                            if (player.canAfford(Constants::BRUTE_COST_MINERALS, 0)) {
-                                if (building->trainUnit(EntityType::Brute)) {
-                                    player.spendResources(Constants::BRUTE_COST_MINERALS, 0);
-                                }
-                            }
-                        }
+                if (auto* building = dynamic_cast<Building*>(entity.get())) {
+                    if (building->isProducing()) {
+                        building->cancelProduction();
+                        cancelledProduction = true;
+                        break;
                     }
                 }
             }
-            break;
-            
-        default:
-            break;
+            if (!cancelledProduction) {
+                player.clearSelection();
+            }
+        }
+        return;
+    }
+    
+    // Convert key code to hotkey string
+    std::string hotkey = keyToHotkey(code);
+    if (hotkey.empty()) return;
+    
+    // Get first selected entity
+    EntityPtr selectedEntity = player.getFirstOwnedSelectedEntity();
+    if (!selectedEntity) return;
+    
+    // Look up actions for this entity type
+    const auto& actions = ENTITY_DATA.getActions(selectedEntity->getType());
+    
+    // Find action matching the hotkey
+    for (const auto& action : actions) {
+        if (action.hotkey != hotkey) continue;
+        
+        // Execute action based on type
+        switch (action.type) {
+            case ActionDef::Type::TargetMove:
+                enterTargetingMode(TargetingAction::Move);
+                return;
+                
+            case ActionDef::Type::TargetAttack:
+                enterTargetingMode(TargetingAction::Attack);
+                return;
+                
+            case ActionDef::Type::TargetGather:
+                enterTargetingMode(TargetingAction::Gather);
+                return;
+                
+            case ActionDef::Type::Instant:
+                // Stop command - apply to all selected units
+                for (auto& entity : player.getSelection()) {
+                    if (auto* unit = dynamic_cast<Unit*>(entity.get())) {
+                        unit->stop();
+                    }
+                }
+                return;
+                
+            case ActionDef::Type::Build:
+                // Check dependencies
+                if (action.requires != EntityType::None &&
+                    !player.hasCompletedBuilding(action.requires)) {
+                    return;
+                }
+                // Check affordability
+                {
+                    int mineralCost = ENTITY_DATA.getMineralCost(action.producesType);
+                    int gasCost = ENTITY_DATA.getGasCost(action.producesType);
+                    if (player.canAfford(mineralCost, gasCost)) {
+                        enterBuildMode(action.producesType);
+                    }
+                }
+                return;
+                
+            case ActionDef::Type::Train:
+                // Train unit from selected building
+                if (auto* building = dynamic_cast<Building*>(selectedEntity.get())) {
+                    int mineralCost = ENTITY_DATA.getMineralCost(action.producesType);
+                    int gasCost = ENTITY_DATA.getGasCost(action.producesType);
+                    if (player.canAfford(mineralCost, gasCost)) {
+                        if (building->trainUnit(action.producesType)) {
+                            player.spendResources(mineralCost, gasCost);
+                        }
+                    }
+                }
+                return;
+        }
+    }
+}
+
+std::string InputHandler::keyToHotkey(sf::Keyboard::Key code) {
+    switch (code) {
+        case sf::Keyboard::Key::A: return "A";
+        case sf::Keyboard::Key::B: return "B";
+        case sf::Keyboard::Key::C: return "C";
+        case sf::Keyboard::Key::D: return "D";
+        case sf::Keyboard::Key::E: return "E";
+        case sf::Keyboard::Key::F: return "F";
+        case sf::Keyboard::Key::G: return "G";
+        case sf::Keyboard::Key::H: return "H";
+        case sf::Keyboard::Key::I: return "I";
+        case sf::Keyboard::Key::J: return "J";
+        case sf::Keyboard::Key::K: return "K";
+        case sf::Keyboard::Key::L: return "L";
+        case sf::Keyboard::Key::M: return "M";
+        case sf::Keyboard::Key::N: return "N";
+        case sf::Keyboard::Key::O: return "O";
+        case sf::Keyboard::Key::P: return "P";
+        case sf::Keyboard::Key::Q: return "Q";
+        case sf::Keyboard::Key::R: return "R";
+        case sf::Keyboard::Key::S: return "S";
+        case sf::Keyboard::Key::T: return "T";
+        case sf::Keyboard::Key::U: return "U";
+        case sf::Keyboard::Key::V: return "V";
+        case sf::Keyboard::Key::W: return "W";
+        case sf::Keyboard::Key::X: return "X";
+        case sf::Keyboard::Key::Y: return "Y";
+        case sf::Keyboard::Key::Z: return "Z";
+        default: return "";
     }
 }
 

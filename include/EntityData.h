@@ -27,6 +27,7 @@ struct ActionDef {
     Type type = Type::Instant;
     
     EntityType producesType = EntityType::None;  // For Train/Build actions
+    EntityType requires = EntityType::None;      // Required building for this action
     int row = 0;  // Which row in the action bar (0 = first row, 1 = second row)
 };
 
@@ -50,6 +51,7 @@ struct BuildingDef {
     std::vector<EntityType> producesUnits;  // What units can be trained here
     bool isResourceNode = false;
     int resourceAmount = 0;             // For resource nodes
+    float constructionTime = 10.0f;     // Time in seconds to construct
 };
 
 // Complete entity definition
@@ -105,6 +107,7 @@ public:
     
     // Building-specific  
     const BuildingDef* getBuildingDef(EntityType type) const;
+    float getConstructionTime(EntityType type) const;
     
 private:
     EntityRegistry();

@@ -56,7 +56,8 @@ void Entity::updateShape() {
 }
 
 void Entity::renderHealthBar(sf::RenderTarget& target) {
-    if (m_health >= m_maxHealth) return;  // Don't show full health
+    // Always show health bar when selected, otherwise only when damaged
+    if (m_health >= m_maxHealth && !m_selected) return;
     
     const float barWidth = m_size.x;
     const float barHeight = 4.0f;

@@ -3,6 +3,8 @@
 #include "Unit.h"
 #include <functional>
 
+class Building;
+
 class Worker : public Unit {
 public:
     Worker(Team team, sf::Vector2f position);
@@ -12,10 +14,16 @@ public:
     // Worker-specific commands
     void gather(EntityPtr resource);
     void returnResources();
+    void buildAt(EntityPtr building);  // Move to building and construct it
     
     // Worker-specific state
     int getCarriedResources() const { return m_carriedResources; }
     void setHomeBase(EntityPtr base) { m_homeBase = base; }
+    
+    // Check if worker is building
+    bool isBuilding() const { return m_state == UnitState::Building; }
+    bool isGathering() const { return m_state == UnitState::Gathering || m_state == UnitState::Returning; }
+    EntityPtr getBuildTarget() const { return m_buildTarget.lock(); }
     
     // Workers are not collidable when gathering (to allow stacking at resources)
     bool isCollidable() const override;
@@ -35,6 +43,7 @@ protected:
 private:
     void updateGathering(float deltaTime);
     void updateReturning(float deltaTime);
+    void updateBuilding(float deltaTime);
     
     // Resource gathering
     int m_carriedResources = 0;
@@ -43,6 +52,10 @@ private:
     std::weak_ptr<Entity> m_resourceTarget;
     std::weak_ptr<Entity> m_homeBase;
     
+    // Building construction
+    std::weak_ptr<Entity> m_buildTarget;
+    
     // Release any claimed mining spot
     void releaseMiningClaim();
+    void releaseBuildClaim();
 };

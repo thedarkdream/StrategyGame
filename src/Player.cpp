@@ -142,3 +142,13 @@ EntityPtr Player::getFirstOwnedSelectedEntity() const {
     if (!entity || entity->getTeam() != m_team) return nullptr;
     return entity;
 }
+
+bool Player::hasCompletedBuilding(EntityType type) const {
+    for (const auto& building : m_buildings) {
+        if (building && building->isAlive() && 
+            building->getType() == type && building->isConstructed()) {
+            return true;
+        }
+    }
+    return false;
+}

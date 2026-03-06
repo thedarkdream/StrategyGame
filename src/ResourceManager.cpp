@@ -68,6 +68,10 @@ BuildingPtr ResourceManager::createRefinery(Team team, sf::Vector2f position) {
     return std::make_shared<Building>(EntityType::Refinery, team, position);
 }
 
+BuildingPtr ResourceManager::createFactory(Team team, sf::Vector2f position) {
+    return std::make_shared<Building>(EntityType::Factory, team, position);
+}
+
 ResourceNodePtr ResourceManager::createMineralPatch(sf::Vector2f position, int amount) {
     return std::make_shared<ResourceNode>(EntityType::MineralPatch, position, amount);
 }

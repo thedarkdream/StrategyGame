@@ -30,6 +30,7 @@ public:
     static BuildingPtr createBase(Team team, sf::Vector2f position);
     static BuildingPtr createBarracks(Team team, sf::Vector2f position);
     static BuildingPtr createRefinery(Team team, sf::Vector2f position);
+    static BuildingPtr createFactory(Team team, sf::Vector2f position);
     static ResourceNodePtr createMineralPatch(sf::Vector2f position, int amount = 1500);
     static ResourceNodePtr createGasGeyser(sf::Vector2f position, int amount = 2000);
     

@@ -394,7 +394,7 @@ void Game::spawnUnit(EntityType type, Team team, sf::Vector2f position) {
     }
 }
 
-void Game::spawnBuilding(EntityType type, Team team, sf::Vector2f position) {
+void Game::spawnBuilding(EntityType type, Team team, sf::Vector2f position, bool startComplete) {
     BuildingPtr building;
     
     switch (type) {
@@ -407,11 +407,19 @@ void Game::spawnBuilding(EntityType type, Team team, sf::Vector2f position) {
         case EntityType::Refinery:
             building = ResourceManager::createRefinery(team, position);
             break;
+        case EntityType::Factory:
+            building = ResourceManager::createFactory(team, position);
+            break;
         default:
             return;
     }
     
     if (building) {
+        // Set construction state based on parameter
+        if (!startComplete) {
+            building->startConstruction();
+        }
+        
         building->onUnitProduced = [this, team](EntityType unitType, sf::Vector2f pos) {
             spawnUnit(unitType, team, pos);
         };
@@ -499,6 +507,18 @@ void Game::issueBuildCommand(EntityType buildingType, sf::Vector2f position) {
         return;
     }
     
+    // Check building dependencies
+    const auto& actions = ENTITY_DATA.getActions(EntityType::Worker);
+    for (const auto& action : actions) {
+        if (action.type == ActionDef::Type::Build && action.producesType == buildingType) {
+            if (action.requires != EntityType::None && 
+                !m_player->hasCompletedBuilding(action.requires)) {
+                return;  // Dependency not met
+            }
+            break;
+        }
+    }
+    
     // Check if location is valid
     sf::Vector2i buildingTileSize = ResourceManager::getBuildingSize(buildingType);
     int tileX = static_cast<int>(position.x / Constants::TILE_SIZE);
@@ -508,7 +528,40 @@ void Game::issueBuildCommand(EntityType buildingType, sf::Vector2f position) {
         return;
     }
     
-    // Spend resources and spawn building
+    // Find a selected worker to build
+    Worker* selectedWorker = nullptr;
+    for (const auto& entity : m_player->getSelection()) {
+        if (entity && entity->isAlive() && entity->getType() == EntityType::Worker) {
+            selectedWorker = dynamic_cast<Worker*>(entity.get());
+            if (selectedWorker) break;
+        }
+    }
+    
+    // If no selected worker, find the nearest idle worker
+    if (!selectedWorker) {
+        float nearestDist = std::numeric_limits<float>::max();
+        for (const auto& entity : m_allEntities) {
+            if (entity && entity->isAlive() && 
+                entity->getTeam() == Team::Player &&
+                entity->getType() == EntityType::Worker) {
+                Worker* worker = dynamic_cast<Worker*>(entity.get());
+                if (worker && !worker->isBuilding() && !worker->isGathering()) {
+                    float dist = MathUtil::distance(worker->getPosition(), position);
+                    if (dist < nearestDist) {
+                        nearestDist = dist;
+                        selectedWorker = worker;
+                    }
+                }
+            }
+        }
+    }
+    
+    // No worker available to build
+    if (!selectedWorker) {
+        return;
+    }
+    
+    // Spend resources and spawn incomplete building
     m_player->spendResources(cost, 0);
     
     // Calculate center position: top-left corner + half the pixel size
@@ -517,5 +570,34 @@ void Game::issueBuildCommand(EntityType buildingType, sf::Vector2f position) {
         tileX * Constants::TILE_SIZE + pixelSize.x / 2.0f,
         tileY * Constants::TILE_SIZE + pixelSize.y / 2.0f
     );
-    spawnBuilding(buildingType, Team::Player, buildPos);
+    
+    // Spawn building (starts incomplete)
+    spawnBuilding(buildingType, Team::Player, buildPos, false);
+    
+    // Find the building we just spawned and send worker to build it
+    EntityPtr newBuilding = nullptr;
+    for (auto it = m_allEntities.rbegin(); it != m_allEntities.rend(); ++it) {
+        if ((*it)->getPosition() == buildPos && (*it)->getType() == buildingType) {
+            newBuilding = *it;
+            break;
+        }
+    }
+    
+    if (newBuilding) {
+        selectedWorker->buildAt(newBuilding);
+    }
+}
+
+void Game::issueContinueBuildCommand(EntityPtr building) {
+    if (!building) return;
+    
+    // Send selected workers to continue building
+    for (const auto& entity : m_player->getSelection()) {
+        if (entity && entity->isAlive() && entity->getType() == EntityType::Worker) {
+            Worker* worker = dynamic_cast<Worker*>(entity.get());
+            if (worker) {
+                worker->buildAt(building);
+            }
+        }
+    }
 }

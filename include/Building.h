@@ -30,6 +30,14 @@ public:
     bool isConstructed() const { return m_constructionProgress >= 1.0f; }
     float getConstructionProgress() const { return m_constructionProgress; }
     void addConstructionProgress(float amount);
+    void startConstruction();  // Set building to under-construction state
+    
+    // Builder worker management
+    bool hasBuilder() const;
+    bool assignBuilder(EntityPtr worker);
+    void releaseBuilder();
+    EntityPtr getBuilder() const { return m_builder.lock(); }
+    float getConstructionTime() const;
     
     // Rally point
     void setRallyPoint(sf::Vector2f point) { m_rallyPoint = point; }
@@ -43,8 +51,9 @@ public:
     
 private:
     // Construction
-    float m_constructionProgress = 1.0f;  // 1.0 = fully built
+    float m_constructionProgress = 1.0f;  // 1.0 = fully built, 0.0 = just placed
     bool m_isConstructing = false;
+    std::weak_ptr<Entity> m_builder;  // Currently assigned builder worker
     
     // Production queue
     struct ProductionOrder {

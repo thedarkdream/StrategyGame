@@ -81,6 +81,9 @@ void Worker::updateCustomState(float deltaTime) {
         case UnitState::Returning:
             updateReturning(deltaTime);
             break;
+        case UnitState::Building:
+            updateBuilding(deltaTime);
+            break;
         default:
             break;
     }
@@ -235,4 +238,89 @@ void Worker::releaseMiningClaim() {
         }
     }
     m_isActivelyMining = false;
+}
+
+void Worker::buildAt(EntityPtr building) {
+    if (!building) {
+        m_state = UnitState::Idle;
+        return;
+    }
+    
+    // Release any previous claims
+    releaseMiningClaim();
+    releaseBuildClaim();
+    
+    m_buildTarget = building;
+    m_targetPosition = building->getPosition();
+    m_state = UnitState::Building;
+    findPath(building->getPosition());
+}
+
+void Worker::updateBuilding(float deltaTime) {
+    auto target = m_buildTarget.lock();
+    if (!target || !target->isAlive()) {
+        // Building was destroyed
+        releaseBuildClaim();
+        m_buildTarget.reset();
+        m_state = UnitState::Idle;
+        return;
+    }
+    
+    Building* building = dynamic_cast<Building*>(target.get());
+    if (!building) {
+        m_state = UnitState::Idle;
+        return;
+    }
+    
+    // Check if building is already constructed
+    if (building->isConstructed()) {
+        releaseBuildClaim();
+        m_buildTarget.reset();
+        m_state = UnitState::Idle;
+        return;
+    }
+    
+    // Move toward building edge
+    float distance = getDistanceTo(target);
+    float buildRange = (building->getBounds().size.x + building->getBounds().size.y) / 4.0f + 20.0f;
+    
+    if (distance > buildRange) {
+        // Still moving to building
+        followPath(deltaTime);
+        playAnimation(AnimationState::Walk);
+    } else {
+        // At building - start constructing
+        // Try to assign ourselves as the builder
+        auto self = std::dynamic_pointer_cast<Entity>(shared_from_this());
+        if (!building->hasBuilder()) {
+            building->assignBuilder(self);
+        }
+        
+        // Only add progress if we are the assigned builder
+        if (building->getBuilder().get() == this) {
+            float constructionTime = building->getConstructionTime();
+            float progressPerSecond = 1.0f / constructionTime;
+            building->addConstructionProgress(progressPerSecond * deltaTime);
+            
+            // Face the building
+            sf::Vector2f direction = target->getPosition() - m_position;
+            updateSpriteDirection(direction);
+            playAnimation(AnimationState::Idle);  // Or a build animation if available
+        } else {
+            // Another worker is building - stop and wait or go idle
+            m_state = UnitState::Idle;
+            m_buildTarget.reset();
+        }
+    }
+}
+
+void Worker::releaseBuildClaim() {
+    if (auto target = m_buildTarget.lock()) {
+        if (auto* building = dynamic_cast<Building*>(target.get())) {
+            // Only release if we are the assigned builder
+            if (building->getBuilder().get() == this) {
+                building->releaseBuilder();
+            }
+        }
+    }
 }

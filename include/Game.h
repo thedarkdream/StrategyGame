@@ -46,7 +46,7 @@ public:
     void addEntity(EntityPtr entity);
     void removeEntity(EntityPtr entity);
     void spawnUnit(EntityType type, Team team, sf::Vector2f position);
-    void spawnBuilding(EntityType type, Team team, sf::Vector2f position);
+    void spawnBuilding(EntityType type, Team team, sf::Vector2f position, bool startComplete = true);
     
     // Commands
     void issueCommand(const std::vector<EntityPtr>& entities, Command command);
@@ -54,6 +54,7 @@ public:
     void issueAttackCommand(EntityPtr target);
     void issueGatherCommand(EntityPtr resource);
     void issueBuildCommand(EntityType buildingType, sf::Vector2f position);
+    void issueContinueBuildCommand(EntityPtr building);
     
 private:
     // Window

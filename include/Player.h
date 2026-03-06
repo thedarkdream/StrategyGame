@@ -39,6 +39,7 @@ public:
     bool isDefeated() const;
     int getUnitCount() const { return static_cast<int>(m_units.size()); }
     int getBuildingCount() const { return static_cast<int>(m_buildings.size()); }
+    bool hasCompletedBuilding(EntityType type) const;
     
     // Update
     void update(float deltaTime);

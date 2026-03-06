@@ -74,6 +74,11 @@ const BuildingDef* EntityRegistry::getBuildingDef(EntityType type) const {
     return (def && def->building) ? &def->building.value() : nullptr;
 }
 
+float EntityRegistry::getConstructionTime(EntityType type) const {
+    auto* buildingDef = getBuildingDef(type);
+    return buildingDef ? buildingDef->constructionTime : 10.0f;
+}
+
 float EntityRegistry::getTrainingTime(EntityType type) const {
     auto* unitDef = getUnitDef(type);
     return unitDef ? unitDef->trainingTime : 5.0f;
@@ -120,13 +125,22 @@ void EntityRegistry::initializeDefaults() {
         buildBase.producesType = EntityType::Base;
         buildBase.row = 1;
         
+        ActionDef buildFactory;
+        buildFactory.label = "Factory";
+        buildFactory.hotkey = "F";
+        buildFactory.type = ActionDef::Type::Build;
+        buildFactory.producesType = EntityType::Factory;
+        buildFactory.requires = EntityType::Barracks;  // Requires completed Barracks
+        buildFactory.row = 1;
+        
         def.actions = {
             {"Move", "M", ActionDef::Type::TargetMove},
             {"Stop", "S", ActionDef::Type::Instant},
             {"Attack", "A", ActionDef::Type::TargetAttack},
             {"Gather", "G", ActionDef::Type::TargetGather},
             buildBarracks,
-            buildBase
+            buildBase,
+            buildFactory
         };
         
         registerEntity(std::move(def));
@@ -216,6 +230,7 @@ void EntityRegistry::initializeDefaults() {
         building.canProduce = true;
         building.producesUnits = {EntityType::Worker};
         building.isResourceNode = false;
+        building.constructionTime = 30.0f;  // 30 seconds
         def.building = building;
         
         // Base actions - train workers
@@ -241,10 +256,11 @@ void EntityRegistry::initializeDefaults() {
         def.size = {96.0f, 64.0f};
         
         BuildingDef building;
-        building.tileSize = {2, 2};
+        building.tileSize = {3, 2};
         building.canProduce = true;
         building.producesUnits = {EntityType::Soldier, EntityType::Brute};
         building.isResourceNode = false;
+        building.constructionTime = 10.0f;  // 10 seconds
         def.building = building;
         
         // Barracks actions - train combat units
@@ -280,6 +296,27 @@ void EntityRegistry::initializeDefaults() {
         building.tileSize = {2, 2};
         building.canProduce = false;
         building.isResourceNode = false;
+        def.building = building;
+        
+        registerEntity(std::move(def));
+    }
+    
+    // Factory
+    {
+        EntityDef def;
+        def.type = EntityType::Factory;
+        def.name = "Factory";
+        def.shortName = "FC";
+        def.mineralCost = 150;
+        def.gasCost = 0;
+        def.health = 1200;
+        def.size = {96.0f, 64.0f};
+        
+        BuildingDef building;
+        building.tileSize = {3, 2};
+        building.canProduce = false;  // No units yet
+        building.isResourceNode = false;
+        building.constructionTime = 15.0f;  // 15 seconds
         def.building = building;
         
         registerEntity(std::move(def));

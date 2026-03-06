@@ -23,6 +23,9 @@ Building::Building(EntityType type, Team team, sf::Vector2f position)
         case EntityType::Barracks:
             loadStaticSprite("buildings/barracks.png");
             break;
+        case EntityType::Factory:
+            loadStaticSprite("buildings/factory.png");
+            break;
         default:
             break;
     }
@@ -58,6 +61,9 @@ void Building::render(sf::RenderTarget& target) {
     
     // Draw selection indicator
     renderSelectionIndicator(target);
+    
+    // Draw health bar
+    renderHealthBar(target);
 }
 
 void Building::renderPreview(sf::RenderTarget& target, sf::Color tint) {
@@ -70,9 +76,6 @@ void Building::renderPreview(sf::RenderTarget& target, sf::Color tint) {
         shape.setFillColor(tint);
         target.draw(shape);
     }
-    
-    // Draw health bar
-    renderHealthBar(target);
     
     // Draw construction/production progress
     if (!isConstructed() || m_isProducing) {
@@ -176,11 +179,52 @@ std::vector<EntityType> Building::getProductionQueue() const {
 }
 
 void Building::addConstructionProgress(float amount) {
+    float oldProgress = m_constructionProgress;
     m_constructionProgress += amount;
+    
+    // Increase HP proportionally during construction
+    // HP goes from 1 to maxHP as progress goes from 0 to 1
+    int targetHp = 1 + static_cast<int>((m_maxHealth - 1) * m_constructionProgress);
+    int oldTargetHp = 1 + static_cast<int>((m_maxHealth - 1) * oldProgress);
+    int hpGain = targetHp - oldTargetHp;
+    if (hpGain > 0) {
+        m_health = std::min(m_health + hpGain, m_maxHealth);
+    }
+    
     if (m_constructionProgress >= 1.0f) {
         m_constructionProgress = 1.0f;
         m_isConstructing = false;
+        releaseBuilder();
     }
+}
+
+void Building::startConstruction() {
+    m_constructionProgress = 0.0f;
+    m_isConstructing = true;
+    m_health = 1;  // Start with 1 HP, increases during construction
+}
+
+bool Building::hasBuilder() const {
+    return !m_builder.expired();
+}
+
+bool Building::assignBuilder(EntityPtr worker) {
+    if (isConstructed()) return false;
+    if (hasBuilder()) return false;  // Already has a builder
+    m_builder = worker;
+    m_isConstructing = true;
+    return true;
+}
+
+void Building::releaseBuilder() {
+    m_builder.reset();
+    if (!isConstructed()) {
+        m_isConstructing = false;  // Pause construction when no builder
+    }
+}
+
+float Building::getConstructionTime() const {
+    return ENTITY_DATA.getConstructionTime(m_type);
 }
 
 void Building::updateProduction(float deltaTime) {

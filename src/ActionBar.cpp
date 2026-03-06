@@ -192,8 +192,14 @@ ActionBarClickResult ActionBar::handleClick(sf::Vector2i screenPos, Player& play
             break;
             
         case ActionDef::Type::Build:
-            result.type = ActionBarClickResult::Type::TargetBuild;
-            result.buildType = action.producesType;
+            // Check dependencies before entering build mode
+            if (action.requires != EntityType::None && 
+                !player.hasCompletedBuilding(action.requires)) {
+                result.type = ActionBarClickResult::Type::Handled;  // Dependency not met, do nothing
+            } else {
+                result.type = ActionBarClickResult::Type::TargetBuild;
+                result.buildType = action.producesType;
+            }
             break;
     }
     
@@ -272,11 +278,17 @@ void ActionBar::renderButtons(sf::RenderWindow& window, EntityPtr entity, Player
                     isActive = (state == UnitState::Gathering || state == UnitState::Returning);
                     break;
                 case ActionDef::Type::Build:
-                    // Check if player can afford the building
+                    // Check if player can afford the building and has required buildings
                     {
                         int mineralCost = ENTITY_DATA.getMineralCost(action.producesType);
                         int gasCost = ENTITY_DATA.getGasCost(action.producesType);
                         isAvailable = player.canAfford(mineralCost, gasCost);
+                        
+                        // Check building dependencies
+                        if (action.requires != EntityType::None && 
+                            !player.hasCompletedBuilding(action.requires)) {
+                            isAvailable = false;
+                        }
                     }
                     break;
                 default:

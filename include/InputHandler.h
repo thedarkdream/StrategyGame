@@ -4,6 +4,7 @@
 #include <SFML/Graphics.hpp>
 #include <functional>
 #include <memory>
+#include <string>
 
 class Game;
 class Entity;
@@ -92,6 +93,7 @@ private:
     void handleMouseRelease(sf::Vector2i position, sf::Mouse::Button button);
     void handleMouseMove(sf::Vector2i position);
     void handleKeyPress(sf::Keyboard::Key code);
+    std::string keyToHotkey(sf::Keyboard::Key code);
     
     // Selection
     void performSelection(sf::Vector2f worldPos);
