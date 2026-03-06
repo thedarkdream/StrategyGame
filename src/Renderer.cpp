@@ -44,8 +44,11 @@ void Renderer::render(Game& game) {
         renderBuildPreview(input, game.getMap());
     }
     
-    // Switch to default view for UI
-    m_window.setView(m_window.getDefaultView());
+    // Switch to pixel-perfect UI view (must match current window size, not initial size)
+    sf::Vector2u windowSize = m_window.getSize();
+    sf::View uiView(sf::FloatRect(sf::Vector2f(0.f, 0.f), 
+                    sf::Vector2f(static_cast<float>(windowSize.x), static_cast<float>(windowSize.y))));
+    m_window.setView(uiView);
     
     // Render UI elements
     renderUI(game);
@@ -70,6 +73,7 @@ void Renderer::renderUI(Game& game) {
     
     // Render action bar through ActionBar class
     ActionBar& actionBar = game.getActionBar();
+    actionBar.setWindowSize(m_window.getSize());
     if (m_font) {
         actionBar.setFont(&(*m_font));
     }
@@ -125,12 +129,13 @@ void Renderer::renderBuildPreview(const InputHandler& input, Map& map) {
 }
 
 void Renderer::renderMinimap(Game& game) {
+    sf::Vector2u windowSize = m_window.getSize();
     const float minimapSize = Constants::MINIMAP_SIZE;
     const float padding = Constants::MINIMAP_PADDING;
     
     // Background
     sf::RectangleShape bg(sf::Vector2f(minimapSize, minimapSize));
-    bg.setPosition(sf::Vector2f(padding, Constants::WINDOW_HEIGHT - minimapSize - padding));
+    bg.setPosition(sf::Vector2f(padding, static_cast<float>(windowSize.y) - minimapSize - padding));
     bg.setFillColor(sf::Color(30, 30, 30, 200));
     bg.setOutlineThickness(2.0f);
     bg.setOutlineColor(sf::Color(100, 100, 100));
@@ -146,7 +151,7 @@ void Renderer::renderMinimap(Game& game) {
         
         sf::Vector2f pos = entity->getPosition();
         float x = padding + pos.x * scaleX;
-        float y = (Constants::WINDOW_HEIGHT - minimapSize - padding) + pos.y * scaleY;
+        float y = (static_cast<float>(windowSize.y) - minimapSize - padding) + pos.y * scaleY;
         
         sf::CircleShape dot(2.0f);
         dot.setOrigin(sf::Vector2f(2.0f, 2.0f));
@@ -162,7 +167,7 @@ void Renderer::renderMinimap(Game& game) {
     sf::RectangleShape camRect(sf::Vector2f(camSize.x * scaleX, camSize.y * scaleY));
     camRect.setPosition(sf::Vector2f(
         padding + (camCenter.x - camSize.x / 2.0f) * scaleX,
-        (Constants::WINDOW_HEIGHT - minimapSize - padding) + (camCenter.y - camSize.y / 2.0f) * scaleY
+        (static_cast<float>(windowSize.y) - minimapSize - padding) + (camCenter.y - camSize.y / 2.0f) * scaleY
     ));
     camRect.setFillColor(sf::Color::Transparent);
     camRect.setOutlineThickness(1.0f);
@@ -171,10 +176,11 @@ void Renderer::renderMinimap(Game& game) {
 }
 
 void Renderer::renderResourceBar(Player& player) {
+    sf::Vector2u windowSize = m_window.getSize();
     const float barHeight = 30.0f;
     
     // Background
-    sf::RectangleShape bg(sf::Vector2f(static_cast<float>(Constants::WINDOW_WIDTH), barHeight));
+    sf::RectangleShape bg(sf::Vector2f(static_cast<float>(windowSize.x), barHeight));
     bg.setFillColor(sf::Color(40, 40, 50, 230));
     m_window.draw(bg);
     
@@ -201,6 +207,7 @@ void Renderer::renderResourceBar(Player& player) {
 }
 
 void Renderer::renderUnitPanel(Game& game) {
+    sf::Vector2u windowSize = m_window.getSize();
     Player& player = game.getPlayer();
     EntityPtr inspectedEnemy = game.getInput().getInspectedEnemy();
     
@@ -228,8 +235,8 @@ void Renderer::renderUnitPanel(Game& game) {
     // Background
     sf::RectangleShape bg(sf::Vector2f(panelWidth, panelHeight));
     bg.setPosition(sf::Vector2f(
-        Constants::WINDOW_WIDTH - panelWidth - padding,
-        Constants::WINDOW_HEIGHT - panelHeight - padding
+        static_cast<float>(windowSize.x) - panelWidth - padding,
+        static_cast<float>(windowSize.y) - panelHeight - padding
     ));
     bg.setFillColor(sf::Color(40, 40, 50, 230));
     bg.setOutlineThickness(2.0f);
@@ -279,8 +286,8 @@ void Renderer::renderUnitPanel(Game& game) {
     sf::Text nameText(*m_font, nameStr, 14);
     nameText.setFillColor(nameColor);
     nameText.setPosition(sf::Vector2f(
-        Constants::WINDOW_WIDTH - panelWidth - padding + 10.0f,
-        Constants::WINDOW_HEIGHT - panelHeight - padding + 10.0f
+        static_cast<float>(windowSize.x) - panelWidth - padding + 10.0f,
+        static_cast<float>(windowSize.y) - panelHeight - padding + 10.0f
     ));
     m_window.draw(nameText);
     
@@ -288,13 +295,13 @@ void Renderer::renderUnitPanel(Game& game) {
                          std::to_string(entity->getMaxHealth()), 12);
     healthText.setFillColor(sf::Color(200, 200, 200));
     healthText.setPosition(sf::Vector2f(
-        Constants::WINDOW_WIDTH - panelWidth - padding + 10.0f,
-        Constants::WINDOW_HEIGHT - panelHeight - padding + 35.0f
+        static_cast<float>(windowSize.x) - panelWidth - padding + 10.0f,
+        static_cast<float>(windowSize.y) - panelHeight - padding + 35.0f
     ));
     m_window.draw(healthText);
     
-    float panelX = Constants::WINDOW_WIDTH - panelWidth - padding + 10.0f;
-    float statsY = Constants::WINDOW_HEIGHT - panelHeight - padding + 55.0f;
+    float panelX = static_cast<float>(windowSize.x) - panelWidth - padding + 10.0f;
+    float statsY = static_cast<float>(windowSize.y) - panelHeight - padding + 55.0f;
     
     // Show unit-specific stats if this is a unit
     if (auto* unit = dynamic_cast<Unit*>(entity.get())) {
@@ -336,6 +343,8 @@ void Renderer::renderTargetingModeIndicator(Game& game) {
     
     if (!m_font) return;
     
+    sf::Vector2u windowSize = m_window.getSize();
+    
     // Show targeting mode text at top-center
     std::string actionText;
     sf::Color textColor;
@@ -362,14 +371,14 @@ void Renderer::renderTargetingModeIndicator(Game& game) {
     
     sf::FloatRect bounds = text.getLocalBounds();
     text.setPosition(sf::Vector2f(
-        (Constants::WINDOW_WIDTH - bounds.size.x) / 2.0f,
+        (static_cast<float>(windowSize.x) - bounds.size.x) / 2.0f,
         60.0f
     ));
     
     // Draw background box
     sf::RectangleShape bg(sf::Vector2f(bounds.size.x + 20.0f, bounds.size.y + 14.0f));
     bg.setPosition(sf::Vector2f(
-        (Constants::WINDOW_WIDTH - bounds.size.x) / 2.0f - 10.0f,
+        (static_cast<float>(windowSize.x) - bounds.size.x) / 2.0f - 10.0f,
         56.0f
     ));
     bg.setFillColor(sf::Color(0, 0, 0, 180));

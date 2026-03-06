@@ -120,7 +120,7 @@ void EntityRegistry::initializeDefaults() {
         
         ActionDef buildBase;
         buildBase.label = "Base";
-        buildBase.hotkey = "H";
+        buildBase.hotkey = "C";
         buildBase.type = ActionDef::Type::Build;
         buildBase.producesType = EntityType::Base;
         buildBase.row = 1;
@@ -236,7 +236,7 @@ void EntityRegistry::initializeDefaults() {
         // Base actions - train workers
         ActionDef trainWorker;
         trainWorker.label = "Worker";
-        trainWorker.hotkey = "T";
+        trainWorker.hotkey = "W";
         trainWorker.type = ActionDef::Type::Train;
         trainWorker.producesType = EntityType::Worker;
         def.actions = {trainWorker};
@@ -266,13 +266,13 @@ void EntityRegistry::initializeDefaults() {
         // Barracks actions - train combat units
         ActionDef trainSoldier;
         trainSoldier.label = "Soldier";
-        trainSoldier.hotkey = "T";
+        trainSoldier.hotkey = "S";
         trainSoldier.type = ActionDef::Type::Train;
         trainSoldier.producesType = EntityType::Soldier;
         
         ActionDef trainBrute;
         trainBrute.label = "Brute";
-        trainBrute.hotkey = "Y";
+        trainBrute.hotkey = "B";
         trainBrute.type = ActionDef::Type::Train;
         trainBrute.producesType = EntityType::Brute;
         

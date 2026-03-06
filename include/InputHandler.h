@@ -28,6 +28,7 @@ public:
     sf::View& getCamera() { return m_camera; }
     const sf::View& getCamera() const { return m_camera; }
     sf::Vector2f screenToWorld(sf::Vector2i screenPos) const;
+    void onWindowResize(sf::Vector2u newSize);
     
     // Build mode
     void enterBuildMode(EntityType buildingType);

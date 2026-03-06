@@ -28,6 +28,7 @@ public:
     
     // Set rendering context
     void setFont(const sf::Font* font) { m_font = font; }
+    void setWindowSize(sf::Vector2u size) { m_windowSize = size; }
     
     // Rendering
     void render(sf::RenderWindow& window, Player& player);
@@ -58,4 +59,5 @@ private:
     static constexpr float ICON_SPACING = 4.0f;
     
     const sf::Font* m_font = nullptr;
+    sf::Vector2u m_windowSize{1280, 720};  // Default to BASE dimensions
 };

@@ -14,10 +14,10 @@ InputHandler::InputHandler(sf::RenderWindow& window, Game& game)
     : m_window(window)
     , m_game(game)
 {
-    // Initialize camera
-    m_camera.setSize(sf::Vector2f(static_cast<float>(Constants::WINDOW_WIDTH), 
-                     static_cast<float>(Constants::WINDOW_HEIGHT)));
-    m_camera.setCenter(sf::Vector2f(Constants::WINDOW_WIDTH / 2.0f, Constants::WINDOW_HEIGHT / 2.0f));
+    // Initialize camera with reference game dimensions
+    // This defines the visible area in game units (always the same regardless of window size)
+    m_camera.setSize(sf::Vector2f(Constants::BASE_WIDTH, Constants::BASE_HEIGHT));
+    m_camera.setCenter(sf::Vector2f(Constants::BASE_WIDTH / 2.0f, Constants::BASE_HEIGHT / 2.0f));
 }
 
 void InputHandler::handleEvent(const sf::Event& event) {
@@ -53,6 +53,18 @@ sf::Vector2f InputHandler::screenToWorld(sf::Vector2i screenPos) const {
     return m_window.mapPixelToCoords(screenPos, m_camera);
 }
 
+void InputHandler::onWindowResize(sf::Vector2u newSize) {
+    // Maintain the same vertical game unit coverage regardless of window size
+    // Height stays at BASE_HEIGHT game units, width adjusts for aspect ratio
+    float aspectRatio = static_cast<float>(newSize.x) / static_cast<float>(newSize.y);
+    float viewWidth = Constants::BASE_HEIGHT * aspectRatio;
+    
+    sf::Vector2f oldCenter = m_camera.getCenter();
+    m_camera.setSize(sf::Vector2f(viewWidth, Constants::BASE_HEIGHT));
+    m_camera.setCenter(oldCenter);  // Preserve camera position
+    clampCamera();  // Ensure camera stays in bounds
+}
+
 void InputHandler::enterBuildMode(EntityType buildingType) {
     m_buildMode = true;
     m_buildingToBuild = buildingType;
@@ -65,17 +77,18 @@ void InputHandler::exitBuildMode() {
 
 void InputHandler::updateCameraEdgeScroll(float deltaTime) {
     sf::Vector2i mousePos = sf::Mouse::getPosition(m_window);
+    sf::Vector2u windowSize = m_window.getSize();
     sf::Vector2f movement(0.0f, 0.0f);
     
     if (mousePos.x < Constants::CAMERA_EDGE_MARGIN) {
         movement.x = -Constants::CAMERA_SPEED;
-    } else if (mousePos.x > Constants::WINDOW_WIDTH - Constants::CAMERA_EDGE_MARGIN) {
+    } else if (mousePos.x > static_cast<int>(windowSize.x) - Constants::CAMERA_EDGE_MARGIN) {
         movement.x = Constants::CAMERA_SPEED;
     }
     
     if (mousePos.y < Constants::CAMERA_EDGE_MARGIN) {
         movement.y = -Constants::CAMERA_SPEED;
-    } else if (mousePos.y > Constants::WINDOW_HEIGHT - Constants::CAMERA_EDGE_MARGIN) {
+    } else if (mousePos.y > static_cast<int>(windowSize.y) - Constants::CAMERA_EDGE_MARGIN) {
         movement.y = Constants::CAMERA_SPEED;
     }
     
@@ -119,8 +132,9 @@ void InputHandler::clampCamera() {
 }
 
 bool InputHandler::isPositionOnMinimap(sf::Vector2i screenPos) const {
+    sf::Vector2u windowSize = m_window.getSize();
     float minimapX = Constants::MINIMAP_PADDING;
-    float minimapY = Constants::WINDOW_HEIGHT - Constants::MINIMAP_SIZE - Constants::MINIMAP_PADDING;
+    float minimapY = static_cast<float>(windowSize.y) - Constants::MINIMAP_SIZE - Constants::MINIMAP_PADDING;
     
     return screenPos.x >= minimapX && 
            screenPos.x <= minimapX + Constants::MINIMAP_SIZE &&
@@ -129,8 +143,9 @@ bool InputHandler::isPositionOnMinimap(sf::Vector2i screenPos) const {
 }
 
 sf::Vector2f InputHandler::minimapToWorld(sf::Vector2i screenPos) const {
+    sf::Vector2u windowSize = m_window.getSize();
     float minimapX = Constants::MINIMAP_PADDING;
-    float minimapY = Constants::WINDOW_HEIGHT - Constants::MINIMAP_SIZE - Constants::MINIMAP_PADDING;
+    float minimapY = static_cast<float>(windowSize.y) - Constants::MINIMAP_SIZE - Constants::MINIMAP_PADDING;
     
     // Calculate relative position within the minimap (0 to 1)
     float relX = (screenPos.x - minimapX) / Constants::MINIMAP_SIZE;
@@ -511,6 +526,7 @@ void InputHandler::exitTargetingMode() {
 
 bool InputHandler::handleActionBarClick(sf::Vector2i screenPos) {
     ActionBar& actionBar = m_game.getActionBar();
+    actionBar.setWindowSize(m_window.getSize());
     Player& player = m_game.getPlayer();
     
     ActionBarClickResult result = actionBar.handleClick(screenPos, player);

@@ -8,11 +8,11 @@ ActionBar::ActionBar() {
 }
 
 float ActionBar::getPanelX() const {
-    return (Constants::WINDOW_WIDTH - Constants::ACTION_BAR_WIDTH) / 2.0f;
+    return (static_cast<float>(m_windowSize.x) - Constants::ACTION_BAR_WIDTH) / 2.0f;
 }
 
 float ActionBar::getPanelY() const {
-    return Constants::WINDOW_HEIGHT - Constants::ACTION_BAR_HEIGHT - 10.0f;
+    return static_cast<float>(m_windowSize.y) - Constants::ACTION_BAR_HEIGHT - 10.0f;
 }
 
 float ActionBar::getRow0Y() const {

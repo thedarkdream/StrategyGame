@@ -1,10 +1,18 @@
 #pragma once
 
 namespace Constants {
-    // Window settings
+    // Window settings (initial size, window is resizable)
     constexpr int WINDOW_WIDTH = 1280;
     constexpr int WINDOW_HEIGHT = 720;
     constexpr int FRAME_RATE = 60;
+    
+    // Reference resolution for scaling
+    // All coordinates are in "game units" (1 tile = 32 game units)
+    // The visible area is always BASE_HEIGHT game units tall
+    // At 720p: 1 game unit = 1 pixel
+    // At 1080p: 1 game unit = 1.5 pixels (scaled up)
+    constexpr float BASE_WIDTH = 1280.0f;
+    constexpr float BASE_HEIGHT = 720.0f;
     
     // Map settings
     constexpr int TILE_SIZE = 32;

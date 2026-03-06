@@ -11,7 +11,7 @@
 
 Game::Game()
     : m_window(sf::VideoMode(sf::Vector2u(Constants::WINDOW_WIDTH, Constants::WINDOW_HEIGHT)), 
-               "Strategy Game", sf::Style::Close)
+               "Strategy Game", sf::Style::Default)  // Allow resize
 {
     m_window.setFramerateLimit(Constants::FRAME_RATE);
     initialize();
@@ -35,6 +35,10 @@ void Game::processEvents() {
     while (const auto event = m_window.pollEvent()) {
         if (event->is<sf::Event::Closed>()) {
             m_window.close();
+        }
+        else if (const auto* resized = event->getIf<sf::Event::Resized>()) {
+            // Update the game view to maintain proper scaling
+            m_input->onWindowResize(resized->size);
         }
         
         m_input->handleEvent(*event);

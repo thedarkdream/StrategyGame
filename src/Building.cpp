@@ -1,6 +1,7 @@
-#include "Building.h"
+﻿#include "Building.h"
 #include "EntityData.h"
 #include "Constants.h"
+
 #include <cmath>
 #include <cstdint>
 
@@ -50,6 +51,9 @@ void Building::render(sf::RenderTarget& target) {
         renderColor.a = static_cast<std::uint8_t>(128 + 127 * m_constructionProgress);
     }
     
+    // Convert to pixels for rendering
+    
+    
     // Draw sprite if available, otherwise draw shape fallback
     if (m_hasSprite) {
         m_animatedSprite.render(target, m_position);
@@ -67,6 +71,10 @@ void Building::render(sf::RenderTarget& target) {
 }
 
 void Building::renderPreview(sf::RenderTarget& target, sf::Color tint) {
+    // Convert to pixels for rendering
+    
+    
+    
     if (m_hasSprite) {
         m_animatedSprite.setColor(tint);
         m_animatedSprite.render(target, m_position);
@@ -255,3 +263,4 @@ sf::Vector2f Building::getSpawnPoint() const {
     // Spawn at rally point or bottom-right of building
     return m_rallyPoint;
 }
+
