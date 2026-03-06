@@ -55,6 +55,7 @@ public:
     void issueGatherCommand(EntityPtr resource);
     void issueBuildCommand(EntityType buildingType, sf::Vector2f position);
     void issueContinueBuildCommand(EntityPtr building);
+    void cancelBuildingConstruction(EntityPtr building);
     
 private:
     // Window

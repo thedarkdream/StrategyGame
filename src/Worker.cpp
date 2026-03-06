@@ -46,6 +46,7 @@ void Worker::render(sf::RenderTarget& target) {
 void Worker::gather(EntityPtr resource) {
     if (!resource) {
         m_state = UnitState::Idle;
+        playAnimation(AnimationState::Idle);
         return;
     }
     
@@ -57,6 +58,7 @@ void Worker::gather(EntityPtr resource) {
     m_state = UnitState::Gathering;
     m_gatherTimer = 0.0f;
     m_isActivelyMining = false;
+    playAnimation(AnimationState::Walk);  // Walk to resource first
     findPath(resource->getPosition());
 }
 
@@ -67,9 +69,11 @@ void Worker::returnResources() {
     if (auto base = m_homeBase.lock()) {
         m_targetPosition = base->getPosition();
         m_state = UnitState::Returning;
+        playAnimation(AnimationState::Walk);
         findPath(base->getPosition());
     } else {
         m_state = UnitState::Idle;
+        playAnimation(AnimationState::Idle);
     }
 }
 
@@ -143,6 +147,10 @@ void Worker::updateGathering(float deltaTime) {
                     return;
                 }
                 m_isActivelyMining = true;
+                // Face the resource and play gather animation
+                sf::Vector2f direction = resource->getPosition() - m_position;
+                updateSpriteDirection(direction);
+                playAnimation(AnimationState::Gather);
             }
         }
         
@@ -243,6 +251,7 @@ void Worker::releaseMiningClaim() {
 void Worker::buildAt(EntityPtr building) {
     if (!building) {
         m_state = UnitState::Idle;
+        playAnimation(AnimationState::Idle);
         return;
     }
     
@@ -253,6 +262,7 @@ void Worker::buildAt(EntityPtr building) {
     m_buildTarget = building;
     m_targetPosition = building->getPosition();
     m_state = UnitState::Building;
+    playAnimation(AnimationState::Walk);  // Walk to building first
     findPath(building->getPosition());
 }
 
@@ -287,7 +297,7 @@ void Worker::updateBuilding(float deltaTime) {
     if (distance > buildRange) {
         // Still moving to building
         followPath(deltaTime);
-        playAnimation(AnimationState::Walk);
+        // Walk animation already set when buildAt was called
     } else {
         // At building - start constructing
         // Try to assign ourselves as the builder
@@ -305,7 +315,10 @@ void Worker::updateBuilding(float deltaTime) {
             // Face the building
             sf::Vector2f direction = target->getPosition() - m_position;
             updateSpriteDirection(direction);
-            playAnimation(AnimationState::Idle);  // Or a build animation if available
+            // Switch to idle/build animation only once when we start building
+            if (m_animatedSprite.getCurrentAnimationName() != AnimationState::Idle) {
+                playAnimation(AnimationState::Idle);  // Or a build animation if available
+            }
         } else {
             // Another worker is building - stop and wait or go idle
             m_state = UnitState::Idle;

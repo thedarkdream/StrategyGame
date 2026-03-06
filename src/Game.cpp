@@ -8,6 +8,7 @@
 #include "MathUtil.h"
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 
 Game::Game()
     : m_window(sf::VideoMode(sf::Vector2u(Constants::WINDOW_WIDTH, Constants::WINDOW_HEIGHT)), 
@@ -90,13 +91,22 @@ void Game::initialize() {
 }
 
 void Game::setupStartingUnits() {
-    // Player starting position (top-left area)
-    sf::Vector2f playerStart(200.0f, 200.0f);
+    // Player starting position - snap to tile grid
+    // Base is 3x3 tiles, place at tile (5, 5) - center position
+    int playerTileX = 5;
+    int playerTileY = 5;
+    sf::Vector2i baseSize = ResourceManager::getBuildingSize(EntityType::Base);
+    sf::Vector2f playerStart(
+        playerTileX * Constants::TILE_SIZE + baseSize.x * Constants::TILE_SIZE / 2.0f,
+        playerTileY * Constants::TILE_SIZE + baseSize.y * Constants::TILE_SIZE / 2.0f
+    );
     
-    // Enemy starting position (bottom-right area)
+    // Enemy starting position - snap to tile grid (bottom-right area)
+    int enemyTileX = Constants::MAP_WIDTH - 5 - baseSize.x;
+    int enemyTileY = Constants::MAP_HEIGHT - 5 - baseSize.y;
     sf::Vector2f enemyStart(
-        Constants::MAP_WIDTH * Constants::TILE_SIZE - 200.0f,
-        Constants::MAP_HEIGHT * Constants::TILE_SIZE - 200.0f
+        enemyTileX * Constants::TILE_SIZE + baseSize.x * Constants::TILE_SIZE / 2.0f,
+        enemyTileY * Constants::TILE_SIZE + baseSize.y * Constants::TILE_SIZE / 2.0f
     );
     
     // Create player's base
@@ -110,6 +120,9 @@ void Game::setupStartingUnits() {
     m_player->addBuilding(playerBase);
     addEntity(playerBase);
     
+    // Mark player base tiles on map
+    m_map.placeBuilding(playerTileX, playerTileY, baseSize.x, baseSize.y, playerBase);
+    
     // Create player's starting workers
     for (int i = 0; i < 4; ++i) {
         sf::Vector2f workerPos = playerStart + sf::Vector2f(60.0f + i * 30.0f, 70.0f);
@@ -121,7 +134,18 @@ void Game::setupStartingUnits() {
         m_player->addUnit(worker);
         addEntity(worker);
     }
-    
+
+        // Create player's starting army
+    for (int i = 0; i < 8; ++i) {
+        sf::Vector2f soldierPos = playerStart + sf::Vector2f(60.0f + i * 30.0f, 100.0f);
+        auto soldier = ResourceManager::createSoldier(Team::Player, soldierPos);
+
+        setupUnit(soldier);
+
+        m_player->addUnit(soldier);
+        addEntity(soldier);
+    }
+
     // Create enemy's base
     auto enemyBase = ResourceManager::createBase(Team::Enemy, enemyStart);
     enemyBase->onUnitProduced = [this](EntityType type, sf::Vector2f pos) {
@@ -132,6 +156,9 @@ void Game::setupStartingUnits() {
     };
     m_enemy->addBuilding(enemyBase);
     addEntity(enemyBase);
+    
+    // Mark enemy base tiles on map
+    m_map.placeBuilding(enemyTileX, enemyTileY, baseSize.x, baseSize.y, enemyBase);
     
     // Create enemy's starting workers
     for (int i = 0; i < 4; ++i) {
@@ -149,7 +176,8 @@ void Game::setupStartingUnits() {
     std::vector<sf::Vector2f> mineralPositions;
     for (int i = 0; i < 6; ++i) {
         sf::Vector2f mineralPos = playerStart + sf::Vector2f(150.0f + i * 50.0f, -100.0f);
-        auto mineral = ResourceManager::createMineralPatch(mineralPos);
+        int variant = (std::rand() % 3) + 1;  // Random variant 1-3
+        auto mineral = ResourceManager::createMineralPatch(mineralPos, 1500, variant);
         mineralPositions.push_back(mineralPos);
         addEntity(mineral);
     }
@@ -157,7 +185,8 @@ void Game::setupStartingUnits() {
     // Create mineral patches near enemy
     for (int i = 0; i < 6; ++i) {
         sf::Vector2f mineralPos = enemyStart + sf::Vector2f(-150.0f - i * 50.0f, 100.0f);
-        auto mineral = ResourceManager::createMineralPatch(mineralPos);
+        int variant = (std::rand() % 3) + 1;  // Random variant 1-3
+        auto mineral = ResourceManager::createMineralPatch(mineralPos, 1500, variant);
         mineralPositions.push_back(mineralPos);
         addEntity(mineral);
     }
@@ -169,10 +198,10 @@ void Game::cleanupDeadEntities() {
     m_player->cleanupDeadEntities();
     m_enemy->cleanupDeadEntities();
     
-    // Remove dead entities from main list
+    // Remove entities that are ready for removal (dead and death animation finished)
     m_allEntities.erase(
         std::remove_if(m_allEntities.begin(), m_allEntities.end(),
-            [](const EntityPtr& entity) { return !entity || !entity->isAlive(); }),
+            [](const EntityPtr& entity) { return !entity || entity->isReadyForRemoval(); }),
         m_allEntities.end()
     );
 }
@@ -293,6 +322,20 @@ bool Game::checkPositionBlocked(sf::Vector2f pos, float radius, Entity* excludeS
         else if (entity->getType() == EntityType::Base || 
                  entity->getType() == EntityType::Barracks ||
                  entity->getType() == EntityType::Refinery) {
+            sf::FloatRect bounds = entity->getBounds();
+            // Expand bounds by radius
+            bounds.position.x -= radius;
+            bounds.position.y -= radius;
+            bounds.size.x += radius * 2;
+            bounds.size.y += radius * 2;
+            
+            if (bounds.contains(pos)) {
+                return true;
+            }
+        }
+        // Check resource nodes (mineral patches, gas geysers)
+        else if (entity->getType() == EntityType::MineralPatch ||
+                 entity->getType() == EntityType::GasGeyser) {
             sf::FloatRect bounds = entity->getBounds();
             // Expand bounds by radius
             bounds.position.x -= radius;
@@ -604,4 +647,38 @@ void Game::issueContinueBuildCommand(EntityPtr building) {
             }
         }
     }
+}
+
+void Game::cancelBuildingConstruction(EntityPtr entity) {
+    if (!entity) return;
+    
+    Building* building = dynamic_cast<Building*>(entity.get());
+    if (!building || building->isConstructed()) return;
+    
+    // Release the builder worker
+    building->releaseBuilder();
+    
+    // Free the tiles occupied by this building
+    sf::Vector2i buildingSize = ResourceManager::getBuildingSize(building->getType());
+    sf::Vector2f pos = building->getPosition();
+    int tileX = static_cast<int>((pos.x - buildingSize.x * Constants::TILE_SIZE / 2.0f) / Constants::TILE_SIZE);
+    int tileY = static_cast<int>((pos.y - buildingSize.y * Constants::TILE_SIZE / 2.0f) / Constants::TILE_SIZE);
+    m_map.removeBuilding(tileX, tileY, buildingSize.x, buildingSize.y);
+    
+    // Refund a portion of the cost based on construction progress
+    // For now, refund full cost since building didn't complete
+    int mineralCost = ENTITY_DATA.getMineralCost(building->getType());
+    int gasCost = ENTITY_DATA.getGasCost(building->getType());
+    
+    // Refund to the owning player
+    Player* owner = (building->getTeam() == Team::Player) ? m_player.get() : m_enemy.get();
+    if (owner) {
+        owner->addResources(mineralCost, gasCost);
+    }
+    
+    // Clear selection (the building is being removed)
+    m_player->clearSelection();
+    
+    // Remove the building from the game
+    removeEntity(entity);
 }

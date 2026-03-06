@@ -22,6 +22,8 @@ public:
     int getHealth() const { return m_health; }
     int getMaxHealth() const { return m_maxHealth; }
     bool isAlive() const { return m_health > 0; }
+    bool isDying() const { return m_isDying; }
+    bool isReadyForRemoval() const { return m_health <= 0 && !m_isDying; }
     bool isSelected() const { return m_selected; }
     
     // Setters
@@ -40,6 +42,7 @@ protected:
     int m_health;
     int m_maxHealth;
     bool m_selected = false;
+    bool m_isDying = false;  // True while death animation is playing
     
     // Visual
     sf::RectangleShape m_shape;
@@ -59,4 +62,6 @@ protected:
     void loadStaticSprite(const std::string& texturePath);  // For non-animated sprites
     void playAnimation(const std::string& animName);
     void updateSpriteDirection(sf::Vector2f movement);
+    void startDeathAnimation();
+    void updateDeathAnimation(float deltaTime);
 };

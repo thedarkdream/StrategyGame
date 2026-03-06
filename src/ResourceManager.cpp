@@ -72,8 +72,8 @@ BuildingPtr ResourceManager::createFactory(Team team, sf::Vector2f position) {
     return std::make_shared<Building>(EntityType::Factory, team, position);
 }
 
-ResourceNodePtr ResourceManager::createMineralPatch(sf::Vector2f position, int amount) {
-    return std::make_shared<ResourceNode>(EntityType::MineralPatch, position, amount);
+ResourceNodePtr ResourceManager::createMineralPatch(sf::Vector2f position, int amount, int visualVariant) {
+    return std::make_shared<ResourceNode>(EntityType::MineralPatch, position, amount, visualVariant);
 }
 
 ResourceNodePtr ResourceManager::createGasGeyser(sf::Vector2f position, int amount) {

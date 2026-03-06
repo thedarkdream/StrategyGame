@@ -59,9 +59,9 @@ void Renderer::renderMap(Map& map) {
 }
 
 void Renderer::renderEntities(Game& game) {
-    // Render all entities
+    // Render all entities (including dying ones playing death animation)
     for (const auto& entity : game.getAllEntities()) {
-        if (entity && entity->isAlive()) {
+        if (entity && (entity->isAlive() || entity->isDying())) {
             entity->render(m_window);
         }
     }
@@ -74,13 +74,14 @@ void Renderer::renderUI(Game& game) {
     // Render action bar through ActionBar class
     ActionBar& actionBar = game.getActionBar();
     actionBar.setWindowSize(m_window.getSize());
+    actionBar.setTargetingAction(game.getInput().getTargetingAction());
     if (m_font) {
         actionBar.setFont(&(*m_font));
     }
     actionBar.render(m_window, game.getPlayer());
     
     renderUnitPanel(game);
-    renderTargetingModeIndicator(game);
+    // Targeting mode is now shown via pressed button state in action bar
 }
 
 void Renderer::renderSelectionBox(const InputHandler& input) {

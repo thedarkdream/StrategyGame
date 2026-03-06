@@ -35,9 +35,12 @@ sf::FloatRect Entity::getBounds() const {
 }
 
 void Entity::takeDamage(int damage) {
+    if (m_isDying) return;  // Already dying, don't process more damage
+    
     m_health -= damage;
-    if (m_health < 0) {
+    if (m_health <= 0) {
         m_health = 0;
+        startDeathAnimation();
     }
 }
 
@@ -100,6 +103,7 @@ void Entity::loadAnimations(const std::string& basePath) {
         {AnimationState::Walk, basePath + "_walk.png"},
         {AnimationState::Attack, basePath + "_attack.png"},
         {AnimationState::Gather, basePath + "_gather.png"},
+        {AnimationState::Death, basePath + "_death.png"},
     };
     
     bool hasAnyAnim = false;
@@ -112,12 +116,21 @@ void Entity::loadAnimations(const std::string& basePath) {
             if (!tex) continue;
             sf::Vector2u texSize = tex->getSize();
             
-            // 8-directional sprite sheets: 8 rows (directions), N columns (frames)
-            // Frame height = texture height / 8 directions
-            // Frame width = frame height (assuming square frames)
-            int dirFrameHeight = static_cast<int>(texSize.y) / 8;
-            int frameWidth = dirFrameHeight;  // Square frames
-            int frameCount = static_cast<int>(texSize.x) / frameWidth;
+            int dirFrameHeight, frameWidth, frameCount;
+            
+            // Death animation is non-directional (single row)
+            if (stateName == AnimationState::Death) {
+                dirFrameHeight = static_cast<int>(texSize.y);
+                frameWidth = dirFrameHeight;  // Assume square frames
+                frameCount = static_cast<int>(texSize.x) / frameWidth;
+            } else {
+                // 8-directional sprite sheets: 8 rows (directions), N columns (frames)
+                // Frame height = texture height / 8 directions
+                // Frame width = frame height (assuming square frames)
+                dirFrameHeight = static_cast<int>(texSize.y) / 8;
+                frameWidth = dirFrameHeight;  // Square frames
+                frameCount = static_cast<int>(texSize.x) / frameWidth;
+            }
             
             if (frameCount > 0 && dirFrameHeight > 0) {
                 Animation anim(stateName);
@@ -129,11 +142,15 @@ void Entity::loadAnimations(const std::string& basePath) {
                 if (stateName == AnimationState::Attack) {
                     anim.setLoops(false);
                 }
+                // Death animation should not loop
+                if (stateName == AnimationState::Death) {
+                    anim.setLoops(false);
+                }
                 
                 m_animationSet->addAnimation(anim);
                 
-                // Store frame height for direction row calculation
-                if (!hasAnyAnim) {
+                // Store frame height for direction row calculation (skip death since it's non-directional)
+                if (!hasAnyAnim && stateName != AnimationState::Death) {
                     frameHeight = dirFrameHeight;
                 }
                 hasAnyAnim = true;
@@ -220,6 +237,10 @@ void Entity::playAnimation(const std::string& animName) {
         if (m_type == EntityType::Worker) texPath = "units/worker_walk.png";
     } else if (animName == AnimationState::Attack) {
         if (m_type == EntityType::Worker) texPath = "units/worker_attack.png";
+    } else if (animName == AnimationState::Gather) {
+        if (m_type == EntityType::Worker) texPath = "units/worker_gather.png";
+    } else if (animName == AnimationState::Death) {
+        if (m_type == EntityType::Worker) texPath = "units/worker_death.png";
     }
     
     if (!texPath.empty() && TEXTURES.load(texPath)) {
@@ -240,5 +261,58 @@ void Entity::playAnimation(const std::string& animName) {
 void Entity::updateSpriteDirection(sf::Vector2f movement) {
     if (std::abs(movement.x) > 0.01f || std::abs(movement.y) > 0.01f) {
         m_animatedSprite.setDirectionFromMovement(movement);
+    }
+}
+
+void Entity::startDeathAnimation() {
+    if (m_isDying) return;  // Already dying
+    
+    if (m_hasSprite && m_animationSet->hasAnimation(AnimationState::Death)) {
+        m_isDying = true;
+        
+        // Death animation is typically non-directional (single row)
+        // Load the death texture and set up proper scaling
+        std::string texPath;
+        if (m_type == EntityType::Worker) texPath = "units/worker_death.png";
+        
+        if (!texPath.empty() && TEXTURES.load(texPath)) {
+            sf::Texture* tex = TEXTURES.get(texPath);
+            m_animationSet->setTexture(tex);
+            m_animatedSprite.setAnimationSet(m_animationSet.get());
+            
+            if (tex) {
+                // Death animation is single row (non-directional)
+                int frameHeight = static_cast<int>(tex->getSize().y);
+                int frameWidth = frameHeight;  // Assume square frames
+                int frameCount = static_cast<int>(tex->getSize().x) / frameWidth;
+                
+                // Use frame height of 0 to disable directional offset
+                m_animatedSprite.setFrameHeight(0);
+                
+                // Scale to match entity size
+                float scaleX = m_size.x / static_cast<float>(frameWidth);
+                float scaleY = m_size.y / static_cast<float>(frameHeight);
+                m_animatedSprite.setScale(sf::Vector2f(scaleX, scaleY));
+            }
+        }
+        
+        m_animatedSprite.play(AnimationState::Death);
+    }
+    // If no death animation, entity will be removed immediately (m_isDying stays false)
+}
+
+void Entity::updateDeathAnimation(float deltaTime) {
+    if (!m_isDying) return;
+    
+    if (m_hasSprite) {
+        m_animatedSprite.update(deltaTime);
+        
+        // Check if death animation finished
+        if (m_animatedSprite.isFinished()) {
+            m_isDying = false;  // Mark as ready for removal
+        }
+    } else {
+        // No sprite, immediately ready for removal
+        m_isDying = false;
     }
 }

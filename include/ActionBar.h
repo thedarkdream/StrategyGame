@@ -2,6 +2,7 @@
 
 #include "Types.h"
 #include "EntityData.h"
+#include "InputHandler.h"
 #include <SFML/Graphics.hpp>
 #include <vector>
 
@@ -15,7 +16,8 @@ struct ActionBarClickResult {
         TargetAttack,   // Enter attack targeting mode
         TargetGather,   // Enter gather targeting mode
         TargetBuild,    // Enter build placement mode
-        Handled         // Action was executed (Stop, Train, Cancel queue)
+        Handled,        // Action was executed (Stop, Train, Cancel queue)
+        CancelBuilding  // Cancel building under construction
     };
     
     Type type = Type::None;
@@ -29,6 +31,7 @@ public:
     // Set rendering context
     void setFont(const sf::Font* font) { m_font = font; }
     void setWindowSize(sf::Vector2u size) { m_windowSize = size; }
+    void setTargetingAction(TargetingAction action) { m_targetingAction = action; }
     
     // Rendering
     void render(sf::RenderWindow& window, Player& player);
@@ -52,6 +55,7 @@ private:
     // Rendering helpers
     void renderButtons(sf::RenderWindow& window, EntityPtr entity, Player& player);
     void renderProductionQueue(sf::RenderWindow& window, Building* building);
+    void renderConstructionUI(sf::RenderWindow& window, Building* building);
     
     // Constants for queue rendering
     static constexpr float MAIN_ICON_SIZE = 32.0f;
@@ -60,4 +64,5 @@ private:
     
     const sf::Font* m_font = nullptr;
     sf::Vector2u m_windowSize{1280, 720};  // Default to BASE dimensions
+    TargetingAction m_targetingAction = TargetingAction::None;
 };

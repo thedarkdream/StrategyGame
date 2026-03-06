@@ -131,6 +131,24 @@ ActionBarClickResult ActionBar::handleClick(sf::Vector2i screenPos, Player& play
     Building* building = dynamic_cast<Building*>(entity.get());
     Unit* unit = dynamic_cast<Unit*>(entity.get());
     
+    // Handle buildings under construction - only cancel button available
+    if (building && !building->isConstructed()) {
+        // Check if clicking the cancel button (first button position)
+        float panelX = getPanelX();
+        float row0Y = getRow0Y();
+        float buttonSize = Constants::ACTION_BAR_BUTTON_SIZE;
+        float buttonX = panelX + Constants::ACTION_BAR_PADDING;
+        
+        if (screenPos.x >= buttonX && screenPos.x <= buttonX + buttonSize &&
+            screenPos.y >= row0Y && screenPos.y <= row0Y + buttonSize) {
+            result.type = ActionBarClickResult::Type::CancelBuilding;
+            return result;
+        }
+        
+        result.type = ActionBarClickResult::Type::Handled;
+        return result;
+    }
+    
     // Check if clicking a queue item
     int queueIndex = getQueueItemAtPosition(screenPos, entity);
     if (queueIndex >= 0 && building) {
@@ -223,9 +241,16 @@ void ActionBar::render(sf::RenderWindow& window, Player& player) {
     
     if (!m_font) return;
     
+    Building* building = dynamic_cast<Building*>(entity.get());
+    
+    // Show construction UI for buildings under construction
+    if (building && !building->isConstructed()) {
+        renderConstructionUI(window, building);
+        return;
+    }
+    
     renderButtons(window, entity, player);
     
-    Building* building = dynamic_cast<Building*>(entity.get());
     if (building && building->isProducing()) {
         renderProductionQueue(window, building);
     }
@@ -266,16 +291,19 @@ void ActionBar::renderButtons(sf::RenderWindow& window, EntityPtr entity, Player
             UnitState state = unit->getState();
             switch (action.type) {
                 case ActionDef::Type::TargetMove:
-                    isActive = (state == UnitState::Moving);
+                    isActive = (state == UnitState::Moving) || 
+                               (m_targetingAction == TargetingAction::Move);
                     break;
                 case ActionDef::Type::Instant:
                     isActive = (state == UnitState::Idle);
                     break;
                 case ActionDef::Type::TargetAttack:
-                    isActive = (state == UnitState::Attacking);
+                    isActive = (state == UnitState::Attacking) || 
+                               (m_targetingAction == TargetingAction::Attack);
                     break;
                 case ActionDef::Type::TargetGather:
-                    isActive = (state == UnitState::Gathering || state == UnitState::Returning);
+                    isActive = (state == UnitState::Gathering || state == UnitState::Returning) ||
+                               (m_targetingAction == TargetingAction::Gather);
                     break;
                 case ActionDef::Type::Build:
                     // Check if player can afford the building and has required buildings
@@ -437,4 +465,73 @@ void ActionBar::renderProductionQueue(sf::RenderWindow& window, Building* buildi
     cancelText.setFillColor(sf::Color(180, 100, 100));
     cancelText.setPosition(sf::Vector2f(panelX + Constants::ACTION_BAR_WIDTH - 70.0f, queueY + 30.0f));
     window.draw(cancelText);
+}
+
+void ActionBar::renderConstructionUI(sf::RenderWindow& window, Building* building) {
+    float panelX = getPanelX();
+    float row0Y = getRow0Y();
+    float buttonSize = Constants::ACTION_BAR_BUTTON_SIZE;
+    
+    // Cancel button
+    float buttonX = panelX + Constants::ACTION_BAR_PADDING;
+    float buttonY = row0Y;
+    
+    sf::RectangleShape cancelButton(sf::Vector2f(buttonSize, buttonSize));
+    cancelButton.setPosition(sf::Vector2f(buttonX, buttonY));
+    cancelButton.setFillColor(sf::Color(80, 40, 40));
+    cancelButton.setOutlineThickness(1.0f);
+    cancelButton.setOutlineColor(sf::Color(150, 80, 80));
+    window.draw(cancelButton);
+    
+    // X label for cancel
+    sf::Text cancelLabel(*m_font, "X", 16);
+    cancelLabel.setFillColor(sf::Color(255, 100, 100));
+    sf::FloatRect labelBounds = cancelLabel.getLocalBounds();
+    cancelLabel.setPosition(sf::Vector2f(
+        buttonX + (buttonSize - labelBounds.size.x) / 2.0f,
+        buttonY + 6.0f
+    ));
+    window.draw(cancelLabel);
+    
+    // ESC hotkey
+    sf::Text hotkeyText(*m_font, "[ESC]", 9);
+    hotkeyText.setFillColor(sf::Color(150, 150, 150));
+    sf::FloatRect hkBounds = hotkeyText.getLocalBounds();
+    hotkeyText.setPosition(sf::Vector2f(
+        buttonX + (buttonSize - hkBounds.size.x) / 2.0f,
+        buttonY + buttonSize - 18.0f
+    ));
+    window.draw(hotkeyText);
+    
+    // Construction progress bar
+    float barX = panelX + Constants::ACTION_BAR_PADDING;
+    float barY = getRow1Y() + 10.0f;
+    float barWidth = Constants::ACTION_BAR_WIDTH - Constants::ACTION_BAR_PADDING * 2;
+    float barHeight = 16.0f;
+    float progress = building->getConstructionProgress();
+    
+    // Bar background
+    sf::RectangleShape barBg(sf::Vector2f(barWidth, barHeight));
+    barBg.setPosition(sf::Vector2f(barX, barY));
+    barBg.setFillColor(sf::Color(40, 40, 40));
+    barBg.setOutlineThickness(1.0f);
+    barBg.setOutlineColor(sf::Color(60, 60, 60));
+    window.draw(barBg);
+    
+    // Bar fill
+    sf::RectangleShape barFill(sf::Vector2f(barWidth * progress, barHeight));
+    barFill.setPosition(sf::Vector2f(barX, barY));
+    barFill.setFillColor(sf::Color(255, 200, 0));
+    window.draw(barFill);
+    
+    // Progress text
+    int progressPercent = static_cast<int>(progress * 100);
+    sf::Text progressText(*m_font, "Building: " + std::to_string(progressPercent) + "%", 11);
+    progressText.setFillColor(sf::Color::White);
+    sf::FloatRect textBounds = progressText.getLocalBounds();
+    progressText.setPosition(sf::Vector2f(
+        barX + (barWidth - textBounds.size.x) / 2.0f,
+        barY + (barHeight - textBounds.size.y) / 2.0f - 2.0f
+    ));
+    window.draw(progressText);
 }

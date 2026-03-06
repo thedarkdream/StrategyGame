@@ -3,9 +3,10 @@
 #include "Constants.h"
 #include <cmath>
 
-ResourceNode::ResourceNode(EntityType type, sf::Vector2f position, int resourceAmount)
+ResourceNode::ResourceNode(EntityType type, sf::Vector2f position, int resourceAmount, int visualVariant)
     : Entity(type, Team::Neutral, position)
     , m_resourceAmount(resourceAmount)
+    , m_visualVariant(visualVariant)
 {
     // Load size from ENTITY_DATA
     m_size = ENTITY_DATA.getSize(type);
@@ -33,7 +34,7 @@ ResourceNode::ResourceNode(EntityType type, sf::Vector2f position, int resourceA
     // Load static sprite for this resource type
     switch (type) {
         case EntityType::MineralPatch:
-            loadStaticSprite("resources/minerals.png");
+            loadStaticSprite("resources/minerals_" + std::to_string(m_visualVariant) + ".png");
             break;
         // Add more resource types here when textures are available
         default:
@@ -63,31 +64,6 @@ void ResourceNode::render(sf::RenderTarget& target) {
     
     // Draw selection indicator if selected
     renderSelectionIndicator(target);
-    
-    // Draw remaining resource amount as a simple bar
-    float barWidth = m_size.x;
-    float barHeight = 4.0f;
-    float barY = m_position.y - m_size.y / 2.0f - 8.0f;
-    
-    // Background
-    sf::RectangleShape barBg(sf::Vector2f(barWidth, barHeight));
-    barBg.setPosition(sf::Vector2f(m_position.x - barWidth / 2.0f, barY));
-    barBg.setFillColor(sf::Color(40, 40, 40));
-    target.draw(barBg);
-    
-    // Get max resources from ENTITY_DATA
-    int maxResources = 1500;  // default
-    if (auto* buildingDef = ENTITY_DATA.getBuildingDef(m_type)) {
-        maxResources = buildingDef->resourceAmount;
-    }
-    float percentage = static_cast<float>(m_resourceAmount) / static_cast<float>(maxResources);
-    percentage = std::max(0.0f, std::min(1.0f, percentage));
-    
-    // Fill
-    sf::RectangleShape barFill(sf::Vector2f(barWidth * percentage, barHeight));
-    barFill.setPosition(sf::Vector2f(m_position.x - barWidth / 2.0f, barY));
-    barFill.setFillColor(m_color);
-    target.draw(barFill);
 }
 
 int ResourceNode::harvestResource() {

@@ -33,6 +33,12 @@ Building::Building(EntityType type, Team team, sf::Vector2f position)
 }
 
 void Building::update(float deltaTime) {
+    // Handle death animation if any
+    if (m_isDying) {
+        updateDeathAnimation(deltaTime);
+        return;
+    }
+    
     if (!isAlive()) return;
     
     if (m_isConstructing) {

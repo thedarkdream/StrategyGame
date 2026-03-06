@@ -96,7 +96,7 @@ void EntityRegistry::initializeDefaults() {
         def.mineralCost = Constants::WORKER_COST_MINERALS;
         def.gasCost = 0;
         def.health = Constants::WORKER_HEALTH;
-        def.size = {20.0f, 20.0f};
+        def.size = {24.0f, 24.0f};
         
         UnitDef unit;
         unit.speed = Constants::WORKER_SPEED;

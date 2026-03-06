@@ -108,21 +108,21 @@ void Player::update(float deltaTime) {
 }
 
 void Player::cleanupDeadEntities() {
-    // Remove dead units
+    // Remove units that are ready for removal (dead and death animation finished)
     m_units.erase(
         std::remove_if(m_units.begin(), m_units.end(),
-            [](const UnitPtr& unit) { return !unit->isAlive(); }),
+            [](const UnitPtr& unit) { return unit->isReadyForRemoval(); }),
         m_units.end()
     );
     
     // Remove destroyed buildings
     m_buildings.erase(
         std::remove_if(m_buildings.begin(), m_buildings.end(),
-            [](const BuildingPtr& building) { return !building->isAlive(); }),
+            [](const BuildingPtr& building) { return building->isReadyForRemoval(); }),
         m_buildings.end()
     );
     
-    // Clean up selection
+    // Clean up selection (dying units should be deselected immediately)
     m_selection.erase(
         std::remove_if(m_selection.begin(), m_selection.end(),
             [](const EntityPtr& entity) { return !entity || !entity->isAlive(); }),

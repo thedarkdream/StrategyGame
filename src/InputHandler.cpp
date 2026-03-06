@@ -322,6 +322,16 @@ void InputHandler::handleKeyPress(sf::Keyboard::Key code) {
         } else if (m_buildMode) {
             exitBuildMode();
         } else {
+            // Check if selected building is under construction - cancel it
+            for (auto& entity : player.getSelection()) {
+                if (auto* building = dynamic_cast<Building*>(entity.get())) {
+                    if (!building->isConstructed()) {
+                        m_game.cancelBuildingConstruction(entity);
+                        return;
+                    }
+                }
+            }
+            
             // Check if selected building is producing - cancel production
             bool cancelledProduction = false;
             for (auto& entity : player.getSelection()) {
@@ -347,6 +357,13 @@ void InputHandler::handleKeyPress(sf::Keyboard::Key code) {
     // Get first selected entity
     EntityPtr selectedEntity = player.getFirstOwnedSelectedEntity();
     if (!selectedEntity) return;
+    
+    // Don't process action hotkeys if building is under construction
+    if (auto* building = dynamic_cast<Building*>(selectedEntity.get())) {
+        if (!building->isConstructed()) {
+            return;
+        }
+    }
     
     // Look up actions for this entity type
     const auto& actions = ENTITY_DATA.getActions(selectedEntity->getType());
@@ -549,6 +566,10 @@ bool InputHandler::handleActionBarClick(sf::Vector2i screenPos) {
             
         case ActionBarClickResult::Type::TargetBuild:
             enterBuildMode(result.buildType);
+            break;
+            
+        case ActionBarClickResult::Type::CancelBuilding:
+            m_game.cancelBuildingConstruction(player.getFirstOwnedSelectedEntity());
             break;
             
         case ActionBarClickResult::Type::Handled:

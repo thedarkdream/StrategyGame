@@ -33,6 +33,12 @@ Unit::Unit(EntityType type, Team team, sf::Vector2f position)
 }
 
 void Unit::update(float deltaTime) {
+    // Handle death animation
+    if (m_isDying) {
+        updateDeathAnimation(deltaTime);
+        return;
+    }
+    
     if (!isAlive()) return;
     
     m_attackTimer -= deltaTime;
@@ -102,18 +108,21 @@ void Unit::render(sf::RenderTarget& target) {
 void Unit::moveTo(sf::Vector2f target) {
     m_targetPosition = target;
     m_state = UnitState::Moving;
+    playAnimation(AnimationState::Walk);
     findPath(target);
 }
 
 void Unit::attack(EntityPtr target) {
     if (!target || !target->isAlive()) {
         m_state = UnitState::Idle;
+        playAnimation(AnimationState::Idle);
         return;
     }
     
     m_targetEntity = target;
     m_targetPosition = target->getPosition();
     m_state = UnitState::Attacking;
+    playAnimation(AnimationState::Attack);
     findPath(target->getPosition());
 }
 
@@ -121,6 +130,7 @@ void Unit::stop() {
     m_state = UnitState::Idle;
     m_targetPosition = m_position;
     m_path.clear();
+    playAnimation(AnimationState::Idle);
 }
 
 void Unit::takeDamage(int damage, EntityPtr attacker) {
