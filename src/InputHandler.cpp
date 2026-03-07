@@ -193,8 +193,8 @@ void InputHandler::handleMousePress(sf::Vector2i position, sf::Mouse::Button but
                     if (target && target->getTeam() != player.getTeam()) {
                         m_game.issueAttackCommand(target);
                     } else {
-                        // Attack-move to location
-                        m_game.issueMoveCommand(worldPos);
+                        // Attack-move to location (move while attacking enemies on the way)
+                        m_game.issueAttackMoveCommand(worldPos);
                     }
                     break;
                 case TargetingAction::Gather:

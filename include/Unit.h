@@ -16,6 +16,7 @@ public:
     
     // Commands
     void moveTo(sf::Vector2f target);
+    void attackMoveTo(sf::Vector2f target);  // Move while attacking enemies in range
     virtual void attack(EntityPtr target);
     void stop();
     
@@ -51,6 +52,7 @@ protected:
     // State update methods - can be overridden by subclasses
     virtual void updateIdle(float deltaTime);
     virtual void updateMovement(float deltaTime);
+    virtual void updateAttackMove(float deltaTime);
     virtual void updateCombat(float deltaTime);
     virtual void updateCustomState(float deltaTime);
     

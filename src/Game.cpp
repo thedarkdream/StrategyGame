@@ -529,6 +529,15 @@ void Game::issueMoveCommand(sf::Vector2f target) {
     }
 }
 
+void Game::issueAttackMoveCommand(sf::Vector2f target) {
+    auto& selection = m_player->getSelection();
+    for (auto& entity : selection) {
+        if (auto* unit = dynamic_cast<Unit*>(entity.get())) {
+            unit->attackMoveTo(target);
+        }
+    }
+}
+
 void Game::issueAttackCommand(EntityPtr target) {
     auto& selection = m_player->getSelection();
     for (auto& entity : selection) {

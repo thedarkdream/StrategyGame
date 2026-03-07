@@ -55,6 +55,10 @@ void Unit::update(float deltaTime) {
             updateMovement(deltaTime);
             break;
             
+        case UnitState::AttackMoving:
+            updateAttackMove(deltaTime);
+            break;
+            
         case UnitState::Attacking:
             updateCombat(deltaTime);
             break;
@@ -76,6 +80,7 @@ void Unit::update(float deltaTime) {
                     playAnimation(AnimationState::Idle);
                     break;
                 case UnitState::Moving:
+                case UnitState::AttackMoving:
                 case UnitState::Returning:
                     playAnimation(AnimationState::Walk);
                     break;
@@ -108,6 +113,14 @@ void Unit::render(sf::RenderTarget& target) {
 void Unit::moveTo(sf::Vector2f target) {
     m_targetPosition = target;
     m_state = UnitState::Moving;
+    playAnimation(AnimationState::Walk);
+    findPath(target);
+}
+
+void Unit::attackMoveTo(sf::Vector2f target) {
+    m_targetPosition = target;
+    m_targetEntity.reset();  // Clear any previous attack target
+    m_state = UnitState::AttackMoving;
     playAnimation(AnimationState::Walk);
     findPath(target);
 }
@@ -157,6 +170,41 @@ void Unit::updateIdle(float deltaTime) {
 }
 
 void Unit::updateMovement(float deltaTime) {
+    if (hasReachedTarget()) {
+        m_state = UnitState::Idle;
+        return;
+    }
+    followPath(deltaTime);
+}
+
+void Unit::updateAttackMove(float deltaTime) {
+    // Check for enemies in attack range while moving
+    if (findNearestEnemy) {
+        float autoAttackRange = m_attackRange + m_autoAttackRangeBonus;
+        EntityPtr enemy = findNearestEnemy(m_position, autoAttackRange, m_team);
+        if (enemy && enemy->isAlive()) {
+            // Found enemy in range - attack it but remember we're attack-moving
+            float distance = getDistanceTo(enemy);
+            
+            if (distance <= m_attackRange) {
+                // In range - attack if cooldown ready
+                if (m_attackTimer <= 0.0f) {
+                    enemy->takeDamage(m_damage, shared_from_this());
+                    m_attackTimer = m_attackCooldown;
+                    playAnimation(AnimationState::Attack);
+                }
+                // Stay in AttackMoving state, don't transition to full Attacking
+                // This way when the enemy dies, we continue moving
+                return;
+            } else {
+                // Enemy nearby but not in range - move towards them temporarily
+                followPath(deltaTime);
+                return;
+            }
+        }
+    }
+    
+    // No enemies in range - continue moving to destination
     if (hasReachedTarget()) {
         m_state = UnitState::Idle;
         return;

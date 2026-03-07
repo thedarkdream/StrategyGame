@@ -53,6 +53,7 @@ enum class TileType {
 enum class UnitState {
     Idle,
     Moving,
+    AttackMoving,  // Moving to target while attacking enemies in range
     Attacking,
     Gathering,
     Returning,
