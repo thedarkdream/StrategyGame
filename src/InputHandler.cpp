@@ -98,20 +98,16 @@ void InputHandler::updateCameraEdgeScroll(float deltaTime) {
 void InputHandler::updateCameraKeyScroll(float deltaTime) {
     sf::Vector2f movement(0.0f, 0.0f);
     
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left) || 
-        sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A)) {
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left)) {
         movement.x = -Constants::CAMERA_SPEED;
     }
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right) || 
-        sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) {
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right)) {
         movement.x = Constants::CAMERA_SPEED;
     }
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up) || 
-        sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W)) {
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up)) {
         movement.y = -Constants::CAMERA_SPEED;
     }
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down) || 
-        sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S)) {
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down)) {
         movement.y = Constants::CAMERA_SPEED;
     }
     
