@@ -11,7 +11,7 @@ class AnimatedSprite {
 public:
     AnimatedSprite() = default;
     
-    // Set the animation set to use
+    // Set the animation set to use (shared, managed by TextureManager)
     void setAnimationSet(const AnimationSet* animSet);
     const AnimationSet* getAnimationSet() const { return m_animationSet; }
     
@@ -58,11 +58,11 @@ public:
     Direction getDirection() const { return m_direction; }
     void setDirectionFromMovement(sf::Vector2f movement);
     
-    // Set frame height (for directional row offset calculation)
-    void setFrameHeight(int height) { m_frameHeight = height; }
-    
-    // Get current frame bounds
+    // Get current frame bounds (after scaling)
     sf::Vector2f getSize() const;
+    
+    // Get unscaled frame size
+    sf::Vector2f getFrameSize() const;
     
     // Playback speed multiplier (1.0 = normal)
     void setPlaybackSpeed(float speed) { m_playbackSpeed = speed; }
@@ -70,6 +70,7 @@ public:
     
 private:
     void updateSprite();
+    void updateSpriteTexture();  // Switch texture when animation changes
     
     const AnimationSet* m_animationSet = nullptr;
     const Animation* m_currentAnimation = nullptr;
@@ -84,9 +85,10 @@ private:
     bool m_finished = false;
     
     Direction m_direction = Direction::South;
-    int m_frameHeight = 0;  // Height of one frame (for row offset)
     
     sf::Vector2f m_scale = {1.0f, 1.0f};
+    sf::Vector2f m_customOrigin = {0.0f, 0.0f};
+    bool m_useCustomOrigin = false;
     
     // Deferred sprite creation (SFML 3.0 requires texture in constructor)
     std::optional<sf::Sprite> m_sprite;

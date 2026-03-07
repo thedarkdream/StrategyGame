@@ -258,17 +258,7 @@ void Renderer::renderUnitPanel(Game& game) {
         entity = inspectedEnemy;
     }
     
-    std::string typeStr;
-    switch (entity->getType()) {
-        case EntityType::Worker: typeStr = "Worker"; break;
-        case EntityType::Soldier: typeStr = "Soldier"; break;
-        case EntityType::Brute: typeStr = "Brute"; break;
-        case EntityType::Base: typeStr = "Command Center"; break;
-        case EntityType::Barracks: typeStr = "Barracks"; break;
-        case EntityType::MineralPatch: typeStr = "Mineral Patch"; break;
-        case EntityType::GasGeyser: typeStr = "Gas Geyser"; break;
-        default: typeStr = "Unknown"; break;
-    }
+    std::string typeStr = ENTITY_DATA.getName(entity->getType());
     
     // Build name string - for enemy, show "Enemy" prefix; for neutral, just name; for own units, show count
     std::string nameStr;

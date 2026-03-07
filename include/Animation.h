@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <memory>
 #include <cmath>
 
 // 8-directional facing for sprites
@@ -65,6 +66,7 @@ struct AnimationFrame {
 };
 
 // A sequence of frames forming one animation (e.g., "walk", "attack")
+// Each animation has its own texture and directional settings
 class Animation {
 public:
     Animation() = default;
@@ -91,20 +93,40 @@ public:
     // Set looping
     void setLoops(bool loops) { m_loops = loops; }
     
+    // Texture for this specific animation (each animation can have its own texture)
+    void setTexture(sf::Texture* texture) { m_texture = texture; }
+    sf::Texture* getTexture() const { return m_texture; }
+    
+    // Directional settings
+    void setDirectional(bool directional) { m_isDirectional = directional; }
+    bool isDirectional() const { return m_isDirectional; }
+    
+    // Frame dimensions (for directional row offset calculation)
+    void setFrameWidth(int width) { m_frameWidth = width; }
+    void setFrameHeight(int height) { m_frameHeight = height; }
+    int getFrameWidth() const { return m_frameWidth; }
+    int getFrameHeight() const { return m_frameHeight; }
+    
 private:
     std::string m_name;
     std::vector<AnimationFrame> m_frames;
     bool m_loops = true;
+    sf::Texture* m_texture = nullptr;
+    bool m_isDirectional = true;  // If true, sprite sheet has 8 direction rows
+    int m_frameWidth = 0;
+    int m_frameHeight = 0;
 };
 
 // Collection of animations for an entity (e.g., Worker has idle, walk, gather)
+// The AnimationSet is primarily used as a key for caching in TextureManager
 class AnimationSet {
 public:
     AnimationSet() = default;
+    explicit AnimationSet(const std::string& name) : m_name(name) {}
     
-    // Set the sprite sheet texture
-    void setTexture(sf::Texture* texture) { m_texture = texture; }
-    sf::Texture* getTexture() const { return m_texture; }
+    // Name identifier for this animation set
+    const std::string& getName() const { return m_name; }
+    void setName(const std::string& name) { m_name = name; }
     
     // Add/get animations
     void addAnimation(const Animation& animation);
@@ -115,9 +137,17 @@ public:
     // Get all animation names
     std::vector<std::string> getAnimationNames() const;
     
+    // Default frame dimensions (from first loaded animation)
+    int getDefaultFrameWidth() const { return m_defaultFrameWidth; }
+    int getDefaultFrameHeight() const { return m_defaultFrameHeight; }
+    void setDefaultFrameWidth(int width) { m_defaultFrameWidth = width; }
+    void setDefaultFrameHeight(int height) { m_defaultFrameHeight = height; }
+    
 private:
-    sf::Texture* m_texture = nullptr;
+    std::string m_name;
     std::unordered_map<std::string, Animation> m_animations;
+    int m_defaultFrameWidth = 0;
+    int m_defaultFrameHeight = 0;
 };
 
 // Common animation state names

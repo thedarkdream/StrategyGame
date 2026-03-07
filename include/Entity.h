@@ -48,8 +48,7 @@ protected:
     sf::RectangleShape m_shape;
     sf::Color m_color;
     
-    // Animation system
-    std::unique_ptr<AnimationSet> m_animationSet;
+    // Animation system - AnimatedSprite holds reference to shared AnimationSet
     AnimatedSprite m_animatedSprite;
     bool m_hasSprite = false;
     

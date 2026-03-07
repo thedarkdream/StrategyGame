@@ -2,13 +2,11 @@
 
 void AnimatedSprite::setAnimationSet(const AnimationSet* animSet) {
     m_animationSet = animSet;
-    if (animSet && animSet->getTexture()) {
-        m_sprite.emplace(*animSet->getTexture());
-    }
     m_currentAnimation = nullptr;
     m_currentAnimationName.clear();
     m_currentFrame = 0;
     m_frameTime = 0.0f;
+    m_sprite.reset();
 }
 
 void AnimatedSprite::play(const std::string& animationName, bool force) {
@@ -22,6 +20,9 @@ void AnimatedSprite::play(const std::string& animationName, bool force) {
     const Animation* anim = m_animationSet->getAnimation(animationName);
     if (!anim) return;
     
+    // Check if we need to switch textures
+    bool textureChanged = (!m_currentAnimation || m_currentAnimation->getTexture() != anim->getTexture());
+    
     m_currentAnimation = anim;
     m_currentAnimationName = animationName;
     m_currentFrame = 0;
@@ -30,7 +31,22 @@ void AnimatedSprite::play(const std::string& animationName, bool force) {
     m_paused = false;
     m_finished = false;
     
+    // Update texture if changed
+    if (textureChanged) {
+        updateSpriteTexture();
+    }
+    
     updateSprite();
+}
+
+void AnimatedSprite::updateSpriteTexture() {
+    if (!m_currentAnimation || !m_currentAnimation->getTexture()) {
+        m_sprite.reset();
+        return;
+    }
+    
+    // Create new sprite with the animation's texture
+    m_sprite.emplace(*m_currentAnimation->getTexture());
 }
 
 void AnimatedSprite::stop() {
@@ -86,18 +102,21 @@ void AnimatedSprite::render(sf::RenderTarget& target, sf::Vector2f position) {
 }
 
 void AnimatedSprite::setOrigin(sf::Vector2f origin) {
+    m_customOrigin = origin;
+    m_useCustomOrigin = true;
     if (m_sprite) m_sprite->setOrigin(origin);
 }
 
 void AnimatedSprite::centerOrigin() {
+    m_useCustomOrigin = false;
     if (!m_sprite) return;
-    sf::Vector2f size = getSize();
+    sf::Vector2f size = getFrameSize();
     m_sprite->setOrigin(sf::Vector2f(size.x / 2.0f, size.y / 2.0f));
 }
 
 void AnimatedSprite::setScale(sf::Vector2f scale) {
     m_scale = scale;
-    updateSprite();
+    if (m_sprite) m_sprite->setScale(m_scale);
 }
 
 void AnimatedSprite::setScale(float uniformScale) {
@@ -124,31 +143,43 @@ void AnimatedSprite::setDirectionFromMovement(sf::Vector2f movement) {
 }
 
 sf::Vector2f AnimatedSprite::getSize() const {
-    if (!m_sprite) return sf::Vector2f(0.f, 0.f);
-    sf::IntRect rect = m_sprite->getTextureRect();
-    return sf::Vector2f(static_cast<float>(std::abs(rect.size.x)), 
-                        static_cast<float>(std::abs(rect.size.y)));
+    sf::Vector2f frameSize = getFrameSize();
+    return sf::Vector2f(frameSize.x * m_scale.x, frameSize.y * m_scale.y);
+}
+
+sf::Vector2f AnimatedSprite::getFrameSize() const {
+    if (!m_currentAnimation) return sf::Vector2f(0.f, 0.f);
+    return sf::Vector2f(
+        static_cast<float>(m_currentAnimation->getFrameWidth()),
+        static_cast<float>(m_currentAnimation->getFrameHeight())
+    );
 }
 
 void AnimatedSprite::updateSprite() {
-    if (!m_sprite || !m_currentAnimation || !m_animationSet) return;
+    if (!m_sprite || !m_currentAnimation) return;
     
     const AnimationFrame& frame = m_currentAnimation->getFrame(m_currentFrame);
     
-    // Apply texture rect with direction row offset
+    // Apply texture rect with direction row offset (if directional)
     sf::IntRect rect = frame.textureRect;
     
     // Offset Y position based on direction (each direction is a row)
-    if (m_frameHeight > 0) {
-        rect.position.y = static_cast<int>(m_direction) * m_frameHeight;
+    if (m_currentAnimation->isDirectional()) {
+        int frameHeight = m_currentAnimation->getFrameHeight();
+        rect.position.y = static_cast<int>(m_direction) * frameHeight;
     }
     
     m_sprite->setTextureRect(rect);
     
-    // Center origin based on frame size
-    float halfWidth = static_cast<float>(std::abs(rect.size.x)) / 2.0f;
-    float halfHeight = static_cast<float>(std::abs(rect.size.y)) / 2.0f;
-    m_sprite->setOrigin(sf::Vector2f(halfWidth, halfHeight));
+    // Handle origin
+    if (m_useCustomOrigin) {
+        m_sprite->setOrigin(m_customOrigin);
+    } else {
+        // Center origin based on frame size
+        float halfWidth = static_cast<float>(std::abs(rect.size.x)) / 2.0f;
+        float halfHeight = static_cast<float>(std::abs(rect.size.y)) / 2.0f;
+        m_sprite->setOrigin(sf::Vector2f(halfWidth, halfHeight));
+    }
     
     // Apply scale
     m_sprite->setScale(m_scale);

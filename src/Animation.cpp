@@ -20,6 +20,8 @@ void Animation::addFrames(const std::vector<sf::IntRect>& rects, float duration)
 
 void Animation::addFramesFromStrip(int startX, int startY, int frameWidth, int frameHeight,
                                     int frameCount, float frameDuration) {
+    m_frameWidth = frameWidth;
+    m_frameHeight = frameHeight;
     for (int i = 0; i < frameCount; ++i) {
         sf::IntRect rect(sf::Vector2i(startX + i * frameWidth, startY), 
                          sf::Vector2i(frameWidth, frameHeight));
@@ -46,11 +48,25 @@ float Animation::getTotalDuration() const {
 // AnimationSet implementation
 
 void AnimationSet::addAnimation(const Animation& animation) {
-    m_animations[animation.getName()] = animation;
+    const std::string& name = animation.getName();
+    m_animations[name] = animation;
+    
+    // Set default frame dimensions from first animation that has them
+    if (m_defaultFrameWidth == 0 && animation.getFrameWidth() > 0) {
+        m_defaultFrameWidth = animation.getFrameWidth();
+        m_defaultFrameHeight = animation.getFrameHeight();
+    }
 }
 
 void AnimationSet::addAnimation(Animation&& animation) {
     std::string name = animation.getName();
+    
+    // Set default frame dimensions from first animation that has them
+    if (m_defaultFrameWidth == 0 && animation.getFrameWidth() > 0) {
+        m_defaultFrameWidth = animation.getFrameWidth();
+        m_defaultFrameHeight = animation.getFrameHeight();
+    }
+    
     m_animations[name] = std::move(animation);
 }
 
