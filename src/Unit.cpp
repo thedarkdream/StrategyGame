@@ -5,6 +5,7 @@
 #include "EntityData.h"
 #include "MathUtil.h"
 #include "Animation.h"
+#include "EffectsManager.h"
 #include <cmath>
 
 Unit::Unit(EntityType type, Team team, sf::Vector2f position)
@@ -147,8 +148,17 @@ void Unit::stop() {
 }
 
 void Unit::takeDamage(int damage, EntityPtr attacker) {
+    // Check if this damage will kill the unit
+    bool willDie = (m_health > 0) && (m_health - damage <= 0);
+    
     // Apply the damage first
     Entity::takeDamage(damage);
+    
+    // Spawn explosion effect when unit dies (scaled to unit size)
+    if (willDie) {
+        float explosionScale = std::max(m_size.x, m_size.y) / 64.0f;
+        EFFECTS.spawnExplosion(m_position, explosionScale);
+    }
     
     // Auto-retaliate if idle and not a worker
     if (m_state == UnitState::Idle && m_type != EntityType::Worker) {

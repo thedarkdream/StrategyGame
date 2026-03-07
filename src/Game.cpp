@@ -4,6 +4,7 @@
 #include "Building.h"
 #include "ResourceNode.h"
 #include "ResourceManager.h"
+#include "EffectsManager.h"
 #include "Constants.h"
 #include "MathUtil.h"
 #include <algorithm>
@@ -56,6 +57,9 @@ void Game::update(float deltaTime) {
     
     // Update AI
     m_ai->update(deltaTime);
+    
+    // Update visual effects
+    EFFECTS.update(deltaTime);
     
     // Cleanup dead entities
     cleanupDeadEntities();

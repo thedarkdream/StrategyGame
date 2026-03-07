@@ -189,6 +189,50 @@ AnimationSet* TextureManager::loadStaticSprite(const std::string& texturePath) {
     return ptr;
 }
 
+AnimationSet* TextureManager::loadEffectAnimation(const std::string& texturePath, float frameDuration) {
+    // Check if already loaded as an animation set
+    auto it = m_animationSets.find(texturePath);
+    if (it != m_animationSets.end()) {
+        return it->second.get();
+    }
+    
+    // Load texture
+    sf::Texture* tex = loadTexture(texturePath);
+    if (!tex) {
+        return nullptr;
+    }
+    
+    // Create AnimationSet with single-row non-looping animation
+    auto animSet = std::make_unique<AnimationSet>(texturePath);
+    
+    sf::Vector2u texSize = tex->getSize();
+    
+    // Effects are single-row horizontal strips with square frames
+    int frameHeight = static_cast<int>(texSize.y);
+    int frameWidth = frameHeight;  // Assume square frames
+    int frameCount = static_cast<int>(texSize.x) / frameWidth;
+    
+    if (frameCount <= 0) {
+        // Fallback: treat as single frame
+        frameCount = 1;
+        frameWidth = static_cast<int>(texSize.x);
+    }
+    
+    Animation effectAnim(AnimationState::Idle, false);  // Non-looping
+    effectAnim.setTexture(tex);
+    effectAnim.setDirectional(false);  // Single row, no directions
+    effectAnim.setFrameWidth(frameWidth);
+    effectAnim.setFrameHeight(frameHeight);
+    effectAnim.addFramesFromStrip(0, 0, frameWidth, frameHeight, frameCount, frameDuration);
+    
+    animSet->addAnimation(std::move(effectAnim));
+    
+    AnimationSet* ptr = animSet.get();
+    m_animationSets[texturePath] = std::move(animSet);
+    
+    return ptr;
+}
+
 void TextureManager::clear() {
     m_animationSets.clear();
     m_textures.clear();

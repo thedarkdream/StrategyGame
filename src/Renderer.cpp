@@ -9,6 +9,7 @@
 #include "Player.h"
 #include "InputHandler.h"
 #include "ActionBar.h"
+#include "EffectsManager.h"
 #include <sstream>
 #include <iomanip>
 
@@ -34,6 +35,9 @@ void Renderer::render(Game& game) {
     
     // Render all entities
     renderEntities(game);
+    
+    // Render visual effects (explosions, etc.) on top of entities
+    EFFECTS.render(m_window);
     
     // Render selection box if selecting
     InputHandler& input = game.getInput();

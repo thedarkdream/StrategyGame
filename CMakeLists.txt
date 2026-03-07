@@ -29,6 +29,8 @@ set(SOURCES
     src/TextureManager.cpp
     src/Animation.cpp
     src/AnimatedSprite.cpp
+    src/Effect.cpp
+    src/EffectsManager.cpp
 )
 
 # Header files
@@ -55,6 +57,8 @@ set(HEADERS
     include/TextureManager.h
     include/Animation.h
     include/AnimatedSprite.h
+    include/Effect.h
+    include/EffectsManager.h
 )
 
 # Create executable

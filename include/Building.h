@@ -12,6 +12,9 @@ public:
     void update(float deltaTime) override;
     void render(sf::RenderTarget& target) override;
     
+    // Override to spawn explosion on death
+    void takeDamage(int damage) override;
+    
     // Preview rendering (just the sprite with a color tint, no UI elements)
     void renderPreview(sf::RenderTarget& target, sf::Color tint);
     

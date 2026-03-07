@@ -1,6 +1,7 @@
 ﻿#include "Building.h"
 #include "EntityData.h"
 #include "Constants.h"
+#include "EffectsManager.h"
 
 #include <cmath>
 #include <cstdint>
@@ -29,6 +30,27 @@ Building::Building(EntityType type, Team team, sf::Vector2f position)
             break;
         default:
             break;
+    }
+}
+
+void Building::takeDamage(int damage) {
+    if (m_isDying) return;  // Already dying
+    
+    bool wasAlive = m_health > 0;
+    m_health -= damage;
+    
+    if (m_health <= 0) {
+        m_health = 0;
+        
+        // Spawn explosion effect when building is destroyed
+        if (wasAlive) {
+            // Scale explosion based on building size
+            float explosionScale = std::max(m_size.x, m_size.y) / 128.0f;
+            EFFECTS.spawnExplosion(m_position, explosionScale);
+        }
+        
+        // Buildings don't have death animations, so they are immediately removed
+        // (m_isDying stays false, isReadyForRemoval returns true)
     }
 }
 

@@ -54,6 +54,10 @@ public:
     // Useful for non-animated entities like buildings or resources
     AnimationSet* loadStaticSprite(const std::string& texturePath);
     
+    // Load an effect animation (single-row, non-looping animation strip)
+    // Used for explosions, impacts, etc. that play once and disappear
+    AnimationSet* loadEffectAnimation(const std::string& texturePath, float frameDuration = 0.08f);
+    
     // ============= Cleanup =============
     
     // Clear all cached textures and animation sets
