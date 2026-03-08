@@ -291,6 +291,9 @@ void Game::setupUnit(UnitPtr& unit) {
     unit->checkPositionBlocked = [this](sf::Vector2f pos, float radius, Entity* excludeSelf) {
         return this->checkPositionBlocked(pos, radius, excludeSelf);
     };
+    unit->getNearbyUnitsRVO = [this](sf::Vector2f pos, float radius, Unit* excludeSelf) {
+        return this->getNearbyUnitsRVO(pos, radius, excludeSelf);
+    };
 }
 
 void Game::setupWorker(Worker* worker, EntityPtr homeBase, Team team) {
@@ -390,6 +393,30 @@ sf::Vector2f Game::findSpawnPosition(sf::Vector2f origin, float unitRadius) {
     
     // Fallback to original if no free spot found
     return origin;
+}
+
+std::vector<RVONeighbor> Game::getNearbyUnitsRVO(sf::Vector2f pos, float radius, Unit* excludeSelf) {
+    std::vector<RVONeighbor> result;
+    
+    for (auto& entity : m_allEntities) {
+        if (!entity || !entity->isAlive()) continue;
+        
+        if (auto* unit = dynamic_cast<Unit*>(entity.get())) {
+            if (unit == excludeSelf) continue;
+            if (!unit->isCollidable()) continue;
+            
+            float dist = MathUtil::distance(entity->getPosition(), pos);
+            if (dist < radius) {
+                RVONeighbor neighbor;
+                neighbor.position = unit->getPosition();
+                neighbor.velocity = unit->getVelocity();
+                neighbor.radius = unit->getCollisionRadius();
+                result.push_back(neighbor);
+            }
+        }
+    }
+    
+    return result;
 }
 
 void Game::addEntity(EntityPtr entity) {

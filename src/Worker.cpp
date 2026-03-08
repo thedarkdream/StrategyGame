@@ -4,6 +4,7 @@
 #include "EntityData.h"
 #include "Constants.h"
 #include "Animation.h"
+#include "MathUtil.h"
 #include <cmath>
 
 Worker::Worker(Team team, sf::Vector2f position)
@@ -260,10 +261,39 @@ void Worker::buildAt(EntityPtr building) {
     releaseBuildClaim();
     
     m_buildTarget = building;
-    m_targetPosition = building->getPosition();
+    
+    // Calculate the closest point on the building's edge from our current position
+    sf::FloatRect bounds = building->getBounds();
+    sf::Vector2f buildingCenter = building->getPosition();
+    
+    // Find closest point on the building's perimeter to the worker
+    sf::Vector2f closestPoint;
+    
+    // Clamp worker position to building bounds to find nearest edge point
+    float clampedX = std::max(bounds.position.x, std::min(m_position.x, bounds.position.x + bounds.size.x));
+    float clampedY = std::max(bounds.position.y, std::min(m_position.y, bounds.position.y + bounds.size.y));
+    
+    // If worker is inside the building bounds, use center
+    if (bounds.contains(m_position)) {
+        closestPoint = buildingCenter;
+    } else {
+        // Move the target point slightly outside the building edge (add small offset for build range)
+        sf::Vector2f dirToWorker = m_position - sf::Vector2f(clampedX, clampedY);
+        float dist = std::sqrt(dirToWorker.x * dirToWorker.x + dirToWorker.y * dirToWorker.y);
+        if (dist > 0.1f) {
+            dirToWorker = dirToWorker / dist;
+            // Offset by worker collision radius plus a small margin
+            float offset = getCollisionRadius() + 5.0f;
+            closestPoint = sf::Vector2f(clampedX, clampedY) + dirToWorker * offset;
+        } else {
+            closestPoint = sf::Vector2f(clampedX, clampedY);
+        }
+    }
+    
+    m_targetPosition = closestPoint;
     m_state = UnitState::Building;
     playAnimation(AnimationState::Walk);  // Walk to building first
-    findPath(building->getPosition());
+    findPath(closestPoint);
 }
 
 void Worker::updateBuilding(float deltaTime) {
@@ -290,11 +320,17 @@ void Worker::updateBuilding(float deltaTime) {
         return;
     }
     
-    // Move toward building edge
-    float distance = getDistanceTo(target);
-    float buildRange = (building->getBounds().size.x + building->getBounds().size.y) / 4.0f + 20.0f;
+    // Calculate distance to the nearest edge of the building, not the center
+    sf::FloatRect bounds = building->getBounds();
+    float clampedX = std::max(bounds.position.x, std::min(m_position.x, bounds.position.x + bounds.size.x));
+    float clampedY = std::max(bounds.position.y, std::min(m_position.y, bounds.position.y + bounds.size.y));
+    sf::Vector2f nearestEdgePoint(clampedX, clampedY);
+    float distanceToEdge = MathUtil::distance(m_position, nearestEdgePoint);
     
-    if (distance > buildRange) {
+    // Build range is now just a small distance from the building edge
+    float buildRange = getCollisionRadius() + 15.0f;
+    
+    if (distanceToEdge > buildRange) {
         // Still moving to building
         followPath(deltaTime);
         // Walk animation already set when buildAt was called

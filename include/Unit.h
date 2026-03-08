@@ -6,6 +6,13 @@
 
 class Map;
 
+// Data for RVO collision avoidance
+struct RVONeighbor {
+    sf::Vector2f position;
+    sf::Vector2f velocity;
+    float radius;
+};
+
 class Unit : public Entity {
 public:
     Unit(EntityType type, Team team, sf::Vector2f position);
@@ -49,6 +56,12 @@ public:
     // Returns true if the position is blocked, excludeSelf is the unit doing the check
     std::function<bool(sf::Vector2f pos, float radius, Entity* excludeSelf)> checkPositionBlocked;
     
+    // Callback for getting nearby units for RVO collision avoidance (set by Game)
+    std::function<std::vector<RVONeighbor>(sf::Vector2f pos, float radius, Unit* excludeSelf)> getNearbyUnitsRVO;
+    
+    // Current velocity (for RVO)
+    sf::Vector2f getVelocity() const { return m_velocity; }
+    
 protected:
     // State update methods - can be overridden by subclasses
     virtual void updateIdle(float deltaTime);
@@ -65,6 +78,7 @@ protected:
     void findPath(sf::Vector2f target);
     float getDistanceTo(sf::Vector2f pos) const;
     float getDistanceTo(EntityPtr entity) const;
+    sf::Vector2f computeRVOVelocity(sf::Vector2f preferredVelocity, float deltaTime);
     
     // State
     UnitState m_state = UnitState::Idle;
@@ -78,8 +92,13 @@ protected:
     
     // Movement
     sf::Vector2f m_targetPosition;
+    sf::Vector2f m_velocity;  // Current velocity for RVO
     std::vector<sf::Vector2f> m_path;
     size_t m_pathIndex = 0;
+    
+    // RVO parameters
+    static constexpr float RVO_NEIGHBOR_DIST = 80.0f;    // Look for neighbors within this distance
+    static constexpr float RVO_TIME_HORIZON = 2.0f;      // How far ahead to predict collisions (seconds)
     
     // Combat
     std::weak_ptr<Entity> m_targetEntity;

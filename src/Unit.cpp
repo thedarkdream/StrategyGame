@@ -150,6 +150,7 @@ void Unit::stop() {
     m_targetPosition = m_position;
     m_path.clear();
     m_followTarget.reset();
+    m_velocity = sf::Vector2f(0.0f, 0.0f);
     playAnimation(AnimationState::Idle);
 }
 
@@ -340,35 +341,38 @@ void Unit::moveTowardsTarget(float deltaTime) {
     
     if (distance < 1.0f) {
         m_position = m_targetPosition;
+        m_velocity = sf::Vector2f(0.0f, 0.0f);
         return;
     }
     
-    // Normalize direction
+    // Calculate preferred velocity (direct path to target at max speed)
     sf::Vector2f diff = m_targetPosition - m_position;
     sf::Vector2f direction = diff / distance;
+    float desiredSpeed = std::min(m_speed, distance / deltaTime);
+    sf::Vector2f preferredVelocity = direction * desiredSpeed;
     
-    // Update sprite facing direction
+    // Update sprite facing direction (use preferred direction, not RVO-adjusted)
     updateSpriteDirection(direction);
     
-    // Calculate desired move
-    float moveDistance = m_speed * deltaTime;
-    if (moveDistance > distance) {
-        moveDistance = distance;
-    }
+    // Compute RVO-adjusted velocity to avoid collisions with other units
+    sf::Vector2f newVelocity = computeRVOVelocity(preferredVelocity, deltaTime);
     
-    sf::Vector2f newPosition = m_position + direction * moveDistance;
+    // Apply velocity
+    sf::Vector2f newPosition = m_position + newVelocity * deltaTime;
     
-    // Check collision if callback is set and we are collidable
+    // Still check for static obstacles (buildings, resources)
     if (checkPositionBlocked && isCollidable()) {
         float radius = getCollisionRadius();
         if (checkPositionBlocked(newPosition, radius, this)) {
-            // Try to slide along obstacles by checking perpendicular directions
+            // Try to slide along static obstacles
             sf::Vector2f perpendicular(-direction.y, direction.x);
+            float moveDistance = m_speed * deltaTime;
             
             // Try sliding right
             sf::Vector2f slideRight = m_position + perpendicular * moveDistance * 0.7f;
             if (!checkPositionBlocked(slideRight, radius, this)) {
                 m_position = slideRight;
+                m_velocity = perpendicular * m_speed * 0.7f;
                 return;
             }
             
@@ -376,15 +380,18 @@ void Unit::moveTowardsTarget(float deltaTime) {
             sf::Vector2f slideLeft = m_position - perpendicular * moveDistance * 0.7f;
             if (!checkPositionBlocked(slideLeft, radius, this)) {
                 m_position = slideLeft;
+                m_velocity = -perpendicular * m_speed * 0.7f;
                 return;
             }
             
-            // Blocked completely, don't move
+            // Blocked completely by static obstacle
+            m_velocity = sf::Vector2f(0.0f, 0.0f);
             return;
         }
     }
     
     m_position = newPosition;
+    m_velocity = newVelocity;
 }
 
 bool Unit::hasReachedTarget() const {
@@ -413,4 +420,98 @@ float Unit::getDistanceTo(sf::Vector2f pos) const {
 float Unit::getDistanceTo(EntityPtr entity) const {
     if (!entity) return 0.0f;
     return getDistanceTo(entity->getPosition());
+}
+
+sf::Vector2f Unit::computeRVOVelocity(sf::Vector2f preferredVelocity, float deltaTime) {
+    // If no RVO callback, just return preferred velocity
+    if (!getNearbyUnitsRVO) {
+        return preferredVelocity;
+    }
+    
+    // Get nearby units
+    std::vector<RVONeighbor> neighbors = getNearbyUnitsRVO(m_position, RVO_NEIGHBOR_DIST, this);
+    
+    if (neighbors.empty()) {
+        return preferredVelocity;
+    }
+    
+    float myRadius = getCollisionRadius();
+    sf::Vector2f adjustedVelocity = preferredVelocity;
+    
+    // ORCA: For each neighbor, compute a half-plane of permitted velocities
+    // and adjust our velocity to stay within all half-planes
+    for (const RVONeighbor& neighbor : neighbors) {
+        sf::Vector2f relativePosition = neighbor.position - m_position;
+        sf::Vector2f relativeVelocity = m_velocity - neighbor.velocity;
+        float combinedRadius = myRadius + neighbor.radius;
+        
+        float distSq = relativePosition.x * relativePosition.x + relativePosition.y * relativePosition.y;
+        float dist = std::sqrt(distSq);
+        
+        // Skip if too far apart (no collision possible in time horizon)
+        float collisionDist = combinedRadius + m_speed * RVO_TIME_HORIZON;
+        if (dist > collisionDist) {
+            continue;
+        }
+        
+        // Calculate the direction from us to the neighbor
+        sf::Vector2f toNeighbor = relativePosition / dist;
+        
+        // Time to collision if we continue with relative velocity
+        // Project relative velocity onto line to neighbor
+        float velProjection = relativeVelocity.x * toNeighbor.x + relativeVelocity.y * toNeighbor.y;
+        
+        // Distance to collision
+        float collisionGap = dist - combinedRadius;
+        
+        // If already overlapping or will collide soon, we need to adjust
+        if (collisionGap < 0.0f) {
+            // Already overlapping - push apart immediately
+            // Adjust velocity to move away from neighbor
+            sf::Vector2f pushDir = -toNeighbor;  // Direction away from neighbor
+            float pushStrength = m_speed * 0.8f;
+            
+            // Add push to adjusted velocity
+            adjustedVelocity = adjustedVelocity + pushDir * pushStrength;
+        } else if (velProjection > 0.0f) {
+            // We're moving towards each other
+            float timeToCollision = collisionGap / velProjection;
+            
+            if (timeToCollision < RVO_TIME_HORIZON) {
+                // Collision predicted within time horizon
+                // The closer the collision, the stronger the avoidance
+                float urgency = 1.0f - (timeToCollision / RVO_TIME_HORIZON);
+                urgency = urgency * urgency;  // Quadratic falloff - more urgent when close
+                
+                // Calculate avoidance direction (perpendicular to collision line)
+                // Choose the direction that requires less change from preferred velocity
+                sf::Vector2f perpRight(-toNeighbor.y, toNeighbor.x);
+                sf::Vector2f perpLeft(toNeighbor.y, -toNeighbor.x);
+                
+                // Determine which side is "cheaper" based on preferred velocity
+                float dotRight = preferredVelocity.x * perpRight.x + preferredVelocity.y * perpRight.y;
+                sf::Vector2f avoidDir = (dotRight >= 0) ? perpRight : perpLeft;
+                
+                // RVO adjustment: each agent takes half responsibility
+                float avoidStrength = velProjection * urgency * 0.5f;
+                
+                // Apply avoidance
+                // Reduce velocity component towards neighbor
+                adjustedVelocity.x -= toNeighbor.x * velProjection * urgency * 0.5f;
+                adjustedVelocity.y -= toNeighbor.y * velProjection * urgency * 0.5f;
+                
+                // Add perpendicular avoidance component
+                adjustedVelocity.x += avoidDir.x * avoidStrength;
+                adjustedVelocity.y += avoidDir.y * avoidStrength;
+            }
+        }
+    }
+    
+    // Clamp velocity magnitude to max speed
+    float velMag = std::sqrt(adjustedVelocity.x * adjustedVelocity.x + adjustedVelocity.y * adjustedVelocity.y);
+    if (velMag > m_speed) {
+        adjustedVelocity = adjustedVelocity * (m_speed / velMag);
+    }
+    
+    return adjustedVelocity;
 }

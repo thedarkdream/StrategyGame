@@ -41,6 +41,7 @@ public:
     // Collision
     bool checkPositionBlocked(sf::Vector2f pos, float radius, Entity* excludeSelf);
     sf::Vector2f findSpawnPosition(sf::Vector2f origin, float unitRadius);
+    std::vector<struct RVONeighbor> getNearbyUnitsRVO(sf::Vector2f pos, float radius, Unit* excludeSelf);
     
     // Entity management
     void addEntity(EntityPtr entity);
