@@ -540,6 +540,21 @@ void Game::issueMoveCommand(sf::Vector2f target) {
     }
 }
 
+void Game::issueFollowCommand(EntityPtr target) {
+    if (target) {
+        target->startHighlight();
+    }
+    auto& selection = m_player->getSelection();
+    for (auto& entity : selection) {
+        if (auto* unit = dynamic_cast<Unit*>(entity.get())) {
+            // Don't follow yourself
+            if (entity != target) {
+                unit->follow(target);
+            }
+        }
+    }
+}
+
 void Game::issueAttackMoveCommand(sf::Vector2f target) {
     auto& selection = m_player->getSelection();
     for (auto& entity : selection) {

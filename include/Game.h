@@ -51,6 +51,7 @@ public:
     // Commands
     void issueCommand(const std::vector<EntityPtr>& entities, Command command);
     void issueMoveCommand(sf::Vector2f target);
+    void issueFollowCommand(EntityPtr target);
     void issueAttackMoveCommand(sf::Vector2f target);
     void issueAttackCommand(EntityPtr target);
     void issueGatherCommand(EntityPtr resource);

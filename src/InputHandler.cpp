@@ -184,11 +184,23 @@ void InputHandler::handleMousePress(sf::Vector2i position, sf::Mouse::Button but
 
             switch (m_targetingAction) {
                 case TargetingAction::Move:
-                    EFFECTS.spawnMoveEffect(worldPos, 1.0f);
-                    m_game.issueMoveCommand(worldPos);
+                    // Check if clicking on an ally unit - issue follow command
+                    if (target && target->getTeam() == player.getTeam()) {
+                        if (dynamic_cast<Unit*>(target.get())) {
+                            m_game.issueFollowCommand(target);
+                        } else {
+                            // Clicked on own building - just move to location
+                            EFFECTS.spawnMoveEffect(worldPos, 1.0f);
+                            m_game.issueMoveCommand(worldPos);
+                        }
+                    } else {
+                        EFFECTS.spawnMoveEffect(worldPos, 1.0f);
+                        m_game.issueMoveCommand(worldPos);
+                    }
                     break;
                 case TargetingAction::Attack:
-                    if (target && target->getTeam() != player.getTeam()) {
+                    if (target) {
+                        // Attack any target (including allies) when using Attack action
                         m_game.issueAttackCommand(target);
                     } else {
                         // Attack-move to location (move while attacking enemies on the way)
@@ -245,6 +257,9 @@ void InputHandler::handleMousePress(sf::Vector2i position, sf::Mouse::Button but
                             // Move to location (right-click on own completed building)
                             m_game.issueMoveCommand(worldPos);
                         }
+                    } else if (dynamic_cast<Unit*>(target.get()) && target->getTeam() == player.getTeam()) {
+                        // Right-click on allied unit - follow them
+                        m_game.issueFollowCommand(target);
                     } else {
                         // Move to location
                         m_game.issueMoveCommand(worldPos);

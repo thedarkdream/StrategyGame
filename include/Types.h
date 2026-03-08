@@ -55,6 +55,7 @@ enum class UnitState {
     Moving,
     AttackMoving,  // Moving to target while attacking enemies in range
     Attacking,
+    Following,     // Following an allied unit
     Gathering,
     Returning,
     Building

@@ -292,6 +292,7 @@ void ActionBar::renderButtons(sf::RenderWindow& window, EntityPtr entity, Player
             switch (action.type) {
                 case ActionDef::Type::TargetMove:
                     isActive = (state == UnitState::Moving) || 
+                               (state == UnitState::Following) ||
                                (m_targetingAction == TargetingAction::Move);
                     break;
                 case ActionDef::Type::Instant:

@@ -64,6 +64,10 @@ void Unit::update(float deltaTime) {
             updateCombat(deltaTime);
             break;
             
+        case UnitState::Following:
+            updateFollowing(deltaTime);
+            break;
+            
         default:
             // Custom states (Gathering, Returning, etc.) handled by subclasses
             updateCustomState(deltaTime);
@@ -82,6 +86,7 @@ void Unit::update(float deltaTime) {
                     break;
                 case UnitState::Moving:
                 case UnitState::AttackMoving:
+                case UnitState::Following:
                 case UnitState::Returning:
                     playAnimation(AnimationState::Walk);
                     break;
@@ -127,7 +132,7 @@ void Unit::attackMoveTo(sf::Vector2f target) {
 }
 
 void Unit::attack(EntityPtr target) {
-    if (!target || !target->isAlive()) {
+    if (!target || !target->isAlive() || target.get() == this) {
         m_state = UnitState::Idle;
         playAnimation(AnimationState::Idle);
         return;
@@ -144,7 +149,20 @@ void Unit::stop() {
     m_state = UnitState::Idle;
     m_targetPosition = m_position;
     m_path.clear();
+    m_followTarget.reset();
     playAnimation(AnimationState::Idle);
+}
+
+void Unit::follow(EntityPtr target) {
+    if (!target || !target->isAlive() || target.get() == this) {
+        return;
+    }
+    
+    m_followTarget = target;
+    m_targetPosition = target->getPosition();
+    m_state = UnitState::Following;
+    playAnimation(AnimationState::Walk);
+    findPath(target->getPosition());
 }
 
 void Unit::takeDamage(int damage, EntityPtr attacker) {
@@ -250,6 +268,38 @@ void Unit::updateCombat(float deltaTime) {
             m_attackTimer = m_attackCooldown;
         }
     }
+}
+
+void Unit::updateFollowing(float deltaTime) {
+    auto target = m_followTarget.lock();
+    if (!target || !target->isAlive()) {
+        // Target gone - stop following
+        m_state = UnitState::Idle;
+        m_followTarget.reset();
+        return;
+    }
+    
+    float distance = getDistanceTo(target);
+    
+    if (distance <= FOLLOW_DISTANCE) {
+        // Close enough - wait for target to move
+        // Don't transition to Idle, stay in Following state
+        // Just stop moving but keep tracking
+        return;
+    }
+    
+    // Target is far - move towards them
+    sf::Vector2f targetPos = target->getPosition();
+    sf::Vector2f pathEndDiff = targetPos - m_targetPosition;
+    float pathEndDist = std::sqrt(pathEndDiff.x * pathEndDiff.x + pathEndDiff.y * pathEndDiff.y);
+    
+    // Recompute path if target moved significantly
+    if (pathEndDist > 30.0f || m_path.empty()) {
+        m_targetPosition = targetPos;
+        findPath(targetPos);
+    }
+    
+    followPath(deltaTime);
 }
 
 void Unit::updateCustomState(float deltaTime) {

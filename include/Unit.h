@@ -18,6 +18,7 @@ public:
     void moveTo(sf::Vector2f target);
     void attackMoveTo(sf::Vector2f target);  // Move while attacking enemies in range
     virtual void attack(EntityPtr target);
+    void follow(EntityPtr target);  // Follow an allied unit
     void stop();
     
     // Combat - override to auto-retaliate when attacked while idle
@@ -54,6 +55,7 @@ protected:
     virtual void updateMovement(float deltaTime);
     virtual void updateAttackMove(float deltaTime);
     virtual void updateCombat(float deltaTime);
+    virtual void updateFollowing(float deltaTime);
     virtual void updateCustomState(float deltaTime);
     
     // Movement helpers
@@ -81,6 +83,10 @@ protected:
     
     // Combat
     std::weak_ptr<Entity> m_targetEntity;
+    
+    // Following
+    std::weak_ptr<Entity> m_followTarget;
+    static constexpr float FOLLOW_DISTANCE = 50.0f;  // Stop following when within this distance
     
     Map* m_map = nullptr;
 };
