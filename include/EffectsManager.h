@@ -21,6 +21,9 @@ public:
     // Convenience methods for common effects
     void spawnExplosion(sf::Vector2f position, float scale = 1.0f);
     
+    // Spawn move effect (visual indicator for move/attack-move commands)
+    void spawnMoveEffect(sf::Vector2f position, float scale = 1.0f);
+
     // Update all active effects (call once per frame)
     void update(float deltaTime);
     

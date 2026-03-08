@@ -6,6 +6,7 @@
 #include "Unit.h"
 #include "Building.h"
 #include "ActionBar.h"
+#include "EffectsManager.h"
 #include "ResourceManager.h"
 #include <cmath>
 #include <algorithm>
@@ -180,9 +181,10 @@ void InputHandler::handleMousePress(sf::Vector2i position, sf::Mouse::Button but
             // Execute the targeted action
             Player& player = m_game.getPlayer();
             EntityPtr target = m_game.getEntityAtPosition(worldPos);
-            
+
             switch (m_targetingAction) {
                 case TargetingAction::Move:
+                    EFFECTS.spawnMoveEffect(worldPos, 1.0f);
                     m_game.issueMoveCommand(worldPos);
                     break;
                 case TargetingAction::Attack:
@@ -190,6 +192,7 @@ void InputHandler::handleMousePress(sf::Vector2i position, sf::Mouse::Button but
                         m_game.issueAttackCommand(target);
                     } else {
                         // Attack-move to location (move while attacking enemies on the way)
+                        EFFECTS.spawnMoveEffect(worldPos, 1.0f);
                         m_game.issueAttackMoveCommand(worldPos);
                     }
                     break;
@@ -248,6 +251,7 @@ void InputHandler::handleMousePress(sf::Vector2i position, sf::Mouse::Button but
                     }
                 } else {
                     // Move to location
+                    EFFECTS.spawnMoveEffect(worldPos, 1.0f);
                     m_game.issueMoveCommand(worldPos);
                 }
             }
@@ -269,8 +273,32 @@ void InputHandler::handleMouseRelease(sf::Vector2i position, sf::Mouse::Button b
             // Check if it was a click or drag
             sf::FloatRect selectionBox = getSelectionBox();
             if (selectionBox.size.x < 5.0f && selectionBox.size.y < 5.0f) {
-                // Single click selection
-                performSelection(m_selectionStart);
+                // Check for double-click
+                float timeSinceLastClick = m_lastClickClock.getElapsedTime().asSeconds();
+                float distanceFromLastClick = std::hypot(
+                    m_selectionStart.x - m_lastClickWorldPos.x,
+                    m_selectionStart.y - m_lastClickWorldPos.y
+                );
+                
+                bool isDoubleClick = (timeSinceLastClick < DOUBLE_CLICK_TIME && 
+                                      distanceFromLastClick < DOUBLE_CLICK_DISTANCE);
+                
+                if (isDoubleClick) {
+                    // Double-click: select all units of same type on screen
+                    EntityPtr entity = m_game.getEntityAtPosition(m_selectionStart);
+                    if (entity && entity->getTeam() == m_game.getPlayer().getTeam()) {
+                        if (dynamic_cast<Unit*>(entity.get())) {
+                            selectAllOfTypeOnScreen(entity->getType());
+                        }
+                    }
+                } else {
+                    // Single click selection
+                    performSelection(m_selectionStart);
+                }
+                
+                // Update last click tracking
+                m_lastClickClock.restart();
+                m_lastClickWorldPos = m_selectionStart;
             } else {
                 // Box selection
                 performBoxSelection();
@@ -516,6 +544,39 @@ void InputHandler::performBoxSelection() {
     }
     m_inspectedEnemy.reset();
     m_game.getPlayer().selectEntities(selected);
+}
+
+void InputHandler::selectAllOfTypeOnScreen(EntityType type) {
+    // Get visible screen bounds in world coordinates
+    sf::Vector2f viewCenter = m_camera.getCenter();
+    sf::Vector2f viewSize = m_camera.getSize();
+    
+    sf::FloatRect screenBounds(
+        sf::Vector2f(viewCenter.x - viewSize.x / 2.0f, viewCenter.y - viewSize.y / 2.0f),
+        viewSize
+    );
+    
+    // Get all player entities in the visible area
+    Player& player = m_game.getPlayer();
+    std::vector<EntityPtr> entitiesOnScreen = m_game.getEntitiesInRect(screenBounds, player.getTeam());
+    
+    // Filter to only units of the specified type
+    std::vector<EntityPtr> unitsOfType;
+    for (const auto& entity : entitiesOnScreen) {
+        if (entity->getType() == type && dynamic_cast<Unit*>(entity.get())) {
+            unitsOfType.push_back(entity);
+        }
+    }
+    
+    // Clear any inspected enemy and select all matching units
+    if (auto prev = m_inspectedEnemy.lock()) {
+        prev->setSelected(false);
+    }
+    m_inspectedEnemy.reset();
+    
+    if (!unitsOfType.empty()) {
+        player.selectEntities(unitsOfType);
+    }
 }
 
 sf::FloatRect InputHandler::getSelectionBox() const {

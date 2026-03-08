@@ -79,6 +79,12 @@ private:
     // Enemy inspection (view stats without selecting)
     std::weak_ptr<Entity> m_inspectedEnemy;
     
+    // Double-click detection
+    sf::Clock m_lastClickClock;
+    sf::Vector2f m_lastClickWorldPos;
+    static constexpr float DOUBLE_CLICK_TIME = 0.3f;  // 300ms threshold
+    static constexpr float DOUBLE_CLICK_DISTANCE = 20.0f;  // Max pixel distance between clicks
+    
     // Camera edge scrolling
     void updateCameraEdgeScroll(float deltaTime);
     void updateCameraKeyScroll(float deltaTime);
@@ -99,4 +105,5 @@ private:
     // Selection
     void performSelection(sf::Vector2f worldPos);
     void performBoxSelection();
+    void selectAllOfTypeOnScreen(EntityType type);
 };

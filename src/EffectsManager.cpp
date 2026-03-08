@@ -1,3 +1,4 @@
+
 #include "EffectsManager.h"
 #include <algorithm>
 
@@ -15,6 +16,11 @@ void EffectsManager::spawn(const std::string& animationPath, sf::Vector2f positi
 
 void EffectsManager::spawnExplosion(sf::Vector2f position, float scale) {
     spawn("effects/explosion.png", position, scale);
+}
+
+
+void EffectsManager::spawnMoveEffect(sf::Vector2f position, float scale) {
+    spawn("effects/move.png", position, scale);
 }
 
 void EffectsManager::update(float deltaTime) {
