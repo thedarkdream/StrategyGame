@@ -82,15 +82,47 @@ void Entity::renderHealthBar(sf::RenderTarget& target) {
     target.draw(healthBar);
 }
 
+void Entity::startHighlight(float duration) {
+    m_highlightTimeRemaining = duration;
+    m_highlightBlinkTimer = 0.0f;
+}
+
+void Entity::updateHighlight(float deltaTime) {
+    if (m_highlightTimeRemaining > 0.0f) {
+        m_highlightTimeRemaining -= deltaTime;
+        m_highlightBlinkTimer += deltaTime;
+        
+        // Reset blink timer each period
+        if (m_highlightBlinkTimer >= HIGHLIGHT_BLINK_PERIOD) {
+            m_highlightBlinkTimer -= HIGHLIGHT_BLINK_PERIOD;
+        }
+    }
+}
+
 void Entity::renderSelectionIndicator(sf::RenderTarget& target) {
-    if (!m_selected) return;
+    // Determine team-based color: green for player, red for enemy/neutral
+    sf::Color teamColor = (m_team == Team::Player) ? sf::Color::Green : sf::Color::Red;
+    
+    // Determine if we should show the selection indicator
+    bool showIndicator = m_selected;
+    
+    // Handle highlight blinking (same color as selection, blinks on/off)
+    if (m_highlightTimeRemaining > 0.0f) {
+        // Blink: visible for first half of period, hidden for second half
+        bool blinkVisible = m_highlightBlinkTimer < (HIGHLIGHT_BLINK_PERIOD * 0.5f);
+        if (blinkVisible) {
+            showIndicator = true;
+        }
+    }
+    
+    if (!showIndicator) return;
     
     sf::CircleShape circle(m_size.x / 2.0f + 4.0f);
     circle.setOrigin(sf::Vector2f(circle.getRadius(), circle.getRadius()));
     circle.setPosition(m_position);
     circle.setFillColor(sf::Color::Transparent);
     circle.setOutlineThickness(2.0f);
-    circle.setOutlineColor(sf::Color::Green);
+    circle.setOutlineColor(teamColor);
     target.draw(circle);
 }
 

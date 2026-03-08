@@ -61,6 +61,13 @@ void Game::update(float deltaTime) {
     // Update visual effects
     EFFECTS.update(deltaTime);
     
+    // Update entity highlights
+    for (auto& entity : m_allEntities) {
+        if (entity) {
+            entity->updateHighlight(deltaTime);
+        }
+    }
+    
     // Cleanup dead entities
     cleanupDeadEntities();
     
@@ -543,6 +550,9 @@ void Game::issueAttackMoveCommand(sf::Vector2f target) {
 }
 
 void Game::issueAttackCommand(EntityPtr target) {
+    if (target) {
+        target->startHighlight();
+    }
     auto& selection = m_player->getSelection();
     for (auto& entity : selection) {
         if (auto* unit = dynamic_cast<Unit*>(entity.get())) {
@@ -552,6 +562,9 @@ void Game::issueAttackCommand(EntityPtr target) {
 }
 
 void Game::issueGatherCommand(EntityPtr resource) {
+    if (resource) {
+        resource->startHighlight();
+    }
     auto& selection = m_player->getSelection();
     for (auto& entity : selection) {
         if (auto* worker = dynamic_cast<Worker*>(entity.get())) {

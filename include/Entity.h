@@ -30,6 +30,11 @@ public:
     void setPosition(sf::Vector2f position) { m_position = position; }
     void setSelected(bool selected) { m_selected = selected; }
     
+    // Target highlight (blinking indicator when entity is targeted by a command)
+    void startHighlight(float duration = 3.0f);
+    void updateHighlight(float deltaTime);
+    bool isHighlighted() const { return m_highlightTimeRemaining > 0.0f; }
+    
     // Combat
     virtual void takeDamage(int damage);
     virtual void takeDamage(int damage, EntityPtr attacker);  // For retaliation
@@ -43,6 +48,11 @@ protected:
     int m_maxHealth;
     bool m_selected = false;
     bool m_isDying = false;  // True while death animation is playing
+    
+    // Target highlight (blinking indicator)
+    float m_highlightTimeRemaining = 0.0f;
+    float m_highlightBlinkTimer = 0.0f;
+    static constexpr float HIGHLIGHT_BLINK_PERIOD = 1.0f;  // Once per second
     
     // Visual
     sf::RectangleShape m_shape;
