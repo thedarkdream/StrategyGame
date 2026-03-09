@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Find SFML 3.0
-find_package(SFML 3.0 COMPONENTS Graphics Window System REQUIRED)
+find_package(SFML 3.0 COMPONENTS Graphics Window System Audio REQUIRED)
 
 # Source files
 set(SOURCES
@@ -31,6 +31,9 @@ set(SOURCES
     src/AnimatedSprite.cpp
     src/Effect.cpp
     src/EffectsManager.cpp
+    src/SoundManager.cpp
+    src/LightTank.cpp
+    src/Projectile.cpp
 )
 
 # Header files
@@ -59,6 +62,9 @@ set(HEADERS
     include/AnimatedSprite.h
     include/Effect.h
     include/EffectsManager.h
+    include/SoundManager.h
+    include/LightTank.h
+    include/Projectile.h
 )
 
 # Create executable
@@ -68,7 +74,12 @@ add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
 # Link SFML 3.0
-target_link_libraries(${PROJECT_NAME} PRIVATE SFML::Graphics SFML::Window SFML::System)
+target_link_libraries(${PROJECT_NAME} PRIVATE SFML::Graphics SFML::Window SFML::System SFML::Audio)
+
+# Debug flags
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_compile_options(${PROJECT_NAME} PRIVATE -g3 -O0 -gdwarf-4)
+endif()
 
 # Copy SFML DLLs on Windows
 if(WIN32 AND BUILD_SHARED_LIBS)
@@ -77,6 +88,7 @@ if(WIN32 AND BUILD_SHARED_LIBS)
         $<TARGET_FILE:SFML::Graphics>
         $<TARGET_FILE:SFML::Window>
         $<TARGET_FILE:SFML::System>
+        $<TARGET_FILE:SFML::Audio>
         $<TARGET_FILE_DIR:${PROJECT_NAME}>
     )
 endif()

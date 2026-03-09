@@ -269,7 +269,7 @@ void Unit::updateCombat(float deltaTime) {
     } else {
         // In range - attack if cooldown ready
         if (m_attackTimer <= 0.0f) {
-            target->takeDamage(m_damage, shared_from_this());
+            fireAttack(target);
             m_attackTimer = m_attackCooldown;
         }
     }
@@ -401,6 +401,13 @@ void Unit::moveTowardsTarget(float deltaTime) {
 bool Unit::hasReachedTarget() const {
     float distance = MathUtil::distance(m_targetPosition, m_position);
     return distance < 5.0f;
+}
+
+void Unit::fireAttack(EntityPtr target) {
+    // Base implementation: instant melee/ranged damage
+    if (target && target->isAlive()) {
+        target->takeDamage(m_damage, shared_from_this());
+    }
 }
 
 bool Unit::hasGroupArrived(float deltaTime) {

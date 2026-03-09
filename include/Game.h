@@ -48,6 +48,7 @@ public:
     void removeEntity(EntityPtr entity);
     void spawnUnit(EntityType type, Team team, sf::Vector2f position);
     void spawnBuilding(EntityType type, Team team, sf::Vector2f position, bool startComplete = true);
+    void spawnProjectile(EntityPtr source, EntityPtr target, int damage, float speed);
     
     // Commands
     void issueCommand(const std::vector<EntityPtr>& entities, Command command);
@@ -78,6 +79,7 @@ private:
     
     // All entities in game
     EntityList m_allEntities;
+    EntityList m_pendingEntities;  // Entities added mid-frame; flushed after update loop
     
     // Timing
     sf::Clock m_clock;
@@ -93,6 +95,7 @@ private:
     void setupStartingUnits();
     void cleanupDeadEntities();
     void checkVictoryConditions();
+    void flushPendingEntities();  // Merge m_pendingEntities into m_allEntities
     
     // Unit setup helpers
     void setupUnit(UnitPtr& unit);

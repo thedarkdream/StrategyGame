@@ -4,6 +4,7 @@
 #include "Worker.h"
 #include "Soldier.h"
 #include "Brute.h"
+#include "LightTank.h"
 #include "Building.h"
 #include "ResourceNode.h"
 
@@ -15,6 +16,8 @@ UnitPtr ResourceManager::createUnit(EntityType type, Team team, sf::Vector2f pos
             return createSoldier(team, position);
         case EntityType::Brute:
             return createBrute(team, position);
+        case EntityType::LightTank:
+            return createLightTank(team, position);
         default:
             return nullptr;
     }
@@ -54,6 +57,10 @@ UnitPtr ResourceManager::createSoldier(Team team, sf::Vector2f position) {
 
 UnitPtr ResourceManager::createBrute(Team team, sf::Vector2f position) {
     return std::make_shared<Brute>(team, position);
+}
+
+UnitPtr ResourceManager::createLightTank(Team team, sf::Vector2f position) {
+    return std::make_shared<LightTank>(team, position);
 }
 
 BuildingPtr ResourceManager::createBase(Team team, sf::Vector2f position) {

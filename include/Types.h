@@ -11,6 +11,8 @@ class Unit;
 class Worker;
 class Soldier;
 class Building;
+class LightTank;
+class Projectile;
 class ResourceNode;
 class Player;
 
@@ -33,6 +35,9 @@ enum class EntityType {
     Worker,
     Soldier,
     Brute,  // Melee soldier
+    LightTank,  // Ranged, fires homing rockets
+    // Projectiles
+    Rocket,
     // Buildings
     Base,
     Barracks,

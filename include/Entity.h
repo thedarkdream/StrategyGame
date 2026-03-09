@@ -73,4 +73,7 @@ protected:
     void updateSpriteDirection(sf::Vector2f movement);
     void startDeathAnimation();
     void updateDeathAnimation(float deltaTime);
+    
+    // Death hook - called when entity starts dying (play sounds, effects, etc.)
+    virtual void onDeath();
 };

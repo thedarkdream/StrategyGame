@@ -59,6 +59,10 @@ public:
     // Callback for getting nearby units for RVO collision avoidance (set by Game)
     std::function<std::vector<RVONeighbor>(sf::Vector2f pos, float radius, Unit* excludeSelf)> getNearbyUnitsRVO;
     
+    // Callback for spawning a projectile from this unit to a target (set by Game)
+    // Parameters: source entity, target entity, damage, speed (units/sec)
+    std::function<void(EntityPtr source, EntityPtr target, int damage, float speed)> spawnProjectile;
+    
     // Current velocity (for RVO)
     sf::Vector2f getVelocity() const { return m_velocity; }
     
@@ -70,6 +74,9 @@ protected:
     virtual void updateCombat(float deltaTime);
     virtual void updateFollowing(float deltaTime);
     virtual void updateCustomState(float deltaTime);
+    
+    // Attack hook - called when a hit lands. Override to fire projectiles, etc.
+    virtual void fireAttack(EntityPtr target);
     
     // Movement helpers
     void moveTowardsTarget(float deltaTime);

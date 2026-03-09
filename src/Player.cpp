@@ -96,15 +96,8 @@ bool Player::isDefeated() const {
 }
 
 void Player::update(float deltaTime) {
-    // Update all units
-    for (auto& unit : m_units) {
-        unit->update(deltaTime);
-    }
-    
-    // Update all buildings
-    for (auto& building : m_buildings) {
-        building->update(deltaTime);
-    }
+    // Entity updates are handled centrally by Game iterating m_allEntities.
+    (void)deltaTime;
 }
 
 void Player::cleanupDeadEntities() {

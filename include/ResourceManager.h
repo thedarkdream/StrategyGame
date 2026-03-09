@@ -27,6 +27,7 @@ public:
     static UnitPtr createWorker(Team team, sf::Vector2f position);
     static UnitPtr createSoldier(Team team, sf::Vector2f position);
     static UnitPtr createBrute(Team team, sf::Vector2f position);
+    static UnitPtr createLightTank(Team team, sf::Vector2f position);
     static BuildingPtr createBase(Team team, sf::Vector2f position);
     static BuildingPtr createBarracks(Team team, sf::Vector2f position);
     static BuildingPtr createRefinery(Team team, sf::Vector2f position);

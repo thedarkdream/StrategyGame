@@ -196,12 +196,19 @@ void Entity::updateSpriteDirection(sf::Vector2f movement) {
 void Entity::startDeathAnimation() {
     if (m_isDying) return;  // Already dying
     
+    // Call death hook (for sounds, effects, etc.)
+    onDeath();
+    
     const AnimationSet* animSet = m_animatedSprite.getAnimationSet();
     if (m_hasSprite && animSet && animSet->hasAnimation(AnimationState::Death)) {
         m_isDying = true;
         playAnimation(AnimationState::Death);
     }
     // If no death animation, entity will be removed immediately (m_isDying stays false)
+}
+
+void Entity::onDeath() {
+    // Base implementation does nothing - subclasses override to play sounds, etc.
 }
 
 void Entity::updateDeathAnimation(float deltaTime) {

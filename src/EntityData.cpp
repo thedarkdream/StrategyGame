@@ -179,6 +179,38 @@ void EntityRegistry::initializeDefaults() {
         registerEntity(std::move(def));
     }
     
+    // LightTank
+    {
+        EntityDef def;
+        def.type = EntityType::LightTank;
+        def.name = "Light Tank";
+        def.shortName = "LT";
+        def.mineralCost = 150;
+        def.gasCost = 0;
+        def.health = 120;
+        def.size = {40.0f, 40.0f};  // 40px diameter circle
+        
+        UnitDef unit;
+        unit.speed = 150.0f;
+        unit.damage = 25;
+        unit.attackRange = 200.0f;  // Long range - fires rockets
+        unit.attackCooldown = 2.5f;
+        unit.autoAttackRangeBonus = 50.0f;
+        unit.trainingTime = 8.0f;
+        unit.canGather = false;
+        unit.canBuild = false;
+        unit.isCombatUnit = true;
+        def.unit = unit;
+        
+        def.actions = {
+            {"Move", "M", ActionDef::Type::TargetMove},
+            {"Stop", "S", ActionDef::Type::Instant},
+            {"Attack", "A", ActionDef::Type::TargetAttack}
+        };
+        
+        registerEntity(std::move(def));
+    }
+    
     // Brute
     {
         EntityDef def;
@@ -314,10 +346,19 @@ void EntityRegistry::initializeDefaults() {
         
         BuildingDef building;
         building.tileSize = {3, 2};
-        building.canProduce = false;  // No units yet
+        building.canProduce = true;
+        building.producesUnits = {EntityType::LightTank};
         building.isResourceNode = false;
         building.constructionTime = 15.0f;  // 15 seconds
         def.building = building;
+        
+        // Factory actions - train Light Tank
+        ActionDef trainLightTank;
+        trainLightTank.label = "Light Tank";
+        trainLightTank.hotkey = "T";
+        trainLightTank.type = ActionDef::Type::Train;
+        trainLightTank.producesType = EntityType::LightTank;
+        def.actions = {trainLightTank};
         
         registerEntity(std::move(def));
     }

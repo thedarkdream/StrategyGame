@@ -5,6 +5,9 @@
 #include "ResourceNode.h"
 #include "ResourceManager.h"
 #include "EffectsManager.h"
+#include "SoundManager.h"
+#include "LightTank.h"
+#include "Projectile.h"
 #include "Constants.h"
 #include "MathUtil.h"
 #include <algorithm>
@@ -51,22 +54,26 @@ void Game::update(float deltaTime) {
     // Update input (camera movement)
     m_input->update(deltaTime);
     
-    // Update players
-    m_player->update(deltaTime);
-    m_enemy->update(deltaTime);
+    // Update sound listener position to camera center
+    SOUNDS.setListenerPosition(m_input->getCamera().getCenter());
     
+    // Update all entities (units, buildings, projectiles, etc.) regardless of owner
+    // NOTE: iterate by snapshot size - new entities spawned mid-loop (e.g. rockets)
+    // are buffered in m_pendingEntities and flushed after the loop to avoid
+    // iterator invalidation from vector reallocation.
+    for (auto& entity : m_allEntities) {
+        if (entity && entity->isAlive()) {
+            entity->update(deltaTime);
+            entity->updateHighlight(deltaTime);
+        }
+    }
+    flushPendingEntities();  // Safe to add new entities now
+
     // Update AI
     m_ai->update(deltaTime);
     
     // Update visual effects
     EFFECTS.update(deltaTime);
-    
-    // Update entity highlights
-    for (auto& entity : m_allEntities) {
-        if (entity) {
-            entity->updateHighlight(deltaTime);
-        }
-    }
     
     // Cleanup dead entities
     cleanupDeadEntities();
@@ -203,6 +210,7 @@ void Game::setupStartingUnits() {
     }
     
     m_map.addMineralPatches(mineralPositions);
+    flushPendingEntities();  // Ensure all initialization entities are in m_allEntities
 }
 
 void Game::cleanupDeadEntities() {
@@ -227,7 +235,8 @@ void Game::checkVictoryConditions() {
 
 EntityPtr Game::getEntityAtPosition(sf::Vector2f position) {
     for (auto& entity : m_allEntities) {
-        if (entity && entity->isAlive() && entity->getBounds().contains(position)) {
+        if (entity && entity->isAlive() && entity->getType() != EntityType::Rocket
+            && entity->getBounds().contains(position)) {
             return entity;
         }
     }
@@ -293,6 +302,9 @@ void Game::setupUnit(UnitPtr& unit) {
     };
     unit->getNearbyUnitsRVO = [this](sf::Vector2f pos, float radius, Unit* excludeSelf) {
         return this->getNearbyUnitsRVO(pos, radius, excludeSelf);
+    };
+    unit->spawnProjectile = [this](EntityPtr source, EntityPtr target, int damage, float speed) {
+        this->spawnProjectile(source, target, damage, speed);
     };
 }
 
@@ -420,7 +432,17 @@ std::vector<RVONeighbor> Game::getNearbyUnitsRVO(sf::Vector2f pos, float radius,
 }
 
 void Game::addEntity(EntityPtr entity) {
-    m_allEntities.push_back(entity);
+    // Buffer the entity; it will be moved to m_allEntities after the current update
+    // loop completes, preventing vector reallocation from invalidating loop iterators.
+    m_pendingEntities.push_back(entity);
+}
+
+void Game::flushPendingEntities() {
+    if (m_pendingEntities.empty()) return;
+    m_allEntities.insert(m_allEntities.end(),
+        std::make_move_iterator(m_pendingEntities.begin()),
+        std::make_move_iterator(m_pendingEntities.end()));
+    m_pendingEntities.clear();
 }
 
 void Game::removeEntity(EntityPtr entity) {
@@ -448,6 +470,9 @@ void Game::spawnUnit(EntityType type, Team team, sf::Vector2f position) {
             break;
         case EntityType::Brute:
             unit = ResourceManager::createBrute(team, spawnPos);
+            break;
+        case EntityType::LightTank:
+            unit = ResourceManager::createLightTank(team, spawnPos);
             break;
         default:
             return;
@@ -527,6 +552,12 @@ void Game::spawnBuilding(EntityType type, Team team, sf::Vector2f position, bool
         
         addEntity(building);
     }
+}
+
+void Game::spawnProjectile(EntityPtr source, EntityPtr target, int damage, float speed) {
+    if (!source || !target || !target->isAlive()) return;
+    auto projectile = std::make_shared<Projectile>(source, target, damage, speed);
+    addEntity(projectile);
 }
 
 void Game::issueCommand(const std::vector<EntityPtr>& entities, Command command) {
