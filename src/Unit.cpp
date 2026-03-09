@@ -119,6 +119,8 @@ void Unit::render(sf::RenderTarget& target) {
 void Unit::moveTo(sf::Vector2f target) {
     m_targetPosition = target;
     m_state = UnitState::Moving;
+    m_stuckTimer = 0.0f;
+    m_lastDistanceToTarget = 0.0f;
     playAnimation(AnimationState::Walk);
     findPath(target);
 }
@@ -127,6 +129,8 @@ void Unit::attackMoveTo(sf::Vector2f target) {
     m_targetPosition = target;
     m_targetEntity.reset();  // Clear any previous attack target
     m_state = UnitState::AttackMoving;
+    m_stuckTimer = 0.0f;
+    m_lastDistanceToTarget = 0.0f;
     playAnimation(AnimationState::Walk);
     findPath(target);
 }
@@ -199,7 +203,7 @@ void Unit::updateIdle(float deltaTime) {
 }
 
 void Unit::updateMovement(float deltaTime) {
-    if (hasReachedTarget()) {
+    if (hasGroupArrived(deltaTime)) {
         m_state = UnitState::Idle;
         return;
     }
@@ -234,7 +238,7 @@ void Unit::updateAttackMove(float deltaTime) {
     }
     
     // No enemies in range - continue moving to destination
-    if (hasReachedTarget()) {
+    if (hasGroupArrived(deltaTime)) {
         m_state = UnitState::Idle;
         return;
     }
@@ -397,6 +401,37 @@ void Unit::moveTowardsTarget(float deltaTime) {
 bool Unit::hasReachedTarget() const {
     float distance = MathUtil::distance(m_targetPosition, m_position);
     return distance < 5.0f;
+}
+
+bool Unit::hasGroupArrived(float deltaTime) {
+    float distance = MathUtil::distance(m_targetPosition, m_position);
+    
+    // If actually reached target, we're done
+    if (distance < 5.0f) {
+        return true;
+    }
+    
+    // Only consider group arrival if within reasonable distance
+    if (distance > GROUP_ARRIVAL_RADIUS) {
+        m_stuckTimer = 0.0f;
+        m_lastDistanceToTarget = distance;
+        return false;
+    }
+    
+    // Check if we're making progress
+    float progressThreshold = 2.0f;  // Minimum movement to consider progress
+    if (m_lastDistanceToTarget > 0.0f && m_lastDistanceToTarget - distance > progressThreshold) {
+        // Making progress, reset timer
+        m_stuckTimer = 0.0f;
+    } else {
+        // Not making progress, increment timer
+        m_stuckTimer += deltaTime;
+    }
+    
+    m_lastDistanceToTarget = distance;
+    
+    // If stuck for long enough near destination, consider arrived
+    return m_stuckTimer >= STUCK_THRESHOLD_TIME;
 }
 
 void Unit::findPath(sf::Vector2f target) {

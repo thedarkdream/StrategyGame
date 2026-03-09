@@ -75,6 +75,7 @@ protected:
     void moveTowardsTarget(float deltaTime);
     void followPath(float deltaTime);  // Follow current path waypoints
     bool hasReachedTarget() const;
+    bool hasGroupArrived(float deltaTime);  // Check if stuck near destination (group arrival)
     void findPath(sf::Vector2f target);
     float getDistanceTo(sf::Vector2f pos) const;
     float getDistanceTo(EntityPtr entity) const;
@@ -95,6 +96,12 @@ protected:
     sf::Vector2f m_velocity;  // Current velocity for RVO
     std::vector<sf::Vector2f> m_path;
     size_t m_pathIndex = 0;
+    
+    // Group arrival detection - unit is "arrived" if stuck near destination
+    float m_stuckTimer = 0.0f;
+    float m_lastDistanceToTarget = 0.0f;
+    static constexpr float STUCK_THRESHOLD_TIME = 0.5f;  // Time without progress to consider stuck
+    static constexpr float GROUP_ARRIVAL_RADIUS = 40.0f; // Consider arrived if stuck within this distance
     
     // RVO parameters
     static constexpr float RVO_NEIGHBOR_DIST = 80.0f;    // Look for neighbors within this distance

@@ -271,10 +271,20 @@ void InputHandler::handleMousePress(sf::Vector2i position, sf::Mouse::Button but
                 }
             }
         }
+    } else if (button == sf::Mouse::Button::Middle) {
+        // Start map drag scrolling
+        m_isDraggingMap = true;
+        m_dragStartScreenPos = position;
+        m_dragStartCameraPos = m_camera.getCenter();
     }
 }
 
 void InputHandler::handleMouseRelease(sf::Vector2i position, sf::Mouse::Button button) {
+    if (button == sf::Mouse::Button::Middle) {
+        m_isDraggingMap = false;
+        return;
+    }
+    
     if (button == sf::Mouse::Button::Left) {
         // Stop minimap dragging
         if (m_isDraggingMinimap) {
@@ -323,6 +333,25 @@ void InputHandler::handleMouseRelease(sf::Vector2i position, sf::Mouse::Button b
 }
 
 void InputHandler::handleMouseMove(sf::Vector2i position) {
+    // Handle middle-click map dragging
+    if (m_isDraggingMap) {
+        // Calculate how much mouse moved in screen pixels
+        sf::Vector2i delta = m_dragStartScreenPos - position;
+        
+        // Convert pixel delta to world units based on current camera zoom
+        sf::Vector2f viewSize = m_camera.getSize();
+        sf::Vector2u windowSize = m_window.getSize();
+        float scaleX = viewSize.x / static_cast<float>(windowSize.x);
+        float scaleY = viewSize.y / static_cast<float>(windowSize.y);
+        
+        sf::Vector2f worldDelta(delta.x * scaleX, delta.y * scaleY);
+        
+        // Move camera by the delta
+        m_camera.setCenter(m_dragStartCameraPos + worldDelta);
+        clampCamera();
+        return;
+    }
+    
     // Handle minimap dragging
     if (m_isDraggingMinimap) {
         if (isPositionOnMinimap(position)) {

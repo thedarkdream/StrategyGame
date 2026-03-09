@@ -67,6 +67,11 @@ private:
     // Minimap dragging
     bool m_isDraggingMinimap = false;
     
+    // Middle-click map dragging
+    bool m_isDraggingMap = false;
+    sf::Vector2i m_dragStartScreenPos;
+    sf::Vector2f m_dragStartCameraPos;
+    
     // Build mode
     bool m_buildMode = false;
     EntityType m_buildingToBuild = EntityType::None;
