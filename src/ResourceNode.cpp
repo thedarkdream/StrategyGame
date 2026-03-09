@@ -1,6 +1,7 @@
 #include "ResourceNode.h"
 #include "EntityData.h"
 #include "Constants.h"
+#include "TextureManager.h"
 #include <cmath>
 
 ResourceNode::ResourceNode(EntityType type, sf::Vector2f position, int resourceAmount, int visualVariant)
@@ -108,4 +109,10 @@ void ResourceNode::releaseMining(EntityPtr worker) {
 
 bool ResourceNode::isBeingMined() const {
     return !m_currentMiner.expired();
+}
+
+void ResourceNode::preload() {
+    TEXTURES.loadStaticSprite("resources/minerals_1.png");
+    TEXTURES.loadStaticSprite("resources/minerals_2.png");
+    TEXTURES.loadStaticSprite("resources/minerals_3.png");
 }

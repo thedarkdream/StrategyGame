@@ -10,3 +10,7 @@ Soldier::Soldier(Team team, sf::Vector2f position)
 void Soldier::onDeath() {
     SOUNDS.playSound("effects/soldier_death.wav", m_position);
 }
+
+void Soldier::preload() {
+    SOUNDS.loadBuffer("effects/soldier_death.wav");
+}

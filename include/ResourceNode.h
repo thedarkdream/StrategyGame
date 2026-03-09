@@ -6,6 +6,8 @@ class ResourceNode : public Entity {
 public:
     ResourceNode(EntityType type, sf::Vector2f position, int resourceAmount, int visualVariant = 1);
     
+    static void preload();  // Preload textures for all resource variants
+    
     void update(float deltaTime) override;
     void render(sf::RenderTarget& target) override;
     

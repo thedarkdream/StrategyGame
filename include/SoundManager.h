@@ -63,6 +63,9 @@ public:
     // Preload a sound buffer
     sf::SoundBuffer* loadBuffer(const std::string& filepath);
     
+    // Preload multiple sound buffers at once
+    void preload(const std::vector<std::string>& filepaths);
+    
     // Check if buffer is loaded
     bool isBufferLoaded(const std::string& filepath) const;
     

@@ -12,6 +12,8 @@ class EffectsManager {
 public:
     static EffectsManager& instance();
     
+    static void preload();  // Preload all effect animations
+
     // Spawn an effect at a position
     // animationPath: path to effect animation (e.g., "effects/explosion.png")
     // position: world position to spawn at

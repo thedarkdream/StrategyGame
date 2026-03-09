@@ -1,11 +1,13 @@
 #include "Game.h"
 #include "Unit.h"
 #include "Worker.h"
+#include "Soldier.h"
 #include "Building.h"
 #include "ResourceNode.h"
 #include "ResourceManager.h"
 #include "EffectsManager.h"
 #include "SoundManager.h"
+#include "TextureManager.h"
 #include "LightTank.h"
 #include "Projectile.h"
 #include "Constants.h"
@@ -103,9 +105,22 @@ void Game::initialize() {
     
     // Create AI controller for enemy
     m_ai = std::make_unique<AIController>(*m_enemy, *this);
+
+    // Preload all assets so nothing freezes during gameplay
+    preloadAssets();
     
     // Setup starting units and buildings
     setupStartingUnits();
+}
+
+void Game::preloadAssets() {
+    Worker::preload();
+    Soldier::preload();
+    Building::preload();
+    ResourceNode::preload();
+    LightTank::preload();
+    Projectile::preload();
+    EffectsManager::preload();
 }
 
 void Game::setupStartingUnits() {
@@ -504,7 +519,7 @@ void Game::spawnUnit(EntityType type, Team team, sf::Vector2f position) {
     }
 }
 
-void Game::spawnBuilding(EntityType type, Team team, sf::Vector2f position, bool startComplete) {
+EntityPtr Game::spawnBuilding(EntityType type, Team team, sf::Vector2f position, bool startComplete) {
     BuildingPtr building;
     
     switch (type) {
@@ -521,7 +536,7 @@ void Game::spawnBuilding(EntityType type, Team team, sf::Vector2f position, bool
             building = ResourceManager::createFactory(team, position);
             break;
         default:
-            return;
+            return nullptr;
     }
     
     if (building) {
@@ -551,7 +566,9 @@ void Game::spawnBuilding(EntityType type, Team team, sf::Vector2f position, bool
         }
         
         addEntity(building);
+        return building;
     }
+    return nullptr;
 }
 
 void Game::spawnProjectile(EntityPtr source, EntityPtr target, int damage, float speed) {
@@ -717,17 +734,8 @@ void Game::issueBuildCommand(EntityType buildingType, sf::Vector2f position) {
         tileY * Constants::TILE_SIZE + pixelSize.y / 2.0f
     );
     
-    // Spawn building (starts incomplete)
-    spawnBuilding(buildingType, Team::Player, buildPos, false);
-    
-    // Find the building we just spawned and send worker to build it
-    EntityPtr newBuilding = nullptr;
-    for (auto it = m_allEntities.rbegin(); it != m_allEntities.rend(); ++it) {
-        if ((*it)->getPosition() == buildPos && (*it)->getType() == buildingType) {
-            newBuilding = *it;
-            break;
-        }
-    }
+    // Spawn building (starts incomplete) and get it back directly
+    EntityPtr newBuilding = spawnBuilding(buildingType, Team::Player, buildPos, false);
     
     if (newBuilding) {
         selectedWorker->buildAt(newBuilding);

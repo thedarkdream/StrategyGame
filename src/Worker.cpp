@@ -5,6 +5,8 @@
 #include "Constants.h"
 #include "Animation.h"
 #include "MathUtil.h"
+#include "TextureManager.h"
+#include "SoundManager.h"
 #include <cmath>
 
 Worker::Worker(Team team, sf::Vector2f position)
@@ -372,4 +374,9 @@ void Worker::releaseBuildClaim() {
             }
         }
     }
+}
+
+void Worker::preload() {
+    TEXTURES.loadAnimationSet("units/worker");
+    SOUNDS.loadBuffer("effects/worker_death.wav");
 }

@@ -9,6 +9,8 @@ class Building : public Entity {
 public:
     Building(EntityType type, Team team, sf::Vector2f position);
     
+    static void preload();  // Preload textures and sounds for all building types
+    
     void update(float deltaTime) override;
     void render(sf::RenderTarget& target) override;
     

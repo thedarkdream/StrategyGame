@@ -1,6 +1,7 @@
 #include "LightTank.h"
 #include "EntityData.h"
 #include "Constants.h"
+#include "SoundManager.h"
 
 LightTank::LightTank(Team team, sf::Vector2f position)
     : Unit(EntityType::LightTank, team, position)
@@ -47,6 +48,7 @@ void LightTank::fireAttack(EntityPtr target) {
     if (!target || !target->isAlive()) return;
     
     if (spawnProjectile) {
+        SOUNDS.playSound("units/lighttank/fire.wav", m_position);
         // Launch a homing rocket
         spawnProjectile(shared_from_this(), target, m_damage, ROCKET_SPEED);
     } else {
@@ -57,4 +59,8 @@ void LightTank::fireAttack(EntityPtr target) {
 
 void LightTank::onDeath() {
     // Could play a tank death sound here when available
+}
+
+void LightTank::preload() {
+    SOUNDS.loadBuffer("units/lighttank/fire.wav");
 }

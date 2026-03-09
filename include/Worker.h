@@ -9,6 +9,8 @@ class Worker : public Unit {
 public:
     Worker(Team team, sf::Vector2f position);
     
+    static void preload();  // Preload textures and sounds for this unit type
+    
     void render(sf::RenderTarget& target) override;
     
     // Worker-specific commands

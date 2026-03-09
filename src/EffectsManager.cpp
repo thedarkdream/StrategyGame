@@ -1,5 +1,6 @@
 
 #include "EffectsManager.h"
+#include "TextureManager.h"
 #include <algorithm>
 
 EffectsManager& EffectsManager::instance() {
@@ -42,4 +43,9 @@ void EffectsManager::render(sf::RenderTarget& target) {
 
 void EffectsManager::clear() {
     m_effects.clear();
+}
+
+void EffectsManager::preload() {
+    TEXTURES.loadEffectAnimation("effects/explosion.png");
+    TEXTURES.loadEffectAnimation("effects/move.png");
 }

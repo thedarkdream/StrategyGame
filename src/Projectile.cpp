@@ -1,5 +1,6 @@
 #include "Projectile.h"
 #include "MathUtil.h"
+#include "SoundManager.h"
 #include <cmath>
 
 Projectile::Projectile(EntityPtr source, EntityPtr target, int damage, float speed, sf::Color color)
@@ -40,6 +41,7 @@ void Projectile::update(float deltaTime) {
     // Check for impact
     if (dist <= IMPACT_RADIUS) {
         // Hit! Apply damage and die
+        SOUNDS.playSound("units/lighttank/explode.wav", m_position);
         target->takeDamage(m_damage, m_source.lock());
         m_health = 0;
         return;
@@ -63,4 +65,8 @@ void Projectile::render(sf::RenderTarget& target) {
     if (m_health <= 0) return;
     m_circle.setPosition(m_position);
     target.draw(m_circle);
+}
+
+void Projectile::preload() {
+    SOUNDS.loadBuffer("units/lighttank/explode.wav");
 }

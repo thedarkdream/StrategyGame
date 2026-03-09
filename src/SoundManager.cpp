@@ -91,6 +91,12 @@ bool SoundManager::isBufferLoaded(const std::string& filepath) const {
     return m_buffers.find(filepath) != m_buffers.end();
 }
 
+void SoundManager::preload(const std::vector<std::string>& filepaths) {
+    for (const auto& path : filepaths) {
+        loadBuffer(path);
+    }
+}
+
 void SoundManager::clearBuffers() {
     // Stop all sounds first (they reference buffers)
     stopAll();

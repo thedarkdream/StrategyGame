@@ -47,7 +47,7 @@ public:
     void addEntity(EntityPtr entity);
     void removeEntity(EntityPtr entity);
     void spawnUnit(EntityType type, Team team, sf::Vector2f position);
-    void spawnBuilding(EntityType type, Team team, sf::Vector2f position, bool startComplete = true);
+    EntityPtr spawnBuilding(EntityType type, Team team, sf::Vector2f position, bool startComplete = true);
     void spawnProjectile(EntityPtr source, EntityPtr target, int damage, float speed);
     
     // Commands
@@ -92,6 +92,7 @@ private:
     
     // Initialization
     void initialize();
+    void preloadAssets();   // Load all sounds & textures upfront to avoid mid-game hitches
     void setupStartingUnits();
     void cleanupDeadEntities();
     void checkVictoryConditions();

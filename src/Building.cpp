@@ -2,6 +2,7 @@
 #include "EntityData.h"
 #include "Constants.h"
 #include "EffectsManager.h"
+#include "TextureManager.h"
 
 #include <cmath>
 #include <cstdint>
@@ -290,5 +291,11 @@ float Building::getTrainingTime(EntityType unitType) const {
 sf::Vector2f Building::getSpawnPoint() const {
     // Spawn at rally point or bottom-right of building
     return m_rallyPoint;
+}
+
+void Building::preload() {
+    TEXTURES.loadStaticSprite("buildings/base.png");
+    TEXTURES.loadStaticSprite("buildings/barracks.png");
+    TEXTURES.loadStaticSprite("buildings/factory.png");
 }
 

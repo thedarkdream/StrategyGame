@@ -10,6 +10,8 @@ class LightTank : public Unit {
 public:
     LightTank(Team team, sf::Vector2f position);
     
+    static void preload();  // Preload textures and sounds for this unit type
+    
     void render(sf::RenderTarget& target) override;
 
 protected:

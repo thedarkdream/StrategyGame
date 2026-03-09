@@ -11,6 +11,8 @@ class Projectile : public Entity {
 public:
     Projectile(EntityPtr source, EntityPtr target, int damage, float speed, sf::Color color = sf::Color::Yellow);
     
+    static void preload();  // Preload sounds for projectile impact
+    
     void update(float deltaTime) override;
     void render(sf::RenderTarget& target) override;
     
