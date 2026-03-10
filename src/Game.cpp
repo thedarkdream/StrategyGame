@@ -16,40 +16,18 @@
 #include <cmath>
 #include <cstdlib>
 
-Game::Game()
-    : m_window(sf::VideoMode(sf::Vector2u(Constants::WINDOW_WIDTH, Constants::WINDOW_HEIGHT)), 
-               "Strategy Game", sf::Style::Default)  // Allow resize
+Game::Game(sf::RenderWindow& window)
+    : m_window(window)
 {
-    m_window.setFramerateLimit(Constants::FRAME_RATE);
     initialize();
 }
 
-void Game::run() {
-    while (m_window.isOpen()) {
-        m_deltaTime = m_clock.restart().asSeconds();
-        
-        processEvents();
-        
-        if (m_state == GameState::Playing) {
-            update(m_deltaTime);
-        }
-        
-        render();
+void Game::handleEvent(const sf::Event& event) {
+    if (const auto* resized = event.getIf<sf::Event::Resized>()) {
+        m_input->onWindowResize(resized->size);
     }
-}
-
-void Game::processEvents() {
-    while (const auto event = m_window.pollEvent()) {
-        if (event->is<sf::Event::Closed>()) {
-            m_window.close();
-        }
-        else if (const auto* resized = event->getIf<sf::Event::Resized>()) {
-            // Update the game view to maintain proper scaling
-            m_input->onWindowResize(resized->size);
-        }
-        
-        m_input->handleEvent(*event);
-    }
+    
+    m_input->handleEvent(event);
 }
 
 void Game::update(float deltaTime) {
@@ -87,7 +65,6 @@ void Game::update(float deltaTime) {
 void Game::render() {
     m_renderer->setCamera(m_input->getCamera());
     m_renderer->render(*this);
-    m_window.display();
 }
 
 void Game::initialize() {

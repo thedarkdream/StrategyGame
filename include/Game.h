@@ -13,10 +13,13 @@
 
 class Game {
 public:
-    Game();
+    Game(sf::RenderWindow& window);
     ~Game() = default;
     
-    void run();
+    // Per-frame interface (called by GameScreen)
+    void handleEvent(const sf::Event& event);
+    void update(float deltaTime);
+    void render();
     
     // Game state
     GameState getState() const { return m_state; }
@@ -62,8 +65,8 @@ public:
     void cancelBuildingConstruction(EntityPtr building);
     
 private:
-    // Window
-    sf::RenderWindow m_window;
+    // Window (owned by Application, passed by reference)
+    sf::RenderWindow& m_window;
     
     // Game state
     GameState m_state = GameState::Playing;
@@ -81,14 +84,7 @@ private:
     EntityList m_allEntities;
     EntityList m_pendingEntities;  // Entities added mid-frame; flushed after update loop
     
-    // Timing
-    sf::Clock m_clock;
-    float m_deltaTime = 0.0f;
-    
-    // Game loop
-    void processEvents();
-    void update(float deltaTime);
-    void render();
+    // Game loop helpers
     
     // Initialization
     void initialize();

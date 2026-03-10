@@ -11,6 +11,10 @@ find_package(SFML 3.0 COMPONENTS Graphics Window System Audio REQUIRED)
 set(SOURCES
     src/main.cpp
     src/Game.cpp
+    src/Application.cpp
+    src/MenuScreen.cpp
+    src/GameScreen.cpp
+    src/MapEditorScreen.cpp
     src/Map.cpp
     src/Entity.cpp
     src/EntityData.cpp
@@ -39,6 +43,11 @@ set(SOURCES
 # Header files
 set(HEADERS
     include/Game.h
+    include/Screen.h
+    include/Application.h
+    include/MenuScreen.h
+    include/GameScreen.h
+    include/MapEditorScreen.h
     include/Map.h
     include/Entity.h
     include/Unit.h
