@@ -1,5 +1,6 @@
 #include "ActionBar.h"
 #include "Player.h"
+#include "PlayerActions.h"
 #include "Unit.h"
 #include "Building.h"
 #include "Constants.h"
@@ -159,7 +160,7 @@ int ActionBar::getQueueItemAtPosition(sf::Vector2i screenPos, EntityPtr entity) 
     return -1;
 }
 
-ActionBarClickResult ActionBar::handleClick(sf::Vector2i screenPos, Player& player) {
+ActionBarClickResult ActionBar::handleClick(sf::Vector2i screenPos, Player& player, PlayerActions& actions) {
     ActionBarClickResult result;
     
     if (!isPositionOnPanel(screenPos, player)) return result;
@@ -204,13 +205,13 @@ ActionBarClickResult ActionBar::handleClick(sf::Vector2i screenPos, Player& play
     }
     
     // Get action from registry
-    const auto& actions = ENTITY_DATA.getActions(entity->getType());
-    if (buttonIndex >= static_cast<int>(actions.size())) {
+    const auto& actionDefs = ENTITY_DATA.getActions(entity->getType());
+    if (buttonIndex >= static_cast<int>(actionDefs.size())) {
         result.type = ActionBarClickResult::Type::Handled;
         return result;
     }
-    
-    const ActionDef& action = actions[buttonIndex];
+
+    const ActionDef& action = actionDefs[buttonIndex];
     
     switch (action.type) {
         case ActionDef::Type::TargetMove:
@@ -218,12 +219,7 @@ ActionBarClickResult ActionBar::handleClick(sf::Vector2i screenPos, Player& play
             break;
             
         case ActionDef::Type::Instant:
-            // Stop action - apply to all selected units
-            for (auto& e : player.getSelection()) {
-                if (auto* u = e->asUnit()) {
-                    u->stop();
-                }
-            }
+            actions.stop(player.getSelection());
             result.type = ActionBarClickResult::Type::Handled;
             break;
             
@@ -237,13 +233,9 @@ ActionBarClickResult ActionBar::handleClick(sf::Vector2i screenPos, Player& play
             
         case ActionDef::Type::Train:
             if (building && action.producesType != EntityType::None) {
-                int mineralCost = ENTITY_DATA.getMineralCost(action.producesType);
-                int gasCost = ENTITY_DATA.getGasCost(action.producesType);
-                if (player.canAfford(mineralCost, gasCost)) {
-                    if (building->trainUnit(action.producesType)) {
-                        player.spendResources(mineralCost, gasCost);
-                    }
-                }
+                actions.trainUnit(
+                    std::static_pointer_cast<Building>(entity),
+                    action.producesType);
             }
             result.type = ActionBarClickResult::Type::Handled;
             break;

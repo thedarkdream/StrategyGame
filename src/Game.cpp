@@ -91,6 +91,13 @@ void Game::initialize() {
     for (int i = 0; i < playerCount; ++i)
         m_players[i] = std::make_unique<Player>(teamFromIndex(i), startingRes);
 
+    // Create per-player action dispatchers (must be before controllers so AI can reference them)
+    for (int i = 0; i < MAX_PLAYERS; ++i) {
+        if (!m_players[i]) continue;
+        m_actions[i] = std::make_unique<PlayerActions>(*m_players[i], *this);
+        m_actions[i]->setLocalPlayer(i == m_localSlot);
+    }
+
     // Create input handler and renderer
     m_input    = std::make_unique<InputHandler>(m_window, *this);
     m_renderer = std::make_unique<Renderer>(m_window);
@@ -223,7 +230,10 @@ void Game::setupWorker(Worker* worker, EntityPtr homeBase) {
 }
 
 bool Game::checkPositionBlocked(sf::Vector2f pos, float radius, Entity* excludeSelf) {
-    for (auto& entity : m_allEntities) {
+    // Check both live entities AND entities pending flush so units spawned on the
+    // same frame (e.g. two factories completing on the same tick) don't overlap.
+    for (const EntityList* list : {&m_allEntities, &m_pendingEntities}) {
+    for (auto& entity : *list) {
         if (!entity || !entity->isAlive()) continue;
         if (entity.get() == excludeSelf) continue;
         
@@ -266,8 +276,9 @@ bool Game::checkPositionBlocked(sf::Vector2f pos, float radius, Entity* excludeS
                 return true;
             }
         }
-    }
-    
+    } // end entity loop
+    } // end list loop
+
     return false;
 }
 
@@ -414,8 +425,10 @@ void Game::setupFromMapData(const MapData& data) {
 }
 
 void Game::spawnUnit(EntityType type, Team team, sf::Vector2f position) {
-    // Determine unit size for spawn position search
-    float unitRadius = (type == EntityType::Worker) ? 10.0f : 12.0f;
+    // Use the actual entity pixel size so findSpawnPosition keeps units apart
+    // by their real collision radius rather than a hardcoded constant.
+    sf::Vector2f entitySize = ENTITY_DATA.getSize(type);
+    float unitRadius = std::max(entitySize.x, entitySize.y) / 2.0f;
     
     // Find a free position to spawn the unit
     sf::Vector2f spawnPos = findSpawnPosition(position, unitRadius);
@@ -525,215 +538,34 @@ void Game::depositResources(Team team, int amount) {
     if (Player* p = getPlayerByTeam(team)) p->addResources(amount, 0);
 }
 
-void Game::issueCommand(const std::vector<EntityPtr>& entities, Command command) {
-    for (auto& entity : entities) {
-        if (auto* unit = entity->asUnit()) {
-            switch (command.type) {
-                case Command::Type::Move:
-                    unit->moveTo(command.targetPosition);
-                    break;
-                case Command::Type::Attack:
-                    if (command.targetEntity) {
-                        unit->attack(command.targetEntity);
-                    }
-                    break;
-                case Command::Type::Gather:
-                    if (command.targetEntity) {
-                        if (auto* worker = unit->asWorker()) {
-                            worker->gather(command.targetEntity);
-                        }
-                    }
-                    break;
-                case Command::Type::Stop:
-                    unit->stop();
-                    break;
-                default:
-                    break;
-            }
-        }
-    }
-}
-
 void Game::issueMoveCommand(sf::Vector2f target) {
-    auto& selection = getPlayer().getSelection();
-    for (auto& entity : selection) {
-        if (auto* unit = entity->asUnit()) {
-            unit->moveTo(target);
-        }
-    }
+    getActions().move(getPlayer().getSelection(), target);
 }
 
 void Game::issueFollowCommand(EntityPtr target) {
-    if (target) {
-        target->startHighlight();
-    }
-    auto& selection = getPlayer().getSelection();
-    for (auto& entity : selection) {
-        if (auto* unit = entity->asUnit()) {
-            // Don't follow yourself
-            if (entity != target) {
-                unit->follow(target);
-            }
-        }
-    }
+    getActions().follow(getPlayer().getSelection(), target);
 }
 
 void Game::issueAttackMoveCommand(sf::Vector2f target) {
-    auto& selection = getPlayer().getSelection();
-    for (auto& entity : selection) {
-        if (auto* unit = entity->asUnit()) {
-            unit->attackMoveTo(target);
-        }
-    }
+    getActions().attackMove(getPlayer().getSelection(), target);
 }
 
 void Game::issueAttackCommand(EntityPtr target) {
-    if (target) {
-        target->startHighlight();
-    }
-    auto& selection = getPlayer().getSelection();
-    for (auto& entity : selection) {
-        if (auto* unit = entity->asUnit()) {
-            unit->attack(target);
-        }
-    }
+    getActions().attack(getPlayer().getSelection(), target);
 }
 
 void Game::issueGatherCommand(EntityPtr resource) {
-    if (resource) {
-        resource->startHighlight();
-    }
-    auto& selection = getPlayer().getSelection();
-    for (auto& entity : selection) {
-        if (auto* worker = entity->asWorker()) {
-            worker->gather(resource);
-        }
-    }
+    getActions().gather(getPlayer().getSelection(), resource);
 }
 
 void Game::issueBuildCommand(EntityType buildingType, sf::Vector2f position) {
-    // Check if player can afford it
-    int cost = ResourceManager::getMineralCost(buildingType);
-    if (!getPlayer().canAfford(cost, 0)) {
-        return;
-    }
-    
-    // Check building dependencies
-    const auto& actions = ENTITY_DATA.getActions(EntityType::Worker);
-    for (const auto& action : actions) {
-        if (action.type == ActionDef::Type::Build && action.producesType == buildingType) {
-            if (action.requires != EntityType::None && 
-                !getPlayer().hasCompletedBuilding(action.requires)) {
-                return;  // Dependency not met
-            }
-            break;
-        }
-    }
-    
-    // Check if location is valid
-    sf::Vector2i buildingTileSize = ResourceManager::getBuildingSize(buildingType);
-    int tileX = static_cast<int>(position.x / Constants::TILE_SIZE);
-    int tileY = static_cast<int>(position.y / Constants::TILE_SIZE);
-    
-    if (!m_map.canPlaceBuilding(tileX, tileY, buildingTileSize.x, buildingTileSize.y)) {
-        return;
-    }
-    
-    // Find a selected worker to build
-    Worker* selectedWorker = nullptr;
-    for (const auto& entity : getPlayer().getSelection()) {
-        if (entity && entity->isAlive() && entity->getType() == EntityType::Worker) {
-            selectedWorker = entity->asWorker();
-            if (selectedWorker) break;
-        }
-    }
-    
-    // If no selected worker, find the nearest idle worker
-    if (!selectedWorker) {
-        float nearestDist = std::numeric_limits<float>::max();
-        for (const auto& entity : m_allEntities) {
-            if (entity && entity->isAlive() && 
-                entity->getTeam() == getPlayer().getTeam() &&
-                entity->getType() == EntityType::Worker) {
-                Worker* worker = entity->asWorker();
-                if (worker && !worker->isBuilding() && !worker->isGathering()) {
-                    float dist = MathUtil::distance(worker->getPosition(), position);
-                    if (dist < nearestDist) {
-                        nearestDist = dist;
-                        selectedWorker = worker;
-                    }
-                }
-            }
-        }
-    }
-    
-    // No worker available to build
-    if (!selectedWorker) {
-        return;
-    }
-    
-    // Spend resources and spawn incomplete building
-    getPlayer().spendResources(cost, 0);
-    
-    // Calculate center position: top-left corner + half the pixel size
-    sf::Vector2f pixelSize = ENTITY_DATA.getSize(buildingType);
-    sf::Vector2f buildPos(
-        tileX * Constants::TILE_SIZE + pixelSize.x / 2.0f,
-        tileY * Constants::TILE_SIZE + pixelSize.y / 2.0f
-    );
-    
-    // Spawn building (starts incomplete) and get it back directly
-    EntityPtr newBuilding = spawnBuilding(buildingType, getPlayer().getTeam(), buildPos, false);
-    
-    if (newBuilding) {
-        selectedWorker->buildAt(newBuilding);
-    }
+    getActions().constructBuilding(buildingType, position);
 }
 
 void Game::issueContinueBuildCommand(EntityPtr building) {
-    if (!building) return;
-    
-    // Send selected workers to continue building
-    for (const auto& entity : getPlayer().getSelection()) {
-        if (entity && entity->isAlive() && entity->getType() == EntityType::Worker) {
-            Worker* worker = entity->asWorker();
-            if (worker) {
-                worker->buildAt(building);
-            }
-        }
-    }
+    getActions().continueConstruction(building, getPlayer().getSelection());
 }
 
-void Game::cancelBuildingConstruction(EntityPtr entity) {
-    if (!entity) return;
-    
-    Building* building = entity->asBuilding();
-    if (!building || building->isConstructed()) return;
-    
-    // Release the builder worker
-    building->releaseBuilder();
-    
-    // Free the tiles occupied by this building
-    sf::Vector2i buildingSize = ResourceManager::getBuildingSize(building->getType());
-    sf::Vector2f pos = building->getPosition();
-    int tileX = static_cast<int>((pos.x - buildingSize.x * Constants::TILE_SIZE / 2.0f) / Constants::TILE_SIZE);
-    int tileY = static_cast<int>((pos.y - buildingSize.y * Constants::TILE_SIZE / 2.0f) / Constants::TILE_SIZE);
-    m_map.removeBuilding(tileX, tileY, buildingSize.x, buildingSize.y);
-    
-    // Refund a portion of the cost based on construction progress
-    // For now, refund full cost since building didn't complete
-    int mineralCost = ENTITY_DATA.getMineralCost(building->getType());
-    int gasCost = ENTITY_DATA.getGasCost(building->getType());
-    
-    // Refund to the owning player
-    Player* owner = getPlayerByTeam(building->getTeam());
-    if (owner) {
-        owner->addResources(mineralCost, gasCost);
-    }
-    
-    // Clear selection (the building is being removed)
-    getPlayer().clearSelection();
-    
-    // Remove the building from the game
-    removeEntity(entity);
+void Game::cancelBuildingConstruction(EntityPtr building) {
+    getActions().cancelConstruction(building);
 }

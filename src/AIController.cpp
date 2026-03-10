@@ -1,6 +1,7 @@
 #include "AIController.h"
 #include "Game.h"
 #include "Player.h"
+#include "PlayerActions.h"
 #include "Unit.h"
 #include "Worker.h"
 #include "Building.h"
@@ -15,6 +16,7 @@ AIController::AIController(Player& player, Game& game)
     : m_player(player)
     , m_game(game)
     , m_map(&game.getMap())
+    , m_actions(&game.getActions(teamToIndex(player.getTeam())))
 {
     std::random_device rd;
     m_rng = std::mt19937(rd());
@@ -47,35 +49,23 @@ void AIController::manageEconomy() {
     int idealWorkers = baseCount * 6;
     
     if (workerCount < idealWorkers) {
-        auto base = findIdleBase();
-        if (base && m_player.canAfford(Constants::WORKER_COST_MINERALS, 0)) {
-            base->trainUnit(EntityType::Worker);
-            m_player.spendResources(Constants::WORKER_COST_MINERALS, 0);
-        }
+        if (auto base = findIdleBase())
+            m_actions->trainUnit(base, EntityType::Worker);
     }
-    
+
     // Send idle workers to gather
     for (auto& unit : m_player.getUnits()) {
         if (unit->getType() == EntityType::Worker && unit->isIdle()) {
-            // Find nearest mineral patch
-            EntityPtr nearestMineral = nullptr;
+            EntityPtr nearestMineral;
             float nearestDist = 999999.0f;
-            
             for (auto& entity : m_game.getAllEntities()) {
                 if (entity->getType() == EntityType::MineralPatch) {
                     float dist = MathUtil::distance(entity->getPosition(), unit->getPosition());
-                    if (dist < nearestDist) {
-                        nearestDist = dist;
-                        nearestMineral = entity;
-                    }
+                    if (dist < nearestDist) { nearestDist = dist; nearestMineral = entity; }
                 }
             }
-            
-            if (nearestMineral) {
-                if (auto* worker = unit->asWorker()) {
-                    worker->gather(nearestMineral);
-                }
-            }
+            if (nearestMineral)
+                m_actions->gather({ std::static_pointer_cast<Entity>(unit) }, nearestMineral);
         }
     }
 }
@@ -84,41 +74,21 @@ void AIController::manageProduction() {
     int barracksCount = countBuildingsOfType(EntityType::Barracks);
     int soldierCount = countUnitsOfType(EntityType::Soldier);
 
-    // Build barracks if we have none (including under construction) and can afford it
-    if (barracksCount < 1 && m_player.canAfford(Constants::BARRACKS_COST_MINERALS, 0)) {
+    // Build barracks if we have none (including under construction)
+    if (barracksCount < 1) {
         sf::Vector2f buildPos = findBuildLocation(EntityType::Barracks);
-        if (buildPos.x > 0) {
-            Worker* worker = findIdleWorker();
-            if (worker) {
-                EntityPtr newBuilding = m_game.spawnBuilding(
-                    EntityType::Barracks, m_player.getTeam(), buildPos, /*startComplete=*/false);
-                if (newBuilding) {
-                    m_player.spendResources(Constants::BARRACKS_COST_MINERALS, 0);
-                    worker->buildAt(newBuilding);
-                }
-            }
-        }
+        if (buildPos.x >= 0.f && buildPos.y >= 0.f)
+            m_actions->constructBuilding(EntityType::Barracks, buildPos, findIdleWorker());
     }
-    
+
     // Train soldiers or brutes
     if (barracksCount > 0) {
-        auto barracks = findIdleBarracks();
-        if (barracks) {
-            // Randomly choose between Soldier and Brute (60% Soldier, 40% Brute)
+        if (auto barracks = findIdleBarracks()) {
             std::uniform_int_distribution<int> dist(1, 10);
-            if (dist(m_rng) <= 6) {
-                // Train Soldier
-                if (m_player.canAfford(Constants::SOLDIER_COST_MINERALS, 0)) {
-                    barracks->trainUnit(EntityType::Soldier);
-                    m_player.spendResources(Constants::SOLDIER_COST_MINERALS, 0);
-                }
-            } else {
-                // Train Brute
-                if (m_player.canAfford(Constants::BRUTE_COST_MINERALS, 0)) {
-                    barracks->trainUnit(EntityType::Brute);
-                    m_player.spendResources(Constants::BRUTE_COST_MINERALS, 0);
-                }
-            }
+            if (dist(m_rng) <= 6)
+                m_actions->trainUnit(barracks, EntityType::Soldier);
+            else
+                m_actions->trainUnit(barracks, EntityType::Brute);
         }
     }
 }
@@ -149,12 +119,14 @@ void AIController::attackEnemy() {
     
     if (!target) return;
     
-    // Send all soldiers to attack
+    // Send all idle soldiers to attack
+    std::vector<EntityPtr> attackers;
     for (auto& unit : m_player.getUnits()) {
-        if (unit->getType() == EntityType::Soldier && unit->isIdle()) {
-            unit->attack(target);
-        }
+        if (unit->getType() == EntityType::Soldier && unit->isIdle())
+            attackers.push_back(std::static_pointer_cast<Entity>(unit));
     }
+    if (!attackers.empty())
+        m_actions->attack(attackers, target);
 }
 
 BuildingPtr AIController::findIdleBase() {
@@ -228,8 +200,6 @@ sf::Vector2f AIController::findBuildLocation(EntityType buildingType) {
         if (len > 0.f) mineralDir /= len;
     }
 
-    sf::Vector2f pixelSize = ENTITY_DATA.getSize(buildingType);
-
     // Two passes: first avoid the mineral-facing side, then accept any free spot as fallback.
     for (int pass = 0; pass < 2; ++pass) {
         for (int radius = 3; radius < 12; ++radius) {
@@ -252,9 +222,11 @@ sf::Vector2f AIController::findBuildLocation(EntityType buildingType) {
                         if (dir.x * mineralDir.x + dir.y * mineralDir.y > 0.3f) continue;
                     }
 
+                    // Return the top-left corner of the tile; constructBuilding
+                    // derives tileX/Y via integer division and adds centering itself.
                     return sf::Vector2f(
-                        tileX * Constants::TILE_SIZE + pixelSize.x / 2.0f,
-                        tileY * Constants::TILE_SIZE + pixelSize.y / 2.0f
+                        static_cast<float>(tileX * Constants::TILE_SIZE),
+                        static_cast<float>(tileY * Constants::TILE_SIZE)
                     );
                 }
             }

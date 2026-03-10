@@ -657,7 +657,7 @@ bool InputHandler::handleActionBarClick(sf::Vector2i screenPos) {
     actionBar.setWindowSize(m_window.getSize());
     Player& player = m_game.getPlayer();
     
-    ActionBarClickResult result = actionBar.handleClick(screenPos, player);
+    ActionBarClickResult result = actionBar.handleClick(screenPos, player, m_game.getActions());
     
     switch (result.type) {
         case ActionBarClickResult::Type::None:

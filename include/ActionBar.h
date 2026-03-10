@@ -9,6 +9,7 @@
 #include <string>
 
 class Player;
+class PlayerActions;
 
 // Result from clicking on the action bar
 struct ActionBarClickResult {
@@ -44,7 +45,7 @@ public:
     int getQueueItemAtPosition(sf::Vector2i screenPos, EntityPtr entity) const;
     
     // Click handling - executes instant actions, returns type for targeting actions
-    ActionBarClickResult handleClick(sf::Vector2i screenPos, Player& player);
+    ActionBarClickResult handleClick(sf::Vector2i screenPos, Player& player, PlayerActions& actions);
     
 private:
     // Layout helpers

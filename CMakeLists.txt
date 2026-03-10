@@ -38,6 +38,7 @@ set(SOURCES
     src/EffectsManager.cpp
     src/SoundManager.cpp
     src/FontManager.cpp
+    src/PlayerActions.cpp
     src/LightTank.cpp
     src/Projectile.cpp
 )
@@ -66,6 +67,7 @@ set(HEADERS
     include/Constants.h
     include/Types.h
     include/IUnitContext.h
+    include/PlayerActions.h
     include/EntityData.h
     include/ActionBar.h
     include/MathUtil.h

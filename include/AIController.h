@@ -7,6 +7,7 @@ class Player;
 class Map;
 class Game;
 class Worker;
+class PlayerActions;
 
 class AIController {
 public:
@@ -18,9 +19,10 @@ public:
     void setDifficulty(int level) { m_difficulty = level; }
     
 private:
-    Player& m_player;
-    Game& m_game;
-    Map* m_map = nullptr;
+    Player&        m_player;
+    Game&          m_game;
+    Map*           m_map     = nullptr;
+    PlayerActions* m_actions = nullptr;
     
     int m_difficulty = 1;  // 1 = easy, 2 = medium, 3 = hard
     float m_decisionTimer = 0.0f;

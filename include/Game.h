@@ -9,6 +9,7 @@
 #include "ActionBar.h"
 #include "MapSerializer.h"
 #include "IUnitContext.h"
+#include "PlayerActions.h"
 #include <SFML/Graphics.hpp>
 #include <memory>
 #include <vector>
@@ -68,8 +69,11 @@ public:
     void spawnProjectile(EntityPtr source, EntityPtr target, int damage, float speed) override;
     void depositResources(Team team, int amount) override;
     
-    // Commands
-    void issueCommand(const std::vector<EntityPtr>& entities, Command command);
+    // Per-player action dispatcher (one per occupied slot)
+    PlayerActions& getActions()           { return *m_actions[m_localSlot]; }
+    PlayerActions& getActions(int slot)   { return *m_actions[slot]; }
+
+    // Commands (thin wrappers that apply to the local human's selection)
     void issueMoveCommand(sf::Vector2f target);
     void issueFollowCommand(EntityPtr target);
     void issueAttackMoveCommand(sf::Vector2f target);
@@ -94,6 +98,7 @@ private:
     // Slots 0–3 correspond to Team::Player1–Player4; nullptr = slot unused
     std::array<std::unique_ptr<Player>,           MAX_PLAYERS> m_players;
     std::array<std::unique_ptr<PlayerController>, MAX_PLAYERS> m_controllers;
+    std::array<std::unique_ptr<PlayerActions>,    MAX_PLAYERS> m_actions;
     std::unique_ptr<InputHandler> m_input;
     std::unique_ptr<Renderer>     m_renderer;
     
