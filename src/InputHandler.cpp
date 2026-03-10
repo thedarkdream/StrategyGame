@@ -465,12 +465,7 @@ void InputHandler::handleKeyPress(sf::Keyboard::Key code) {
                 return;
                 
             case ActionDef::Type::Instant:
-                // Stop command - apply to all selected units
-                for (auto& entity : player.getSelection()) {
-                    if (auto* unit = entity->asUnit()) {
-                        unit->stop();
-                    }
-                }
+                m_game.getActions().stop(player.getSelection());
                 return;
                 
             case ActionDef::Type::Build:
@@ -490,15 +485,10 @@ void InputHandler::handleKeyPress(sf::Keyboard::Key code) {
                 return;
                 
             case ActionDef::Type::Train:
-                // Train unit from selected building
-                if (auto* building = selectedEntity->asBuilding()) {
-                    int mineralCost = ENTITY_DATA.getMineralCost(action.producesType);
-                    int gasCost = ENTITY_DATA.getGasCost(action.producesType);
-                    if (player.canAfford(mineralCost, gasCost)) {
-                        if (building->trainUnit(action.producesType)) {
-                            player.spendResources(mineralCost, gasCost);
-                        }
-                    }
+                if (selectedEntity->asBuilding()) {
+                    m_game.getActions().trainUnit(
+                        std::static_pointer_cast<Building>(selectedEntity),
+                        action.producesType);
                 }
                 return;
         }

@@ -45,5 +45,4 @@ private:
     int countBuildingsOfType(EntityType type);
     sf::Vector2f findBuildLocation(EntityType buildingType);
     Worker* findIdleWorker();
-    EntityPtr findNearestEnemy(sf::Vector2f from);
 };

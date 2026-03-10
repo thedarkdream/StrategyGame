@@ -11,6 +11,7 @@
 #include "Constants.h"
 #include "MathUtil.h"
 #include <algorithm>
+#include <limits>
 
 AIController::AIController(Player& player, Game& game)
     : m_player(player)
@@ -111,22 +112,39 @@ void AIController::sendScout() {
 }
 
 void AIController::attackEnemy() {
-    // Need at least one building to determine position
-    if (m_player.getBuildings().empty()) return;
-    
-    // Find an enemy target
-    EntityPtr target = findNearestEnemy(m_player.getBuildings()[0]->getPosition());
-    
-    if (!target) return;
-    
-    // Send all idle soldiers to attack
+    // Collect all enemy bases (prefer Base buildings; fall back to any enemy building)
+    std::vector<sf::Vector2f> enemyBasePositions;
+    for (const auto& entity : m_game.getAllEntities()) {
+        if (!entity || !entity->isAlive()) continue;
+        if (entity->getTeam() == m_player.getTeam() || entity->getTeam() == Team::Neutral) continue;
+        if (entity->getType() == EntityType::Base)
+            enemyBasePositions.push_back(entity->getPosition());
+    }
+
+    // Fallback: rally on any enemy building if no bases remain
+    if (enemyBasePositions.empty()) {
+        for (const auto& entity : m_game.getAllEntities()) {
+            if (!entity || !entity->isAlive()) continue;
+            if (entity->getTeam() == m_player.getTeam() || entity->getTeam() == Team::Neutral) continue;
+            if (entity->asBuilding())
+                enemyBasePositions.push_back(entity->getPosition());
+        }
+    }
+
+    if (enemyBasePositions.empty()) return;
+
+    // Pick a random enemy base to march toward
+    std::uniform_int_distribution<int> pick(0, static_cast<int>(enemyBasePositions.size()) - 1);
+    sf::Vector2f targetPos = enemyBasePositions[pick(m_rng)];
+
+    // Issue attack-move so units fight enemies encountered on the way
     std::vector<EntityPtr> attackers;
     for (auto& unit : m_player.getUnits()) {
-        if (unit->getType() == EntityType::Soldier && unit->isIdle())
+        if (unit->getType() != EntityType::Worker && unit->isIdle())
             attackers.push_back(std::static_pointer_cast<Entity>(unit));
     }
     if (!attackers.empty())
-        m_actions->attack(attackers, target);
+        m_actions->attackMove(attackers, targetPos);
 }
 
 BuildingPtr AIController::findIdleBase() {
@@ -248,35 +266,3 @@ Worker* AIController::findIdleWorker() {
     return nullptr;
 }
 
-EntityPtr AIController::findNearestEnemy(sf::Vector2f from) {
-    EntityPtr nearest = nullptr;
-    float nearestDist = 999999.0f;
-    
-    Player& enemy = m_game.getPlayer();  // AI is the "enemy" player, so player is our enemy
-    
-    // Check enemy units
-    for (auto& unit : enemy.getUnits()) {
-        if (unit->isAlive()) {
-            float dist = MathUtil::distance(unit->getPosition(), from);
-            if (dist < nearestDist) {
-                nearestDist = dist;
-                nearest = unit;
-            }
-        }
-    }
-    
-    // Check enemy buildings if no units found
-    if (!nearest) {
-        for (auto& building : enemy.getBuildings()) {
-            if (building->isAlive()) {
-                float dist = MathUtil::distance(building->getPosition(), from);
-                if (dist < nearestDist) {
-                    nearestDist = dist;
-                    nearest = building;
-                }
-            }
-        }
-    }
-    
-    return nearest;
-}
