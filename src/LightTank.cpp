@@ -47,10 +47,10 @@ void LightTank::render(sf::RenderTarget& target) {
 void LightTank::fireAttack(EntityPtr target) {
     if (!target || !target->isAlive()) return;
     
-    if (spawnProjectile) {
+    if (m_context) {
         SOUNDS.playSound("units/lighttank/fire.wav", m_position);
         // Launch a homing rocket
-        spawnProjectile(shared_from_this(), target, m_damage, ROCKET_SPEED);
+        m_context->spawnProjectile(shared_from_this(), target, m_damage, ROCKET_SPEED);
     } else {
         // Fallback: instant damage if no callback set
         target->takeDamage(m_damage, shared_from_this());

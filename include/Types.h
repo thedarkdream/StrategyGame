@@ -115,6 +115,14 @@ struct Command {
     EntityType buildType;
 };
 
+// Data for RVO (Reciprocal Velocity Obstacles) collision avoidance.
+// Defined here so IUnitContext can reference it without pulling in Unit.h.
+struct RVONeighbor {
+    sf::Vector2f position;
+    sf::Vector2f velocity;
+    float radius;
+};
+
 // ---------------------------------------------------------------------------
 // Team utility functions — single source of truth for all team-related helpers
 // ---------------------------------------------------------------------------

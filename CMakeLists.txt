@@ -65,6 +65,7 @@ set(HEADERS
     include/AIController.h
     include/Constants.h
     include/Types.h
+    include/IUnitContext.h
     include/EntityData.h
     include/ActionBar.h
     include/MathUtil.h

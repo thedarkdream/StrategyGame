@@ -171,7 +171,7 @@ void Game::setupStartingUnits() {
         auto worker = ResourceManager::createWorker(Team::Player1, workerPos);
         setupUnit(worker);
         if (auto* w = worker->asWorker()) {
-            setupWorker(w, playerBase, Team::Player1);
+            setupWorker(w, playerBase);
         }
         m_players[0]->addUnit(worker);
         addEntity(worker);
@@ -208,7 +208,7 @@ void Game::setupStartingUnits() {
         auto worker = ResourceManager::createWorker(Team::Player2, workerPos);
         setupUnit(worker);
         if (auto* w = worker->asWorker()) {
-            setupWorker(w, enemyBase, Team::Player2);
+            setupWorker(w, enemyBase);
         }
         m_players[1]->addUnit(worker);
         addEntity(worker);
@@ -326,31 +326,11 @@ EntityPtr Game::findNearestAvailableResource(sf::Vector2f pos, float radius, Ent
 
 void Game::setupUnit(UnitPtr& unit) {
     unit->setMap(&m_map);
-    unit->findNearestEnemy = [this](sf::Vector2f pos, float radius, Team excludeTeam) {
-        return this->findNearestEnemy(pos, radius, excludeTeam);
-    };
-    unit->checkPositionBlocked = [this](sf::Vector2f pos, float radius, Entity* excludeSelf) {
-        return this->checkPositionBlocked(pos, radius, excludeSelf);
-    };
-    unit->getNearbyUnitsRVO = [this](sf::Vector2f pos, float radius, Unit* excludeSelf) {
-        return this->getNearbyUnitsRVO(pos, radius, excludeSelf);
-    };
-    unit->spawnProjectile = [this](EntityPtr source, EntityPtr target, int damage, float speed) {
-        this->spawnProjectile(source, target, damage, speed);
-    };
+    unit->setContext(this);
 }
 
-void Game::setupWorker(Worker* worker, EntityPtr homeBase, Team team) {
+void Game::setupWorker(Worker* worker, EntityPtr homeBase) {
     worker->setHomeBase(homeBase);
-    worker->findNearestResource = [this](sf::Vector2f pos, float radius) {
-        return this->findNearestResource(pos, radius);
-    };
-    worker->findNearestAvailableResource = [this](sf::Vector2f pos, float radius, EntityPtr exclude) {
-        return this->findNearestAvailableResource(pos, radius, exclude);
-    };
-    worker->onResourceDeposit = [this, team](int amount) {
-        if (Player* p = getPlayerByTeam(team)) p->addResources(amount, 0);
-    };
 }
 
 bool Game::checkPositionBlocked(sf::Vector2f pos, float radius, Entity* excludeSelf) {
@@ -580,7 +560,7 @@ void Game::spawnUnit(EntityType type, Team team, sf::Vector2f position) {
                 for (auto& building : playerPtr->getBuildings()) {
                     if (building->getType() == EntityType::Base) {
                         if (auto* w = unit->asWorker()) {
-                            setupWorker(w, building, team);
+                            setupWorker(w, building);
                         }
                         break;
                     }
@@ -650,6 +630,10 @@ void Game::spawnProjectile(EntityPtr source, EntityPtr target, int damage, float
     if (!source || !target || !target->isAlive()) return;
     auto projectile = std::make_shared<Projectile>(source, target, damage, speed);
     addEntity(projectile);
+}
+
+void Game::depositResources(Team team, int amount) {
+    if (Player* p = getPlayerByTeam(team)) p->addResources(amount, 0);
 }
 
 void Game::issueCommand(const std::vector<EntityPtr>& entities, Command command) {

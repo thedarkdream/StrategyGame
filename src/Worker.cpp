@@ -102,14 +102,8 @@ void Worker::updateGathering(float deltaTime) {
         // Resource gone or exhausted - release claim and find replacement
         releaseMiningClaim();
         m_resourceTarget.reset();
-        if (findNearestAvailableResource) {
-            EntityPtr newResource = findNearestAvailableResource(m_position, 200.0f, nullptr);
-            if (newResource) {
-                gather(newResource);
-                return;
-            }
-        } else if (findNearestResource) {
-            EntityPtr newResource = findNearestResource(m_position, 200.0f);
+        if (m_context) {
+            EntityPtr newResource = m_context->findNearestAvailableResource(m_position, 200.0f, nullptr);
             if (newResource) {
                 gather(newResource);
                 return;
@@ -138,8 +132,8 @@ void Worker::updateGathering(float deltaTime) {
                 auto self = std::dynamic_pointer_cast<Entity>(shared_from_this());
                 if (!resourceNode->tryClaimMining(self)) {
                     // Spot is occupied - find another field
-                    if (findNearestAvailableResource) {
-                        EntityPtr newResource = findNearestAvailableResource(m_position, 200.0f, resource);
+                    if (m_context) {
+                        EntityPtr newResource = m_context->findNearestAvailableResource(m_position, 200.0f, resource);
                         if (newResource) {
                             gather(newResource);
                             return;
@@ -171,14 +165,8 @@ void Worker::updateGathering(float deltaTime) {
                 // Resource depleted - release claim and find replacement
                 releaseMiningClaim();
                 m_resourceTarget.reset();
-                if (findNearestAvailableResource) {
-                    EntityPtr newResource = findNearestAvailableResource(m_position, 200.0f, nullptr);
-                    if (newResource) {
-                        gather(newResource);
-                        return;
-                    }
-                } else if (findNearestResource) {
-                    EntityPtr newResource = findNearestResource(m_position, 200.0f);
+                if (m_context) {
+                    EntityPtr newResource = m_context->findNearestAvailableResource(m_position, 200.0f, nullptr);
                     if (newResource) {
                         gather(newResource);
                         return;
@@ -209,8 +197,8 @@ void Worker::updateReturning(float deltaTime) {
         followPath(deltaTime);
     } else {
         // Deposit resources
-        if (m_carriedResources > 0 && onResourceDeposit) {
-            onResourceDeposit(m_carriedResources);
+        if (m_carriedResources > 0 && m_context) {
+            m_context->depositResources(m_team, m_carriedResources);
         }
         m_carriedResources = 0;
         
@@ -221,14 +209,8 @@ void Worker::updateReturning(float deltaTime) {
         } else {
             // Original resource gone - try to find a nearby replacement
             m_resourceTarget.reset();
-            if (findNearestAvailableResource) {
-                EntityPtr newResource = findNearestAvailableResource(m_position, 200.0f, nullptr);
-                if (newResource) {
-                    gather(newResource);
-                    return;
-                }
-            } else if (findNearestResource) {
-                EntityPtr newResource = findNearestResource(m_position, 200.0f);
+            if (m_context) {
+                EntityPtr newResource = m_context->findNearestAvailableResource(m_position, 200.0f, nullptr);
                 if (newResource) {
                     gather(newResource);
                     return;

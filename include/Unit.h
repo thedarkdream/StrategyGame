@@ -1,17 +1,11 @@
 #pragma once
 
 #include "Entity.h"
-#include <functional>
-#include <vector>
+#include "IUnitContext.h"
 
 class Map;
 
-// Data for RVO collision avoidance
-struct RVONeighbor {
-    sf::Vector2f position;
-    sf::Vector2f velocity;
-    float radius;
-};
+// Unit.h no longer re-declares RVONeighbor — it is defined in Types.h (via IUnitContext.h).
 
 class Unit : public Entity {
 public:
@@ -44,27 +38,18 @@ public:
     
     // Reference to map for pathfinding
     void setMap(Map* map) { m_map = map; }
-    
+
+    // Inject the game-world context that provides spatial queries,
+    // projectile spawning, etc. Called once by Game::setupUnit.
+    void setContext(IUnitContext* ctx) { m_context = ctx; }
+    IUnitContext* getContext() const   { return m_context; }
+
     // Collision
     float getCollisionRadius() const { return std::max(m_size.x, m_size.y) / 2.0f; }
     virtual bool isCollidable() const { return true; }  // Override in subclasses if needed
     Unit*       asUnit()       override { return this; }
     const Unit* asUnit() const override { return this; }
 
-    // Callback for finding nearby enemies (set by Game)
-    std::function<EntityPtr(sf::Vector2f pos, float radius, Team excludeTeam)> findNearestEnemy;
-    
-    // Callback for checking if a position is blocked (set by Game)
-    // Returns true if the position is blocked, excludeSelf is the unit doing the check
-    std::function<bool(sf::Vector2f pos, float radius, Entity* excludeSelf)> checkPositionBlocked;
-    
-    // Callback for getting nearby units for RVO collision avoidance (set by Game)
-    std::function<std::vector<RVONeighbor>(sf::Vector2f pos, float radius, Unit* excludeSelf)> getNearbyUnitsRVO;
-    
-    // Callback for spawning a projectile from this unit to a target (set by Game)
-    // Parameters: source entity, target entity, damage, speed (units/sec)
-    std::function<void(EntityPtr source, EntityPtr target, int damage, float speed)> spawnProjectile;
-    
     // Current velocity (for RVO)
     sf::Vector2f getVelocity() const { return m_velocity; }
     
@@ -124,4 +109,5 @@ protected:
     static constexpr float FOLLOW_DISTANCE = 50.0f;  // Stop following when within this distance
     
     Map* m_map = nullptr;
+    IUnitContext* m_context = nullptr;
 };

@@ -8,13 +8,14 @@
 #include "PlayerController.h"
 #include "ActionBar.h"
 #include "MapSerializer.h"
+#include "IUnitContext.h"
 #include <SFML/Graphics.hpp>
 #include <memory>
 #include <vector>
 #include <array>
 #include <string>
 
-class Game {
+class Game : public IUnitContext {
 public:
     // localPlayerSlot: 0 = human controls Team::Player1,
     //                  1 = human controls Team::Player2, etc.
@@ -50,21 +51,22 @@ public:
     EntityPtr getEntityAtPosition(sf::Vector2f position);
     std::vector<EntityPtr> getEntitiesInRect(sf::FloatRect rect);
     std::vector<EntityPtr> getEntitiesInRect(sf::FloatRect rect, Team team);
-    EntityPtr findNearestEnemy(sf::Vector2f pos, float radius, Team excludeTeam);
-    EntityPtr findNearestResource(sf::Vector2f pos, float radius);
-    EntityPtr findNearestAvailableResource(sf::Vector2f pos, float radius, EntityPtr exclude = nullptr);
+    EntityPtr findNearestEnemy(sf::Vector2f pos, float radius, Team excludeTeam) override;
+    EntityPtr findNearestResource(sf::Vector2f pos, float radius) override;
+    EntityPtr findNearestAvailableResource(sf::Vector2f pos, float radius, EntityPtr exclude = nullptr) override;
     
     // Collision
-    bool checkPositionBlocked(sf::Vector2f pos, float radius, Entity* excludeSelf);
+    bool checkPositionBlocked(sf::Vector2f pos, float radius, Entity* excludeSelf) override;
     sf::Vector2f findSpawnPosition(sf::Vector2f origin, float unitRadius);
-    std::vector<struct RVONeighbor> getNearbyUnitsRVO(sf::Vector2f pos, float radius, Unit* excludeSelf);
+    std::vector<RVONeighbor> getNearbyUnitsRVO(sf::Vector2f pos, float radius, Unit* excludeSelf) override;
     
     // Entity management
     void addEntity(EntityPtr entity);
     void removeEntity(EntityPtr entity);
     void spawnUnit(EntityType type, Team team, sf::Vector2f position);
     EntityPtr spawnBuilding(EntityType type, Team team, sf::Vector2f position, bool startComplete = true);
-    void spawnProjectile(EntityPtr source, EntityPtr target, int damage, float speed);
+    void spawnProjectile(EntityPtr source, EntityPtr target, int damage, float speed) override;
+    void depositResources(Team team, int amount) override;
     
     // Commands
     void issueCommand(const std::vector<EntityPtr>& entities, Command command);
@@ -112,7 +114,7 @@ private:
     
     // Unit setup helpers
     void setupUnit(UnitPtr& unit);
-    void setupWorker(Worker* worker, EntityPtr homeBase, Team team);
+    void setupWorker(Worker* worker, EntityPtr homeBase);
 
     // Helper: find the Player slot that owns entities of the given Team
     Player* getPlayerByTeam(Team t);

@@ -197,9 +197,9 @@ void Unit::takeDamage(int damage, EntityPtr attacker) {
 
 void Unit::updateIdle(float deltaTime) {
     // Auto-attack: if idle combat unit and an enemy is in range, attack it
-    if (m_isCombatUnit && findNearestEnemy) {
+    if (m_isCombatUnit && m_context) {
         float autoAttackRange = m_attackRange + m_autoAttackRangeBonus;
-        EntityPtr enemy = findNearestEnemy(m_position, autoAttackRange, m_team);
+        EntityPtr enemy = m_context->findNearestEnemy(m_position, autoAttackRange, m_team);
         if (enemy && enemy->isAlive()) {
             attack(enemy);
         }
@@ -216,9 +216,9 @@ void Unit::updateMovement(float deltaTime) {
 
 void Unit::updateAttackMove(float deltaTime) {
     // Check for enemies in attack range while moving
-    if (findNearestEnemy) {
+    if (m_context) {
         float autoAttackRange = m_attackRange + m_autoAttackRangeBonus;
-        EntityPtr enemy = findNearestEnemy(m_position, autoAttackRange, m_team);
+        EntityPtr enemy = m_context->findNearestEnemy(m_position, autoAttackRange, m_team);
         if (enemy && enemy->isAlive()) {
             // Found enemy in range - attack it but remember we're attack-moving
             float distance = getDistanceTo(enemy);
@@ -369,16 +369,16 @@ void Unit::moveTowardsTarget(float deltaTime) {
     sf::Vector2f newPosition = m_position + newVelocity * deltaTime;
     
     // Still check for static obstacles (buildings, resources)
-    if (checkPositionBlocked && isCollidable()) {
+    if (m_context && isCollidable()) {
         float radius = getCollisionRadius();
-        if (checkPositionBlocked(newPosition, radius, this)) {
+        if (m_context->checkPositionBlocked(newPosition, radius, this)) {
             // Try to slide along static obstacles
             sf::Vector2f perpendicular(-direction.y, direction.x);
             float moveDistance = m_speed * deltaTime;
             
             // Try sliding right
             sf::Vector2f slideRight = m_position + perpendicular * moveDistance * 0.7f;
-            if (!checkPositionBlocked(slideRight, radius, this)) {
+            if (!m_context->checkPositionBlocked(slideRight, radius, this)) {
                 m_position = slideRight;
                 m_velocity = perpendicular * m_speed * 0.7f;
                 return;
@@ -386,7 +386,7 @@ void Unit::moveTowardsTarget(float deltaTime) {
             
             // Try sliding left
             sf::Vector2f slideLeft = m_position - perpendicular * moveDistance * 0.7f;
-            if (!checkPositionBlocked(slideLeft, radius, this)) {
+            if (!m_context->checkPositionBlocked(slideLeft, radius, this)) {
                 m_position = slideLeft;
                 m_velocity = -perpendicular * m_speed * 0.7f;
                 return;
@@ -469,13 +469,13 @@ float Unit::getDistanceTo(EntityPtr entity) const {
 }
 
 sf::Vector2f Unit::computeRVOVelocity(sf::Vector2f preferredVelocity, float deltaTime) {
-    // If no RVO callback, just return preferred velocity
-    if (!getNearbyUnitsRVO) {
+    // If no context, just return preferred velocity
+    if (!m_context) {
         return preferredVelocity;
     }
     
     // Get nearby units
-    std::vector<RVONeighbor> neighbors = getNearbyUnitsRVO(m_position, RVO_NEIGHBOR_DIST, this);
+    std::vector<RVONeighbor> neighbors = m_context->getNearbyUnitsRVO(m_position, RVO_NEIGHBOR_DIST, this);
     
     if (neighbors.empty()) {
         return preferredVelocity;

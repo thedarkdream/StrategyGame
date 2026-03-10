@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Unit.h"
-#include <functional>
 
 class Building;
 
@@ -31,16 +30,7 @@ public:
     bool isCollidable() const override;
     Worker*       asWorker()       override { return this; }
     const Worker* asWorker() const override { return this; }
-    
-    // Callback when resources are deposited (int = amount deposited)
-    std::function<void(int)> onResourceDeposit;
-    
-    // Callback to find nearest mineral patch
-    std::function<EntityPtr(sf::Vector2f pos, float radius)> findNearestResource;
-    
-    // Callback to find nearest unoccupied mineral patch
-    std::function<EntityPtr(sf::Vector2f pos, float radius, EntityPtr exclude)> findNearestAvailableResource;
-    
+
 protected:
     void updateCustomState(float deltaTime) override;
     
