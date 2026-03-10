@@ -83,15 +83,20 @@ void AIController::manageEconomy() {
 void AIController::manageProduction() {
     int barracksCount = countBuildingsOfType(EntityType::Barracks);
     int soldierCount = countUnitsOfType(EntityType::Soldier);
-    
-    // Build barracks if we have none and can afford it
+
+    // Build barracks if we have none (including under construction) and can afford it
     if (barracksCount < 1 && m_player.canAfford(Constants::BARRACKS_COST_MINERALS, 0)) {
         sf::Vector2f buildPos = findBuildLocation(EntityType::Barracks);
         if (buildPos.x > 0) {
-            // TODO: Implement build command for AI
-            // For now, we'll directly spawn the barracks
-            m_game.spawnBuilding(EntityType::Barracks, m_player.getTeam(), buildPos);
-            m_player.spendResources(Constants::BARRACKS_COST_MINERALS, 0);
+            Worker* worker = findIdleWorker();
+            if (worker) {
+                EntityPtr newBuilding = m_game.spawnBuilding(
+                    EntityType::Barracks, m_player.getTeam(), buildPos, /*startComplete=*/false);
+                if (newBuilding) {
+                    m_player.spendResources(Constants::BARRACKS_COST_MINERALS, 0);
+                    worker->buildAt(newBuilding);
+                }
+            }
         }
     }
     
@@ -183,9 +188,10 @@ int AIController::countUnitsOfType(EntityType type) {
 }
 
 int AIController::countBuildingsOfType(EntityType type) {
+    // Count both completed and under-construction buildings to avoid duplicate orders
     int count = 0;
     for (auto& building : m_player.getBuildings()) {
-        if (building->getType() == type && building->isConstructed()) {
+        if (building->getType() == type && building->isAlive()) {
             ++count;
         }
     }
@@ -193,26 +199,59 @@ int AIController::countBuildingsOfType(EntityType type) {
 }
 
 sf::Vector2f AIController::findBuildLocation(EntityType buildingType) {
-    // Find a location near our base
-    if (m_player.getBuildings().empty()) {
+    if (m_player.getBuildings().empty())
         return sf::Vector2f(-1, -1);
-    }
-    
+
     sf::Vector2f basePos = m_player.getBuildings()[0]->getPosition();
     sf::Vector2i buildingSize = ResourceManager::getBuildingSize(buildingType);
-    
-    // Search in a spiral pattern around the base
-    for (int radius = 3; radius < 10; ++radius) {
-        for (int dx = -radius; dx <= radius; ++dx) {
-            for (int dy = -radius; dy <= radius; ++dy) {
-                if (std::abs(dx) != radius && std::abs(dy) != radius) continue;
-                
-                int tileX = static_cast<int>(basePos.x / Constants::TILE_SIZE) + dx;
-                int tileY = static_cast<int>(basePos.y / Constants::TILE_SIZE) + dy;
-                
-                if (m_map->canPlaceBuilding(tileX, tileY, buildingSize.x, buildingSize.y)) {
-                    // Calculate center position: top-left corner + half the pixel size
-                    sf::Vector2f pixelSize = ENTITY_DATA.getSize(buildingType);
+    int baseTileX = static_cast<int>(basePos.x / Constants::TILE_SIZE);
+    int baseTileY = static_cast<int>(basePos.y / Constants::TILE_SIZE);
+
+    // Compute the average direction from the base toward nearby mineral patches
+    // so we can place buildings on the opposite side, away from the mining area.
+    sf::Vector2f mineralDir(0.f, 0.f);
+    int mineralCount = 0;
+    for (const auto& entity : m_game.getAllEntities()) {
+        if (entity->getType() == EntityType::MineralPatch ||
+            entity->getType() == EntityType::GasGeyser) {
+            float dist = MathUtil::distance(entity->getPosition(), basePos);
+            if (dist < 700.f) {
+                sf::Vector2f d = entity->getPosition() - basePos;
+                float len = std::sqrt(d.x * d.x + d.y * d.y);
+                if (len > 0.f) mineralDir += d / len;
+                ++mineralCount;
+            }
+        }
+    }
+    if (mineralCount > 0) {
+        float len = std::sqrt(mineralDir.x * mineralDir.x + mineralDir.y * mineralDir.y);
+        if (len > 0.f) mineralDir /= len;
+    }
+
+    sf::Vector2f pixelSize = ENTITY_DATA.getSize(buildingType);
+
+    // Two passes: first avoid the mineral-facing side, then accept any free spot as fallback.
+    for (int pass = 0; pass < 2; ++pass) {
+        for (int radius = 3; radius < 12; ++radius) {
+            for (int dx = -radius; dx <= radius; ++dx) {
+                for (int dy = -radius; dy <= radius; ++dy) {
+                    if (std::abs(dx) != radius && std::abs(dy) != radius) continue;
+
+                    int tileX = baseTileX + dx;
+                    int tileY = baseTileY + dy;
+
+                    if (!m_map->canPlaceBuilding(tileX, tileY, buildingSize.x, buildingSize.y))
+                        continue;
+
+                    // On the first pass, skip tiles that face toward the minerals.
+                    if (pass == 0 && mineralCount > 0) {
+                        sf::Vector2f dir(static_cast<float>(dx), static_cast<float>(dy));
+                        float len = std::sqrt(dir.x * dir.x + dir.y * dir.y);
+                        if (len > 0.f) dir /= len;
+                        // dot > 0.3 means the tile is within ~72° of the mineral direction.
+                        if (dir.x * mineralDir.x + dir.y * mineralDir.y > 0.3f) continue;
+                    }
+
                     return sf::Vector2f(
                         tileX * Constants::TILE_SIZE + pixelSize.x / 2.0f,
                         tileY * Constants::TILE_SIZE + pixelSize.y / 2.0f
@@ -221,8 +260,20 @@ sf::Vector2f AIController::findBuildLocation(EntityType buildingType) {
             }
         }
     }
-    
+
     return sf::Vector2f(-1, -1);
+}
+
+Worker* AIController::findIdleWorker() {
+    for (auto& unit : m_player.getUnits()) {
+        if (unit->getType() == EntityType::Worker && unit->isAlive()) {
+            if (Worker* w = unit->asWorker()) {
+                if (!w->isBuilding())
+                    return w;
+            }
+        }
+    }
+    return nullptr;
 }
 
 EntityPtr AIController::findNearestEnemy(sf::Vector2f from) {

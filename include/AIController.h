@@ -6,6 +6,7 @@
 class Player;
 class Map;
 class Game;
+class Worker;
 
 class AIController {
 public:
@@ -41,5 +42,6 @@ private:
     int countUnitsOfType(EntityType type);
     int countBuildingsOfType(EntityType type);
     sf::Vector2f findBuildLocation(EntityType buildingType);
+    Worker* findIdleWorker();
     EntityPtr findNearestEnemy(sf::Vector2f from);
 };
