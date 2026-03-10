@@ -475,3 +475,7 @@ entity  MineralPatch Neutral 13 3
 entity  MineralPatch Neutral 14 4
 entity  MineralPatch Neutral 5 3
 entity  MineralPatch Neutral 3 5
+entity  StartPosition Player1 8 7
+entity  StartPosition Player2 52 7
+entity  StartPosition Player3 53 53
+entity  StartPosition Player4 8 53

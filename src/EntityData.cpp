@@ -404,4 +404,23 @@ void EntityRegistry::initializeDefaults() {
         
         registerEntity(std::move(def));
     }
+
+    // ==================== EDITOR-ONLY MARKERS ====================
+
+    // Start Position (same footprint as Base, editor-only, never spawned in game)
+    {
+        EntityDef def;
+        def.type = EntityType::StartPosition;
+        def.name = "Start Pos";
+        def.shortName = "SP";
+        def.mineralCost = 0;
+        def.health = 0;
+        def.size = {96.0f, 96.0f};  // matches Base visual size
+        BuildingDef building;
+        building.tileSize = {3, 3};  // same footprint as Base
+        building.canProduce = false;
+        building.isResourceNode = false;
+        def.building = building;
+        registerEntity(std::move(def));
+    }
 }

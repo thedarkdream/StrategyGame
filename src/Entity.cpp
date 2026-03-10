@@ -11,19 +11,13 @@ Entity::Entity(EntityType type, Team team, sf::Vector2f position)
     , m_health(100)
     , m_maxHealth(100)
 {
-    // Set color based on team using Constants
+    // Set color based on team — each player slot gets its own distinct color
     switch (team) {
-        case Team::Player1:
-            m_color = sf::Color(Constants::Colors::PLAYER_COLOR);
-            break;
-        case Team::Player2:
-        case Team::Player3:
-        case Team::Player4:
-            m_color = sf::Color(Constants::Colors::ENEMY_COLOR);
-            break;
-        case Team::Neutral:
-            m_color = sf::Color(Constants::Colors::NEUTRAL_COLOR);
-            break;
+        case Team::Player1: m_color = sf::Color(0x34, 0x98, 0xDB); break; // Blue
+        case Team::Player2: m_color = sf::Color(0xE7, 0x4C, 0x3C); break; // Red
+        case Team::Player3: m_color = sf::Color(0xF3, 0x9C, 0x12); break; // Orange
+        case Team::Player4: m_color = sf::Color(0x2E, 0xCC, 0x71); break; // Green
+        case Team::Neutral: m_color = sf::Color(0x95, 0xA5, 0xA6); break; // Gray
     }
     
     updateShape();

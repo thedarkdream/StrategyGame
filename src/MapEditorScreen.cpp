@@ -281,6 +281,12 @@ void MapEditorScreen::buildLayout(sf::Vector2u winSize) {
     makeSectionLabel(m_lblNeutral, "NEUTRAL", y); y += 20.f;
     buildNeutralItems(y);
 
+    makeDivider(m_dividerStartPos, y); y += 9.f;
+
+    // ---- Start positions ---------------------------------------------------
+    makeSectionLabel(m_lblStartPos, "START POSITIONS", y); y += 20.f;
+    buildStartPosItems(y);
+
     makeDivider(m_dividerBuildings, y); y += 9.f;
 
     // ---- Buildings ---------------------------------------------------------
@@ -362,6 +368,42 @@ void MapEditorScreen::buildNeutralItems(float& y) {
     int rows = (NUM_NEUTRAL + 3) / 4;
     y += rows * (SH + GAP) + 4.f;
     (void)IW;
+}
+
+void MapEditorScreen::buildStartPosItems(float& y) {
+    m_startPosItems.clear();
+    const float PAD = 10.f;
+    const float SW = 56.f, SH = 60.f, GAP = 8.f;
+
+    for (int i = 0; i < m_mapPlayerCount; ++i) {
+        Team team = teamFromIndex(i);
+        int col = i % 4, row = i / 4;
+        float x = PAD + col * (SW + GAP);
+        float sy = y + row * (SH + GAP);
+
+        EntityItem item = makeEntityItem(EntityType::StartPosition, { x, sy }, { SW, SH });
+
+        // Tint with team colour
+        sf::Color tc = teamColor(team);
+        item.shape.setFillColor(sf::Color(tc.r, tc.g, tc.b, 130));
+        bool isSelected = (m_pendingEntityType == EntityType::StartPosition && m_pendingTeam == team);
+        item.shape.setOutlineColor(isSelected ? COL_ITEM_SEL_OUT : COL_SWATCH_NRM);
+
+        // Override label to "Player N"
+        if (m_fontLoaded) {
+            std::string lbl = "Plr " + std::to_string(i + 1);
+            item.label.emplace(m_font, lbl, 9u);
+            item.label->setFillColor(sf::Color(200, 210, 220));
+            sf::FloatRect lb = item.label->getLocalBounds();
+            item.label->setOrigin({ lb.position.x + lb.size.x * 0.5f, 0.f });
+            item.label->setPosition({ x + SW * 0.5f, sy + SH - 14.f - m_panelScrollY });
+        }
+
+        m_startPosItems.push_back(std::move(item));
+    }
+
+    int rows = (m_mapPlayerCount + 3) / 4;
+    y += rows * (SH + GAP) + 4.f;
 }
 
 void MapEditorScreen::buildBuildingItems(float& y) {
@@ -565,22 +607,33 @@ void MapEditorScreen::tryPlaceEntity(sf::Vector2i pixel) {
     // Bounds check
     if (t.x + tileSize.x > m_mapW || t.y + tileSize.y > m_mapH) return;
 
-    // Remove any existing entity whose footprint overlaps
-    m_placedEntities.erase(
-        std::remove_if(m_placedEntities.begin(), m_placedEntities.end(),
-            [&](const PlacedEntity& pe) {
-                sf::Vector2i ps = ENTITY_DATA.getBuildingTileSize(pe.type);
-                bool overlapX = !(t.x >= pe.tileX + ps.x || t.x + tileSize.x <= pe.tileX);
-                bool overlapY = !(t.y >= pe.tileY + ps.y || t.y + tileSize.y <= pe.tileY);
-                return overlapX && overlapY;
-            }),
-        m_placedEntities.end());
+    if (m_pendingEntityType == EntityType::StartPosition) {
+        // Start positions are pure markers — only remove the same-team existing one
+        m_placedEntities.erase(
+            std::remove_if(m_placedEntities.begin(), m_placedEntities.end(),
+                [&](const PlacedEntity& pe) {
+                    return pe.type == EntityType::StartPosition && pe.team == m_pendingTeam;
+                }),
+            m_placedEntities.end());
+    } else {
+        // Remove any overlapping game entity (leave start-position markers alone)
+        m_placedEntities.erase(
+            std::remove_if(m_placedEntities.begin(), m_placedEntities.end(),
+                [&](const PlacedEntity& pe) {
+                    if (pe.type == EntityType::StartPosition) return false;
+                    sf::Vector2i ps = ENTITY_DATA.getBuildingTileSize(pe.type);
+                    bool overlapX = !(t.x >= pe.tileX + ps.x || t.x + tileSize.x <= pe.tileX);
+                    bool overlapY = !(t.y >= pe.tileY + ps.y || t.y + tileSize.y <= pe.tileY);
+                    return overlapX && overlapY;
+                }),
+            m_placedEntities.end());
+    }
 
     m_placedEntities.push_back({ m_pendingEntityType, m_pendingTeam, t.x, t.y });
 
-    // Mark building tiles on map; units leave tiles as-is
+    // Mark building tiles on map; start positions and units leave tiles as-is
     const EntityDef* def = ENTITY_DATA.get(m_pendingEntityType);
-    if (def && def->isBuilding()) {
+    if (def && def->isBuilding() && m_pendingEntityType != EntityType::StartPosition) {
         TileType tt = def->isResource() ? TileType::Resource : TileType::Building;
         for (int dy = 0; dy < tileSize.y; ++dy)
             for (int dx = 0; dx < tileSize.x; ++dx)
@@ -650,6 +703,7 @@ ScreenResult MapEditorScreen::handleEvent(const sf::Event& event) {
 
         for (auto& sw   : m_swatches)      { (void)sw; }
         for (auto& item : m_neutralItems)  updateEntityItemHover(item, pm);
+        for (auto& item : m_startPosItems) updateEntityItemHover(item, pm);
         for (auto& item : m_buildingItems) updateEntityItemHover(item, pm);
         for (auto& item : m_unitItems)     updateEntityItemHover(item, pm);
 
@@ -814,6 +868,19 @@ ScreenResult MapEditorScreen::handleEvent(const sf::Event& event) {
                     bool alreadySel = (m_pendingEntityType == item.type);
                     clearPendingEntity();
                     if (!alreadySel) selectPendingEntity(item.type, Team::Neutral);
+                    buildLayout(m_lastWinSize);
+                    return {};
+                }
+            }
+
+            // ---- Start position items --------------------------------------
+            for (size_t i = 0; i < m_startPosItems.size(); ++i) {
+                if (itemHit(m_startPosItems[i], pm)) {
+                    Team team = teamFromIndex(static_cast<int>(i));
+                    bool alreadySel = (m_pendingEntityType == EntityType::StartPosition
+                                       && m_pendingTeam == team);
+                    clearPendingEntity();
+                    if (!alreadySel) selectPendingEntity(EntityType::StartPosition, team);
                     buildLayout(m_lastWinSize);
                     return {};
                 }
@@ -1124,6 +1191,7 @@ void MapEditorScreen::confirmNewMap() {
 }
 
 void MapEditorScreen::refreshLoadPanel(sf::Vector2u winSize) {
+    m_loadMapFiles = MapSerializer::listMaps(MAPS_DIR);
     m_loadButtons.clear();
 
     float wf = static_cast<float>(winSize.x);
@@ -1262,6 +1330,7 @@ void MapEditorScreen::renderPanel(sf::RenderWindow& window) {
     window.draw(m_divider1);
     window.draw(m_dividerPalette);
     window.draw(m_dividerNeutral);
+    window.draw(m_dividerStartPos);
     window.draw(m_dividerBuildings);
     window.draw(m_dividerUnits);
 
@@ -1271,6 +1340,7 @@ void MapEditorScreen::renderPanel(sf::RenderWindow& window) {
     if (m_lblSize)     window.draw(*m_lblSize);
     if (m_lblPalette)  window.draw(*m_lblPalette);
     if (m_lblNeutral)  window.draw(*m_lblNeutral);
+    if (m_lblStartPos) window.draw(*m_lblStartPos);
     if (m_lblBuildings)window.draw(*m_lblBuildings);
     if (m_lblUnits)    window.draw(*m_lblUnits);
 
@@ -1304,6 +1374,11 @@ void MapEditorScreen::renderPanel(sf::RenderWindow& window) {
         if (sw.label) window.draw(*sw.label);
     }
     for (auto& item : m_neutralItems) {
+        window.draw(item.shape);
+        if (item.abbrev) window.draw(*item.abbrev);
+        if (item.label)  window.draw(*item.label);
+    }
+    for (auto& item : m_startPosItems) {
         window.draw(item.shape);
         if (item.abbrev) window.draw(*item.abbrev);
         if (item.label)  window.draw(*item.label);

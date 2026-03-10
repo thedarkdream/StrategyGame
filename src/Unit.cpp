@@ -106,12 +106,16 @@ void Unit::update(float deltaTime) {
 }
 
 void Unit::render(sf::RenderTarget& target) {
-    // Draw the unit shape
-    target.draw(m_shape);
-    
+    // Draw animated sprite if available, otherwise fallback to colored shape
+    if (m_hasSprite) {
+        m_animatedSprite.render(target, m_position);
+    } else {
+        target.draw(m_shape);
+    }
+
     // Draw selection indicator
     renderSelectionIndicator(target);
-    
+
     // Draw health bar
     renderHealthBar(target);
 }

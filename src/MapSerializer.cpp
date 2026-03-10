@@ -39,6 +39,7 @@ const char* MapSerializer::entityTypeToString(EntityType t) {
         case EntityType::Factory:      return "Factory";
         case EntityType::MineralPatch: return "MineralPatch";
         case EntityType::GasGeyser:    return "GasGeyser";
+        case EntityType::StartPosition: return "StartPosition";
         default:                       return "None";
     }
 }
@@ -54,6 +55,7 @@ EntityType MapSerializer::stringToEntityType(const std::string& s) {
     if (s == "Factory")      return EntityType::Factory;
     if (s == "MineralPatch") return EntityType::MineralPatch;
     if (s == "GasGeyser")    return EntityType::GasGeyser;
+    if (s == "StartPosition") return EntityType::StartPosition;
     return EntityType::None;
 }
 

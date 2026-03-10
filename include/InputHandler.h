@@ -53,6 +53,9 @@ public:
     // Selection box
     bool isSelecting() const { return m_isSelecting; }
     sf::FloatRect getSelectionBox() const;
+
+    // Camera control
+    void centerCameraAt(sf::Vector2f worldPos);
     
 private:
     sf::RenderWindow& m_window;
@@ -98,7 +101,6 @@ private:
     // Minimap
     bool isPositionOnMinimap(sf::Vector2i screenPos) const;
     sf::Vector2f minimapToWorld(sf::Vector2i screenPos) const;
-    void centerCameraAt(sf::Vector2f worldPos);
     
     // Input processing
     void handleMousePress(sf::Vector2i position, sf::Mouse::Button button);

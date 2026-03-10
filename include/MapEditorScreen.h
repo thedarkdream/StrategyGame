@@ -92,6 +92,7 @@ private:
     sf::RectangleShape      m_dividerProps;
     sf::RectangleShape      m_dividerPalette;
     sf::RectangleShape      m_dividerNeutral;
+    sf::RectangleShape      m_dividerStartPos;
     sf::RectangleShape      m_dividerBuildings;
     sf::RectangleShape      m_dividerUnits;
 
@@ -101,6 +102,7 @@ private:
     std::optional<sf::Text> m_lblSize;
     std::optional<sf::Text> m_lblPalette;
     std::optional<sf::Text> m_lblNeutral;
+    std::optional<sf::Text> m_lblStartPos;
     std::optional<sf::Text> m_lblBuildings;
     std::optional<sf::Text> m_lblUnits;
 
@@ -124,6 +126,7 @@ private:
         bool                    selected = false;
     };
     std::vector<EntityItem> m_neutralItems;
+    std::vector<EntityItem> m_startPosItems;
     std::vector<EntityItem> m_buildingItems;
     std::vector<EntityItem> m_unitItems;
 
@@ -168,6 +171,7 @@ private:
     void buildLayout(sf::Vector2u winSize);
     void buildTileSwatches(float& y);
     void buildNeutralItems(float& y);
+    void buildStartPosItems(float& y);
     void buildBuildingItems(float& y);
     void buildUnitItems(float& y);
     void buildNewMapDialog(sf::Vector2u winSize);

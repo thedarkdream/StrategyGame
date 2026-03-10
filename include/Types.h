@@ -45,7 +45,9 @@ enum class EntityType {
     Factory,
     // Resources
     MineralPatch,
-    GasGeyser
+    GasGeyser,
+    // Editor-only marker
+    StartPosition
 };
 
 enum class TileType {

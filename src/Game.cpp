@@ -74,19 +74,32 @@ void Game::render() {
 }
 
 void Game::initialize() {
-    // Create players — always Player1 and Player2 for now (expandable to 4)
     Resources startingRes;
     startingRes.minerals = Constants::STARTING_MINERALS;
     startingRes.gas = Constants::STARTING_GAS;
 
-    m_players[0] = std::make_unique<Player>(Team::Player1, startingRes);
-    m_players[1] = std::make_unique<Player>(Team::Player2, startingRes);
+    // --- Determine player count from the map file (before creating players) ---
+    int playerCount = 2; // default for procedural / fallback
+    std::optional<MapData> mapData;
+    if (!m_mapFile.empty() && m_mapFile != "default") {
+        std::string path = "maps/" + m_mapFile + ".stmap";
+        mapData = MapSerializer::load(path);
+        if (mapData && mapData->playerCount > 1)
+            playerCount = std::min(mapData->playerCount, MAX_PLAYERS);
+    }
+
+    // --- Create exactly as many Player objects as the map needs ---
+    static const Team TEAM_ORDER[MAX_PLAYERS] = {
+        Team::Player1, Team::Player2, Team::Player3, Team::Player4
+    };
+    for (int i = 0; i < playerCount; ++i)
+        m_players[i] = std::make_unique<Player>(TEAM_ORDER[i], startingRes);
 
     // Create input handler and renderer
-    m_input = std::make_unique<InputHandler>(m_window, *this);
+    m_input    = std::make_unique<InputHandler>(m_window, *this);
     m_renderer = std::make_unique<Renderer>(m_window);
 
-    // Assign controllers: human for the local slot, AI for all others
+    // Assign controllers: human for the local slot, AI for all other occupied slots
     for (int i = 0; i < MAX_PLAYERS; ++i) {
         if (!m_players[i]) continue;
         if (i == m_localSlot) {
@@ -99,17 +112,14 @@ void Game::initialize() {
     // Preload all assets so nothing freezes during gameplay
     preloadAssets();
 
-    // Setup starting units – either from a saved map or the default procedural setup
-    if (!m_mapFile.empty() && m_mapFile != "default") {
-        std::string path = "maps/" + m_mapFile + ".stmap";
-        auto data = MapSerializer::load(path);
-        if (data) {
-            setupFromMapData(*data);
-        } else {
-            std::cerr << "Game: failed to load map '" << m_mapFile
-                      << "', falling back to default setup.\n";
-            setupStartingUnits();
-        }
+    // Setup starting units – either from the loaded map or the default procedural setup
+    if (mapData) {
+        setupFromMapData(*mapData);
+    } else if (!m_mapFile.empty() && m_mapFile != "default") {
+        // Map was specified but failed to load
+        std::cerr << "Game: failed to load map '" << m_mapFile
+                  << "', falling back to default setup.\n";
+        setupStartingUnits();
     } else {
         setupStartingUnits();
     }
@@ -499,7 +509,21 @@ void Game::setupFromMapData(const MapData& data) {
 
     // Spawn all saved entities
     const float TS = static_cast<float>(Constants::TILE_SIZE);
+    const Team localTeam = (m_players[m_localSlot]) ? m_players[m_localSlot]->getTeam() : Team::Player1;
+    sf::Vector2f cameraTarget(-1.f, -1.f);
+
     for (const auto& e : data.entities) {
+        // Start positions are editor-only markers: record camera target, don't spawn
+        if (e.type == EntityType::StartPosition) {
+            if (e.team == localTeam) {
+                sf::Vector2i tileSize = ENTITY_DATA.getBuildingTileSize(e.type);
+                cameraTarget = sf::Vector2f(
+                    (e.tileX + tileSize.x * 0.5f) * TS,
+                    (e.tileY + tileSize.y * 0.5f) * TS);
+            }
+            continue;
+        }
+
         sf::Vector2i tileSize = ENTITY_DATA.getBuildingTileSize(e.type);
         // World-space centre of the footprint
         float wx = (e.tileX + tileSize.x * 0.5f) * TS;
@@ -519,6 +543,10 @@ void Game::setupFromMapData(const MapData& data) {
             spawnUnit(e.type, e.team, pos);
         }
     }
+
+    // If the map defined a starting position for the local player, centre the camera there
+    if (cameraTarget.x >= 0.f && m_input)
+        m_input->centerCameraAt(cameraTarget);
 }
 
 void Game::spawnUnit(EntityType type, Team team, sf::Vector2f position) {
