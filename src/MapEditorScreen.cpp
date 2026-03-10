@@ -1,4 +1,5 @@
-﻿#include "MapEditorScreen.h"
+#include "MapEditorScreen.h"
+#include "FontManager.h"
 #include "Constants.h"
 #include "ResourceManager.h"
 #include "MapSerializer.h"
@@ -66,53 +67,13 @@ const sf::Color COL_ITEM_SEL_OUT  = sf::Color(255, 220,  50);
 } // namespace
 
 // ===========================================================================
-// Static helpers
-// ===========================================================================
-Team MapEditorScreen::teamFromIndex(int i) {
-    switch (i) {
-        case 0: return Team::Player1;
-        case 1: return Team::Player2;
-        case 2: return Team::Player3;
-        default: return Team::Player4;
-    }
-}
-
-int MapEditorScreen::teamToIndex(Team t) {
-    switch (t) {
-        case Team::Player1: return 0;
-        case Team::Player2: return 1;
-        case Team::Player3: return 2;
-        case Team::Player4: return 3;
-        default:            return -1;
-    }
-}
-
-sf::Color MapEditorScreen::teamColor(Team t) {
-    switch (t) {
-        case Team::Player1: return sf::Color( 50, 120, 220);
-        case Team::Player2: return sf::Color(200,  50,  50);
-        case Team::Player3: return sf::Color(220, 140,  30);
-        case Team::Player4: return sf::Color( 40, 180,  80);
-        default:            return sf::Color(180, 180, 180);
-    }
-}
-
-// ===========================================================================
 // Constructor
 // ===========================================================================
 MapEditorScreen::MapEditorScreen()
     : m_map(Constants::MAP_WIDTH, Constants::MAP_HEIGHT, /*generateRandom=*/false)
     , m_gridLines(sf::PrimitiveType::Lines)
 {
-    if (!m_font.openFromFile("C:/Windows/Fonts/arial.ttf")) {
-        if (!m_font.openFromFile("C:/Windows/Fonts/segoeui.ttf")) {
-            std::cerr << "MapEditorScreen: could not load font\n";
-        } else {
-            m_fontLoaded = true;
-        }
-    } else {
-        m_fontLoaded = true;
-    }
+    m_font = FontManager::instance().defaultFont();
 
     m_hoverRect.setSize({ static_cast<float>(Constants::TILE_SIZE),
                           static_cast<float>(Constants::TILE_SIZE) });
@@ -140,8 +101,8 @@ void MapEditorScreen::makeDivider(sf::RectangleShape& div, float y) {
 void MapEditorScreen::makeSectionLabel(std::optional<sf::Text>& lbl,
                                        const std::string& text, float y)
 {
-    if (!m_fontLoaded) return;
-    lbl.emplace(m_font, text, 11u);
+    if (!m_font) return;
+    lbl.emplace(*m_font, text, 11u);
     lbl->setFillColor(COL_LABEL);
     lbl->setPosition({ 10.f, y - m_panelScrollY });
 }
@@ -158,8 +119,8 @@ MapEditorScreen::PanelButton MapEditorScreen::makePanelButton(
     btn.shape.setOutlineColor(COL_BTN_OUTLINE);
     btn.shape.setOutlineThickness(1.f);
 
-    if (m_fontLoaded) {
-        btn.label.emplace(m_font, text, fontSize);
+    if (m_font) {
+        btn.label.emplace(*m_font, text, fontSize);
         btn.label->setFillColor(COL_TITLE_TXT);
         sf::FloatRect lb = btn.label->getLocalBounds();
         btn.label->setOrigin({ lb.position.x + lb.size.x * 0.5f,
@@ -182,9 +143,9 @@ MapEditorScreen::EntityItem MapEditorScreen::makeEntityItem(
     item.shape.setOutlineColor(COL_SWATCH_NRM);
     item.shape.setOutlineThickness(2.f);
 
-    if (m_fontLoaded) {
+    if (m_font) {
         std::string abbr = ENTITY_DATA.getShortName(type);
-        item.abbrev.emplace(m_font, abbr, 14u);
+        item.abbrev.emplace(*m_font, abbr, 14u);
         item.abbrev->setFillColor(COL_TITLE_TXT);
         item.abbrev->setStyle(sf::Text::Bold);
         sf::FloatRect ab = item.abbrev->getLocalBounds();
@@ -195,7 +156,7 @@ MapEditorScreen::EntityItem MapEditorScreen::makeEntityItem(
 
         std::string name = ENTITY_DATA.getName(type);
         if (name.size() > 8) name = name.substr(0, 8);
-        item.label.emplace(m_font, name, 9u);
+        item.label.emplace(*m_font, name, 9u);
         item.label->setFillColor(COL_LABEL);
         sf::FloatRect lb = item.label->getLocalBounds();
         item.label->setOrigin({ lb.position.x + lb.size.x * 0.5f, 0.f });
@@ -221,8 +182,8 @@ void MapEditorScreen::buildLayout(sf::Vector2u winSize) {
     m_panelBg.setFillColor(COL_PANEL_BG);
 
     // ---- Title bar ---------------------------------------------------------
-    if (m_fontLoaded) {
-        m_lblTitle.emplace(m_font, "MAP EDITOR", 15u);
+    if (m_font) {
+        m_lblTitle.emplace(*m_font, "MAP EDITOR", 15u);
         m_lblTitle->setFillColor(COL_TITLE_TXT);
         m_lblTitle->setStyle(sf::Text::Bold);
         sf::FloatRect lb = m_lblTitle->getLocalBounds();
@@ -244,17 +205,17 @@ void MapEditorScreen::buildLayout(sf::Vector2u winSize) {
     m_nameBox.setOutlineColor(m_nameActive ? COL_SELECTED : COL_DIVIDER);
     m_nameBox.setOutlineThickness(1.f);
 
-    if (m_fontLoaded) {
-        m_nameText.emplace(m_font, m_mapName, 13u);
+    if (m_font) {
+        m_nameText.emplace(*m_font, m_mapName, 13u);
         m_nameText->setFillColor(COL_TITLE_TXT);
         m_nameText->setPosition({ PAD + 4.f, y + 5.f - m_panelScrollY });
     }
     y += 30.f;
 
-    if (m_fontLoaded) {
+    if (m_font) {
         std::string sz = "Size:  " + std::to_string(m_mapW) + " x " +
                          std::to_string(m_mapH) + "  tiles";
-        m_lblSize.emplace(m_font, sz, 12u);
+        m_lblSize.emplace(*m_font, sz, 12u);
         m_lblSize->setFillColor(COL_LABEL);
         m_lblSize->setPosition({ PAD, y - m_panelScrollY });
     }
@@ -335,8 +296,8 @@ void MapEditorScreen::buildTileSwatches(float& y) {
         sw.shape.setFillColor(info.color);
         sw.shape.setOutlineThickness(2.f);
         sw.shape.setOutlineColor(info.type == m_selectedTile ? COL_SWATCH_SEL : COL_SWATCH_NRM);
-        if (m_fontLoaded) {
-            sw.label.emplace(m_font, info.name, 9u);
+        if (m_font) {
+            sw.label.emplace(*m_font, info.name, 9u);
             sw.label->setFillColor(sf::Color::White);
             sf::FloatRect lb = sw.label->getLocalBounds();
             sw.label->setOrigin({ lb.position.x + lb.size.x * 0.5f, 0.f });
@@ -390,9 +351,9 @@ void MapEditorScreen::buildStartPosItems(float& y) {
         item.shape.setOutlineColor(isSelected ? COL_ITEM_SEL_OUT : COL_SWATCH_NRM);
 
         // Override label to "Player N"
-        if (m_fontLoaded) {
+        if (m_font) {
             std::string lbl = "Plr " + std::to_string(i + 1);
-            item.label.emplace(m_font, lbl, 9u);
+            item.label.emplace(*m_font, lbl, 9u);
             item.label->setFillColor(sf::Color(200, 210, 220));
             sf::FloatRect lb = item.label->getLocalBounds();
             item.label->setOrigin({ lb.position.x + lb.size.x * 0.5f, 0.f });
@@ -588,7 +549,7 @@ void MapEditorScreen::selectPendingEntity(EntityType type, Team team) {
     float ph = static_cast<float>(tileSize.y * Constants::TILE_SIZE);
     m_placementPreview.setSize({ pw, ph });
 
-    sf::Color tc = (team == Team::Neutral) ? sf::Color(180, 180, 180) : teamColor(team);
+    sf::Color tc = teamColor(team);
     m_placementPreview.setFillColor(sf::Color(tc.r, tc.g, tc.b, 70));
     m_placementPreview.setOutlineColor(sf::Color(tc.r, tc.g, tc.b, 200));
     m_placementPreview.setOutlineThickness(2.f);
@@ -773,8 +734,8 @@ ScreenResult MapEditorScreen::handleEvent(const sf::Event& event) {
                     if (btnHit(m_loadButtons[i], pm)) {
                         bool ok = loadMapByName(m_loadMapFiles[i]);
                         m_showLoadPanel = false;
-                        if (m_fontLoaded) {
-                            m_statusText.emplace(m_font,
+                        if (m_font) {
+                            m_statusText.emplace(*m_font,
                                 ok ? "Loaded: " + m_loadMapFiles[i] : "Load failed!",
                                 12u);
                             m_statusText->setFillColor(ok ? sf::Color(80,220,80) : sf::Color(220,80,80));
@@ -803,8 +764,8 @@ ScreenResult MapEditorScreen::handleEvent(const sf::Event& event) {
             }
             if (btnHit(m_btnSave, pm)) {
                 bool ok = saveCurrentMap();
-                if (m_fontLoaded) {
-                    m_statusText.emplace(m_font,
+                if (m_font) {
+                    m_statusText.emplace(*m_font,
                         ok ? "Saved to maps/" + m_mapName + ".stmap" : "Save failed!",
                         12u);
                     m_statusText->setFillColor(ok ? sf::Color(80, 220, 80) : sf::Color(220, 80, 80));
@@ -1084,8 +1045,8 @@ void MapEditorScreen::buildNewMapDialog(sf::Vector2u winSize) {
     m_newMapOverlayBg.setOutlineColor(sf::Color(80, 90, 130));
     m_newMapOverlayBg.setOutlineThickness(2.f);
 
-    if (m_fontLoaded) {
-        m_lblNewMapTitle.emplace(m_font, "New Map", 18u);
+    if (m_font) {
+        m_lblNewMapTitle.emplace(*m_font, "New Map", 18u);
         m_lblNewMapTitle->setFillColor(sf::Color(220, 225, 235));
         m_lblNewMapTitle->setStyle(sf::Text::Bold);
         sf::FloatRect lb = m_lblNewMapTitle->getLocalBounds();
@@ -1093,11 +1054,11 @@ void MapEditorScreen::buildNewMapDialog(sf::Vector2u winSize) {
                                       lb.position.y + lb.size.y * 0.5f });
         m_lblNewMapTitle->setPosition({ ox + ow * 0.5f, oy + pad + 9.f });
 
-        m_lblNewMapSizeHdr.emplace(m_font, "Map Size", 12u);
+        m_lblNewMapSizeHdr.emplace(*m_font, "Map Size", 12u);
         m_lblNewMapSizeHdr->setFillColor(COL_LABEL);
         m_lblNewMapSizeHdr->setPosition({ ox + pad, oy + pad + 36.f });
 
-        m_lblNewMapPlayersHdr.emplace(m_font, "Number of Players", 12u);
+        m_lblNewMapPlayersHdr.emplace(*m_font, "Number of Players", 12u);
         m_lblNewMapPlayersHdr->setFillColor(COL_LABEL);
         m_lblNewMapPlayersHdr->setPosition({ ox + pad, oy + pad + 36.f + bH + gap + 20.f });
     }
@@ -1212,8 +1173,8 @@ void MapEditorScreen::refreshLoadPanel(sf::Vector2u winSize) {
     m_loadOverlayBg.setOutlineColor(sf::Color(80, 90, 130));
     m_loadOverlayBg.setOutlineThickness(2.f);
 
-    if (m_fontLoaded) {
-        m_lblLoadTitle.emplace(m_font, "Load Map", 18u);
+    if (m_font) {
+        m_lblLoadTitle.emplace(*m_font, "Load Map", 18u);
         m_lblLoadTitle->setFillColor(sf::Color(220, 225, 235));
         m_lblLoadTitle->setStyle(sf::Text::Bold);
         sf::FloatRect lb = m_lblLoadTitle->getLocalBounds();
@@ -1249,8 +1210,8 @@ void MapEditorScreen::renderLoadOverlay(sf::RenderWindow& window) {
     window.draw(m_loadOverlayBg);
     if (m_lblLoadTitle) window.draw(*m_lblLoadTitle);
 
-    if (m_loadMapFiles.empty() && m_fontLoaded) {
-        sf::Text empty(m_font, "No maps found in maps/", 13u);
+    if (m_loadMapFiles.empty() && m_font) {
+        sf::Text empty(*m_font, "No maps found in maps/", 13u);
         empty.setFillColor(sf::Color(150, 155, 165));
         sf::FloatRect lb = empty.getLocalBounds();
         empty.setOrigin({ lb.position.x + lb.size.x * 0.5f,
@@ -1297,8 +1258,7 @@ void MapEditorScreen::renderPlacedEntities(sf::RenderWindow& window) {
         float wx = static_cast<float>(pe.tileX) * TS;
         float wy = static_cast<float>(pe.tileY) * TS;
 
-        sf::Color tc = (pe.team == Team::Neutral)
-            ? sf::Color(180, 180, 180) : teamColor(pe.team);
+        sf::Color tc = teamColor(pe.team);
 
         sf::RectangleShape box({ pw, ph });
         box.setPosition({ wx, wy });
@@ -1307,8 +1267,8 @@ void MapEditorScreen::renderPlacedEntities(sf::RenderWindow& window) {
         box.setOutlineThickness(2.f);
         window.draw(box);
 
-        if (m_fontLoaded) {
-            sf::Text abbr(m_font, ENTITY_DATA.getShortName(pe.type), 14u);
+        if (m_font) {
+            sf::Text abbr(*m_font, ENTITY_DATA.getShortName(pe.type), 14u);
             abbr.setFillColor(sf::Color::White);
             abbr.setStyle(sf::Text::Bold);
             sf::FloatRect lb = abbr.getLocalBounds();
@@ -1347,13 +1307,13 @@ void MapEditorScreen::renderPanel(sf::RenderWindow& window) {
     window.draw(m_nameBox);
     if (m_nameText) window.draw(*m_nameText);
 
-    if (m_nameActive && m_fontLoaded) {
+    if (m_nameActive && m_font) {
         float tw = 0.f;
         if (m_nameText) {
             sf::FloatRect lb = m_nameText->getLocalBounds();
             tw = lb.position.x + lb.size.x;
         }
-        sf::Text cur(m_font, "|", 14u);
+        sf::Text cur(*m_font, "|", 14u);
         cur.setFillColor(COL_TITLE_TXT);
         cur.setPosition({ m_nameBox.getPosition().x + 4.f + tw,
                            m_nameBox.getPosition().y + 4.f });

@@ -2,8 +2,6 @@
 
 #include "Types.h"
 #include <SFML/Graphics.hpp>
-#include <optional>
-
 class Game;
 class Map;
 class Player;
@@ -22,7 +20,7 @@ public:
 private:
     sf::RenderWindow& m_window;
     sf::View m_camera;
-    std::optional<sf::Font> m_font;
+    const sf::Font* m_font{ nullptr };
 
     // Cached terrain layer for the minimap (one pixel per tile)
     sf::Texture m_minimapTerrainTex;
@@ -39,7 +37,4 @@ private:
     void renderResourceBar(Player& player);
     void renderUnitPanel(Game& game);
     void renderTargetingModeIndicator(Game& game);
-    
-    // Helper
-    sf::Color getTeamColor(Team team);
 };

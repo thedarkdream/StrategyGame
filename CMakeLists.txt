@@ -37,6 +37,7 @@ set(SOURCES
     src/Effect.cpp
     src/EffectsManager.cpp
     src/SoundManager.cpp
+    src/FontManager.cpp
     src/LightTank.cpp
     src/Projectile.cpp
 )

@@ -48,7 +48,9 @@ public:
     // Collision
     float getCollisionRadius() const { return std::max(m_size.x, m_size.y) / 2.0f; }
     virtual bool isCollidable() const { return true; }  // Override in subclasses if needed
-    
+    Unit*       asUnit()       override { return this; }
+    const Unit* asUnit() const override { return this; }
+
     // Callback for finding nearby enemies (set by Game)
     std::function<EntityPtr(sf::Vector2f pos, float radius, Team excludeTeam)> findNearestEnemy;
     

@@ -22,8 +22,7 @@ private:
         bool hovered = false;
     };
     
-    sf::Font m_font;
-    bool m_fontLoaded = false;
+    const sf::Font* m_font{ nullptr };
     
     // Title
     std::optional<sf::Text> m_title;

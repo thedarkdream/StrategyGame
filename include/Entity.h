@@ -31,7 +31,18 @@ public:
     void setSelected(bool selected) { m_selected = selected; }
     void setIsLocalTeam(bool val) { m_isLocalTeam = val; }
     bool isLocalTeam() const { return m_isLocalTeam; }
-    
+
+    // Category helpers — virtual downcast without RTTI overhead.
+    // Return a typed pointer if this entity IS that type, otherwise nullptr.
+    virtual Unit*               asUnit()               { return nullptr; }
+    virtual const Unit*         asUnit()         const { return nullptr; }
+    virtual Building*           asBuilding()           { return nullptr; }
+    virtual const Building*     asBuilding()     const { return nullptr; }
+    virtual Worker*             asWorker()             { return nullptr; }
+    virtual const Worker*       asWorker()       const { return nullptr; }
+    virtual ResourceNode*       asResourceNode()       { return nullptr; }
+    virtual const ResourceNode* asResourceNode() const { return nullptr; }
+
     // Target highlight (blinking indicator when entity is targeted by a command)
     void startHighlight(float duration = 3.0f);
     void updateHighlight(float deltaTime);

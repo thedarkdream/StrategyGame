@@ -23,7 +23,9 @@ public:
     bool tryClaimMining(EntityPtr worker);    // Try to claim this spot for mining
     void releaseMining(EntityPtr worker);     // Release the mining claim
     bool isBeingMined() const;                // Check if actively being mined
-    
+    ResourceNode*       asResourceNode()       override { return this; }
+    const ResourceNode* asResourceNode() const override { return this; }
+
 private:
     int m_resourceAmount;
     int m_visualVariant;

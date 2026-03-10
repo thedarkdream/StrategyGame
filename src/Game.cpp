@@ -89,11 +89,8 @@ void Game::initialize() {
     }
 
     // --- Create exactly as many Player objects as the map needs ---
-    static const Team TEAM_ORDER[MAX_PLAYERS] = {
-        Team::Player1, Team::Player2, Team::Player3, Team::Player4
-    };
     for (int i = 0; i < playerCount; ++i)
-        m_players[i] = std::make_unique<Player>(TEAM_ORDER[i], startingRes);
+        m_players[i] = std::make_unique<Player>(teamFromIndex(i), startingRes);
 
     // Create input handler and renderer
     m_input    = std::make_unique<InputHandler>(m_window, *this);
@@ -173,7 +170,7 @@ void Game::setupStartingUnits() {
         sf::Vector2f workerPos = playerStart + sf::Vector2f(60.0f + i * 30.0f, 70.0f);
         auto worker = ResourceManager::createWorker(Team::Player1, workerPos);
         setupUnit(worker);
-        if (auto* w = dynamic_cast<Worker*>(worker.get())) {
+        if (auto* w = worker->asWorker()) {
             setupWorker(w, playerBase, Team::Player1);
         }
         m_players[0]->addUnit(worker);
@@ -210,7 +207,7 @@ void Game::setupStartingUnits() {
         sf::Vector2f workerPos = enemyStart + sf::Vector2f(-60.0f - i * 30.0f, -70.0f);
         auto worker = ResourceManager::createWorker(Team::Player2, workerPos);
         setupUnit(worker);
-        if (auto* w = dynamic_cast<Worker*>(worker.get())) {
+        if (auto* w = worker->asWorker()) {
             setupWorker(w, enemyBase, Team::Player2);
         }
         m_players[1]->addUnit(worker);
@@ -255,11 +252,15 @@ void Game::checkVictoryConditions() {
     if (m_players[m_localSlot] && m_players[m_localSlot]->isDefeated()) {
         m_state = GameState::Defeat;
     } else {
+        bool anyActiveEnemy = false;
         for (int i = 0; i < MAX_PLAYERS; ++i) {
-            if (i != m_localSlot && m_players[i] && m_players[i]->isDefeated()) {
-                m_state = GameState::Victory;
+            if (i != m_localSlot && m_players[i] && !m_players[i]->isDefeated()) {
+                anyActiveEnemy = true;
                 break;
             }
+        }
+        if (!anyActiveEnemy) {
+            m_state = GameState::Victory;
         }
     }
 }
@@ -316,7 +317,7 @@ EntityPtr Game::findNearestAvailableResource(sf::Vector2f pos, float radius, Ent
         if (entity == exclude) return false;
         
         // Check if this resource is being actively mined
-        if (auto* resourceNode = dynamic_cast<ResourceNode*>(entity.get())) {
+        if (auto* resourceNode = entity->asResourceNode()) {
             if (resourceNode->isBeingMined()) return false;
         }
         return true;
@@ -358,7 +359,7 @@ bool Game::checkPositionBlocked(sf::Vector2f pos, float radius, Entity* excludeS
         if (entity.get() == excludeSelf) continue;
         
         // Check if it's a unit and collidable
-        if (auto* unit = dynamic_cast<Unit*>(entity.get())) {
+        if (auto* unit = entity->asUnit()) {
             if (!unit->isCollidable()) continue;
             
             float otherRadius = unit->getCollisionRadius();
@@ -370,9 +371,7 @@ bool Game::checkPositionBlocked(sf::Vector2f pos, float radius, Entity* excludeS
             }
         }
         // Check buildings
-        else if (entity->getType() == EntityType::Base || 
-                 entity->getType() == EntityType::Barracks ||
-                 entity->getType() == EntityType::Refinery) {
+        else if (entity->asBuilding()) {
             sf::FloatRect bounds = entity->getBounds();
             // Expand bounds by radius
             bounds.position.x -= radius;
@@ -438,7 +437,7 @@ std::vector<RVONeighbor> Game::getNearbyUnitsRVO(sf::Vector2f pos, float radius,
     for (auto& entity : m_allEntities) {
         if (!entity || !entity->isAlive()) continue;
         
-        if (auto* unit = dynamic_cast<Unit*>(entity.get())) {
+        if (auto* unit = entity->asUnit()) {
             if (unit == excludeSelf) continue;
             if (!unit->isCollidable()) continue;
             
@@ -490,13 +489,9 @@ Player& Game::getEnemy() {
 }
 
 Player* Game::getPlayerByTeam(Team t) {
-    switch (t) {
-        case Team::Player1: return m_players[0].get();
-        case Team::Player2: return m_players[1].get();
-        case Team::Player3: return m_players[2].get();
-        case Team::Player4: return m_players[3].get();
-        default:            return nullptr; // Neutral
-    }
+    int idx = teamToIndex(t);
+    if (idx < 0 || idx >= MAX_PLAYERS) return nullptr;  // Neutral
+    return m_players[idx].get();
 }
 
 void Game::setupFromMapData(const MapData& data) {
@@ -584,7 +579,7 @@ void Game::spawnUnit(EntityType type, Team team, sf::Vector2f position) {
             if (Player* playerPtr = getPlayerByTeam(team)) {
                 for (auto& building : playerPtr->getBuildings()) {
                     if (building->getType() == EntityType::Base) {
-                        if (auto* w = dynamic_cast<Worker*>(unit.get())) {
+                        if (auto* w = unit->asWorker()) {
                             setupWorker(w, building, team);
                         }
                         break;
@@ -659,7 +654,7 @@ void Game::spawnProjectile(EntityPtr source, EntityPtr target, int damage, float
 
 void Game::issueCommand(const std::vector<EntityPtr>& entities, Command command) {
     for (auto& entity : entities) {
-        if (auto* unit = dynamic_cast<Unit*>(entity.get())) {
+        if (auto* unit = entity->asUnit()) {
             switch (command.type) {
                 case Command::Type::Move:
                     unit->moveTo(command.targetPosition);
@@ -671,7 +666,7 @@ void Game::issueCommand(const std::vector<EntityPtr>& entities, Command command)
                     break;
                 case Command::Type::Gather:
                     if (command.targetEntity) {
-                        if (auto* worker = dynamic_cast<Worker*>(unit)) {
+                        if (auto* worker = unit->asWorker()) {
                             worker->gather(command.targetEntity);
                         }
                     }
@@ -689,7 +684,7 @@ void Game::issueCommand(const std::vector<EntityPtr>& entities, Command command)
 void Game::issueMoveCommand(sf::Vector2f target) {
     auto& selection = getPlayer().getSelection();
     for (auto& entity : selection) {
-        if (auto* unit = dynamic_cast<Unit*>(entity.get())) {
+        if (auto* unit = entity->asUnit()) {
             unit->moveTo(target);
         }
     }
@@ -701,7 +696,7 @@ void Game::issueFollowCommand(EntityPtr target) {
     }
     auto& selection = getPlayer().getSelection();
     for (auto& entity : selection) {
-        if (auto* unit = dynamic_cast<Unit*>(entity.get())) {
+        if (auto* unit = entity->asUnit()) {
             // Don't follow yourself
             if (entity != target) {
                 unit->follow(target);
@@ -713,7 +708,7 @@ void Game::issueFollowCommand(EntityPtr target) {
 void Game::issueAttackMoveCommand(sf::Vector2f target) {
     auto& selection = getPlayer().getSelection();
     for (auto& entity : selection) {
-        if (auto* unit = dynamic_cast<Unit*>(entity.get())) {
+        if (auto* unit = entity->asUnit()) {
             unit->attackMoveTo(target);
         }
     }
@@ -725,7 +720,7 @@ void Game::issueAttackCommand(EntityPtr target) {
     }
     auto& selection = getPlayer().getSelection();
     for (auto& entity : selection) {
-        if (auto* unit = dynamic_cast<Unit*>(entity.get())) {
+        if (auto* unit = entity->asUnit()) {
             unit->attack(target);
         }
     }
@@ -737,7 +732,7 @@ void Game::issueGatherCommand(EntityPtr resource) {
     }
     auto& selection = getPlayer().getSelection();
     for (auto& entity : selection) {
-        if (auto* worker = dynamic_cast<Worker*>(entity.get())) {
+        if (auto* worker = entity->asWorker()) {
             worker->gather(resource);
         }
     }
@@ -775,7 +770,7 @@ void Game::issueBuildCommand(EntityType buildingType, sf::Vector2f position) {
     Worker* selectedWorker = nullptr;
     for (const auto& entity : getPlayer().getSelection()) {
         if (entity && entity->isAlive() && entity->getType() == EntityType::Worker) {
-            selectedWorker = dynamic_cast<Worker*>(entity.get());
+            selectedWorker = entity->asWorker();
             if (selectedWorker) break;
         }
     }
@@ -787,7 +782,7 @@ void Game::issueBuildCommand(EntityType buildingType, sf::Vector2f position) {
             if (entity && entity->isAlive() && 
                 entity->getTeam() == getPlayer().getTeam() &&
                 entity->getType() == EntityType::Worker) {
-                Worker* worker = dynamic_cast<Worker*>(entity.get());
+                Worker* worker = entity->asWorker();
                 if (worker && !worker->isBuilding() && !worker->isGathering()) {
                     float dist = MathUtil::distance(worker->getPosition(), position);
                     if (dist < nearestDist) {
@@ -828,7 +823,7 @@ void Game::issueContinueBuildCommand(EntityPtr building) {
     // Send selected workers to continue building
     for (const auto& entity : getPlayer().getSelection()) {
         if (entity && entity->isAlive() && entity->getType() == EntityType::Worker) {
-            Worker* worker = dynamic_cast<Worker*>(entity.get());
+            Worker* worker = entity->asWorker();
             if (worker) {
                 worker->buildAt(building);
             }
@@ -839,7 +834,7 @@ void Game::issueContinueBuildCommand(EntityPtr building) {
 void Game::cancelBuildingConstruction(EntityPtr entity) {
     if (!entity) return;
     
-    Building* building = dynamic_cast<Building*>(entity.get());
+    Building* building = entity->asBuilding();
     if (!building || building->isConstructed()) return;
     
     // Release the builder worker

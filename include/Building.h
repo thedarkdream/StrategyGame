@@ -47,7 +47,9 @@ public:
     // Rally point
     void setRallyPoint(sf::Vector2f point) { m_rallyPoint = point; }
     sf::Vector2f getRallyPoint() const { return m_rallyPoint; }
-    
+    Building*       asBuilding()       override { return this; }
+    const Building* asBuilding() const override { return this; }
+
     // Callback when unit is produced
     std::function<void(EntityType, sf::Vector2f)> onUnitProduced;
     

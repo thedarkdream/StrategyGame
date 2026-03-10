@@ -119,11 +119,20 @@ void InputHandler::clampCamera() {
     sf::Vector2f center = m_camera.getCenter();
     sf::Vector2f halfSize = m_camera.getSize() / 2.0f;
     
-    float mapWidth = static_cast<float>(Constants::MAP_WIDTH * Constants::TILE_SIZE);
-    float mapHeight = static_cast<float>(Constants::MAP_HEIGHT * Constants::TILE_SIZE);
+    const Map& map = m_game.getMap();
+    float mapWidth = static_cast<float>(map.getWidth() * Constants::TILE_SIZE);
+    float mapHeight = static_cast<float>(map.getHeight() * Constants::TILE_SIZE);
     
-    center.x = std::max(halfSize.x, std::min(center.x, mapWidth - halfSize.x));
-    center.y = std::max(halfSize.y, std::min(center.y, mapHeight - halfSize.y));
+    // If the view is larger than the map, centre on the map instead of clamping
+    if (halfSize.x * 2.0f >= mapWidth)
+        center.x = mapWidth / 2.0f;
+    else
+        center.x = std::max(halfSize.x, std::min(center.x, mapWidth - halfSize.x));
+
+    if (halfSize.y * 2.0f >= mapHeight)
+        center.y = mapHeight / 2.0f;
+    else
+        center.y = std::max(halfSize.y, std::min(center.y, mapHeight - halfSize.y));
     
     m_camera.setCenter(center);
 }
@@ -148,9 +157,10 @@ sf::Vector2f InputHandler::minimapToWorld(sf::Vector2i screenPos) const {
     float relX = (screenPos.x - minimapX) / Constants::MINIMAP_SIZE;
     float relY = (screenPos.y - minimapY) / Constants::MINIMAP_SIZE;
     
-    // Convert to world coordinates
-    float worldX = relX * Constants::MAP_WIDTH * Constants::TILE_SIZE;
-    float worldY = relY * Constants::MAP_HEIGHT * Constants::TILE_SIZE;
+    // Convert to world coordinates using actual map dimensions
+    const Map& map = m_game.getMap();
+    float worldX = relX * map.getWidth() * Constants::TILE_SIZE;
+    float worldY = relY * map.getHeight() * Constants::TILE_SIZE;
     
     return sf::Vector2f(worldX, worldY);
 }
@@ -186,7 +196,7 @@ void InputHandler::handleMousePress(sf::Vector2i position, sf::Mouse::Button but
                 case TargetingAction::Move:
                     // Check if clicking on an ally unit - issue follow command
                     if (target && target->getTeam() == player.getTeam()) {
-                        if (dynamic_cast<Unit*>(target.get())) {
+                        if (target->asUnit()) {
                             m_game.issueFollowCommand(target);
                         } else {
                             // Clicked on own building - just move to location
@@ -249,7 +259,7 @@ void InputHandler::handleMousePress(sf::Vector2i position, sf::Mouse::Button but
                                target->getType() == EntityType::GasGeyser) {
                         // Gather resources
                         m_game.issueGatherCommand(target);
-                    } else if (auto* building = dynamic_cast<Building*>(target.get())) {
+                    } else if (auto* building = target->asBuilding()) {
                         // Check if incomplete building - send workers to continue building
                         if (!building->isConstructed() && target->getTeam() == player.getTeam()) {
                             m_game.issueContinueBuildCommand(target);
@@ -257,7 +267,7 @@ void InputHandler::handleMousePress(sf::Vector2i position, sf::Mouse::Button but
                             // Move to location (right-click on own completed building)
                             m_game.issueMoveCommand(worldPos);
                         }
-                    } else if (dynamic_cast<Unit*>(target.get()) && target->getTeam() == player.getTeam()) {
+                    } else if (target->asUnit() && target->getTeam() == player.getTeam()) {
                         // Right-click on allied unit - follow them
                         m_game.issueFollowCommand(target);
                     } else {
@@ -312,7 +322,7 @@ void InputHandler::handleMouseRelease(sf::Vector2i position, sf::Mouse::Button b
                     // Double-click: select all units of same type on screen
                     EntityPtr entity = m_game.getEntityAtPosition(m_selectionStart);
                     if (entity && entity->getTeam() == m_game.getPlayer().getTeam()) {
-                        if (dynamic_cast<Unit*>(entity.get())) {
+                        if (entity->asUnit()) {
                             selectAllOfTypeOnScreen(entity->getType());
                         }
                     }
@@ -392,7 +402,7 @@ void InputHandler::handleKeyPress(sf::Keyboard::Key code) {
         } else {
             // Check if selected building is under construction - cancel it
             for (auto& entity : player.getSelection()) {
-                if (auto* building = dynamic_cast<Building*>(entity.get())) {
+                if (auto* building = entity->asBuilding()) {
                     if (!building->isConstructed()) {
                         m_game.cancelBuildingConstruction(entity);
                         return;
@@ -403,7 +413,7 @@ void InputHandler::handleKeyPress(sf::Keyboard::Key code) {
             // Check if selected building is producing - cancel production
             bool cancelledProduction = false;
             for (auto& entity : player.getSelection()) {
-                if (auto* building = dynamic_cast<Building*>(entity.get())) {
+                if (auto* building = entity->asBuilding()) {
                     if (building->isProducing()) {
                         building->cancelProduction();
                         cancelledProduction = true;
@@ -427,7 +437,7 @@ void InputHandler::handleKeyPress(sf::Keyboard::Key code) {
     if (!selectedEntity) return;
     
     // Don't process action hotkeys if building is under construction
-    if (auto* building = dynamic_cast<Building*>(selectedEntity.get())) {
+    if (auto* building = selectedEntity->asBuilding()) {
         if (!building->isConstructed()) {
             return;
         }
@@ -457,7 +467,7 @@ void InputHandler::handleKeyPress(sf::Keyboard::Key code) {
             case ActionDef::Type::Instant:
                 // Stop command - apply to all selected units
                 for (auto& entity : player.getSelection()) {
-                    if (auto* unit = dynamic_cast<Unit*>(entity.get())) {
+                    if (auto* unit = entity->asUnit()) {
                         unit->stop();
                     }
                 }
@@ -481,7 +491,7 @@ void InputHandler::handleKeyPress(sf::Keyboard::Key code) {
                 
             case ActionDef::Type::Train:
                 // Train unit from selected building
-                if (auto* building = dynamic_cast<Building*>(selectedEntity.get())) {
+                if (auto* building = selectedEntity->asBuilding()) {
                     int mineralCost = ENTITY_DATA.getMineralCost(action.producesType);
                     int gasCost = ENTITY_DATA.getGasCost(action.producesType);
                     if (player.canAfford(mineralCost, gasCost)) {
@@ -568,7 +578,7 @@ void InputHandler::performBoxSelection() {
     // If we have both units and buildings, prefer units only
     bool hasUnits = false;
     for (const auto& entity : selected) {
-        if (dynamic_cast<Unit*>(entity.get())) {
+        if (entity->asUnit()) {
             hasUnits = true;
             break;
         }
@@ -578,7 +588,7 @@ void InputHandler::performBoxSelection() {
         // Filter out buildings
         selected.erase(
             std::remove_if(selected.begin(), selected.end(),
-                [](const EntityPtr& e) { return dynamic_cast<Building*>(e.get()) != nullptr; }),
+                [](const EntityPtr& e) { return e->asBuilding() != nullptr; }),
             selected.end());
     }
     
@@ -607,7 +617,7 @@ void InputHandler::selectAllOfTypeOnScreen(EntityType type) {
     // Filter to only units of the specified type
     std::vector<EntityPtr> unitsOfType;
     for (const auto& entity : entitiesOnScreen) {
-        if (entity->getType() == type && dynamic_cast<Unit*>(entity.get())) {
+        if (entity->getType() == type && entity->asUnit()) {
             unitsOfType.push_back(entity);
         }
     }

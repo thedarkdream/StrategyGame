@@ -1,4 +1,5 @@
 #include "Renderer.h"
+#include "FontManager.h"
 #include "Game.h"
 #include "Constants.h"
 #include "Entity.h"
@@ -17,12 +18,7 @@
 Renderer::Renderer(sf::RenderWindow& window)
     : m_window(window)
 {
-    // Try to load a basic font
-    try {
-        m_font.emplace("C:/Windows/Fonts/arial.ttf");
-    } catch (...) {
-        // Font loading failed, UI text won't be displayed
-    }
+    m_font = FontManager::instance().defaultFont();
 }
 
 void Renderer::render(Game& game) {
@@ -81,7 +77,7 @@ void Renderer::renderUI(Game& game) {
     actionBar.setWindowSize(m_window.getSize());
     actionBar.setTargetingAction(game.getInput().getTargetingAction());
     if (m_font) {
-        actionBar.setFont(&(*m_font));
+        actionBar.setFont(m_font);
     }
     actionBar.render(m_window, game.getPlayer());
     
@@ -148,8 +144,8 @@ static sf::Color tileColor(TileType t) {
 }
 
 void Renderer::rebuildMinimapTerrain(Map& map) {
-    const int W = Constants::MAP_WIDTH;
-    const int H = Constants::MAP_HEIGHT;
+    const int W = map.getWidth();
+    const int H = map.getHeight();
 
     sf::Image img;
     img.resize(sf::Vector2u(static_cast<unsigned>(W), static_cast<unsigned>(H)));
@@ -189,14 +185,16 @@ void Renderer::renderMinimap(Game& game) {
     // --- Terrain layer ------------------------------------------------------
     sf::Sprite terrainSprite(m_minimapTerrainTex);
     terrainSprite.setPosition(sf::Vector2f(mmX, mmY));
-    // Scale the 64x64 image to fill minimapSize x minimapSize
-    float tScale = minimapSize / static_cast<float>(Constants::MAP_WIDTH);
-    terrainSprite.setScale(sf::Vector2f(tScale, tScale));
+    // Scale the terrain image to fill minimapSize x minimapSize
+    const Map& map = game.getMap();
+    float tScaleX = minimapSize / static_cast<float>(map.getWidth());
+    float tScaleY = minimapSize / static_cast<float>(map.getHeight());
+    terrainSprite.setScale(sf::Vector2f(tScaleX, tScaleY));
     m_window.draw(terrainSprite);
 
     // --- Scale factors (world → minimap pixel) ------------------------------
-    float scaleX = minimapSize / (Constants::MAP_WIDTH  * Constants::TILE_SIZE);
-    float scaleY = minimapSize / (Constants::MAP_HEIGHT * Constants::TILE_SIZE);
+    float scaleX = minimapSize / (map.getWidth()  * Constants::TILE_SIZE);
+    float scaleY = minimapSize / (map.getHeight() * Constants::TILE_SIZE);
 
     // --- Entities -----------------------------------------------------------
     for (const auto& entity : game.getAllEntities()) {
@@ -210,7 +208,7 @@ void Renderer::renderMinimap(Game& game) {
         sf::CircleShape dot(dotR);
         dot.setOrigin(sf::Vector2f(dotR, dotR));
         dot.setPosition(sf::Vector2f(x, y));
-        dot.setFillColor(getTeamColor(entity->getTeam()));
+        dot.setFillColor(teamColor(entity->getTeam()));
         m_window.draw(dot);
     }
 
@@ -350,7 +348,7 @@ void Renderer::renderUnitPanel(Game& game) {
     float statsY = static_cast<float>(windowSize.y) - panelHeight - padding + 55.0f;
     
     // Show unit-specific stats if this is a unit
-    if (auto* unit = dynamic_cast<Unit*>(entity.get())) {
+    if (auto* unit = entity->asUnit()) {
         // Format attack speed as attacks per second
         std::ostringstream apsStream;
         apsStream << std::fixed << std::setprecision(2) << unit->getAttacksPerSecond();
@@ -374,7 +372,7 @@ void Renderer::renderUnitPanel(Game& game) {
         m_window.draw(statsText2);
     }
     // Show resource info for mineral patches and gas geysers
-    else if (auto* resourceNode = dynamic_cast<ResourceNode*>(entity.get())) {
+    else if (auto* resourceNode = entity->asResourceNode()) {
         std::string resourceStr = "Remaining: " + std::to_string(resourceNode->getRemainingResources());
         sf::Text resourceText(*m_font, resourceStr, 12);
         resourceText.setFillColor(sf::Color(100, 200, 255));
@@ -432,13 +430,3 @@ void Renderer::renderTargetingModeIndicator(Game& game) {
     m_window.draw(text);
 }
 
-sf::Color Renderer::getTeamColor(Team team) {
-    switch (team) {
-        case Team::Player1: return sf::Color(0x34, 0x98, 0xDB);  // Blue
-        case Team::Player2: return sf::Color(0xE7, 0x4C, 0x3C);  // Red
-        case Team::Player3: return sf::Color(0xF3, 0x9C, 0x12);  // Orange
-        case Team::Player4: return sf::Color(0x2E, 0xCC, 0x71);  // Green
-        case Team::Neutral: return sf::Color(0x95, 0xA5, 0xA6);  // Gray
-        default:            return sf::Color::White;
-    }
-}

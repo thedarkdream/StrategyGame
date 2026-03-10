@@ -131,7 +131,7 @@ void Worker::updateGathering(float deltaTime) {
     } else {
         // At the resource - try to claim if not already
         if (!m_isActivelyMining) {
-            ResourceNode* resourceNode = dynamic_cast<ResourceNode*>(resource.get());
+            ResourceNode* resourceNode = resource->asResourceNode();
             if (resourceNode) {
                 // Try to claim this mining spot
                 // Need shared_from_this - pass ourselves as claimer
@@ -161,7 +161,7 @@ void Worker::updateGathering(float deltaTime) {
         m_gatherTimer += deltaTime;
         if (m_gatherTimer >= Constants::GATHERING_TIME) {
             // Get resources from the resource node
-            ResourceNode* resourceNode = dynamic_cast<ResourceNode*>(resource.get());
+            ResourceNode* resourceNode = resource->asResourceNode();
             if (resourceNode) {
                 m_carriedResources = resourceNode->harvestResource();
             }
@@ -243,7 +243,7 @@ void Worker::releaseMiningClaim() {
     if (!m_isActivelyMining) return;
     
     if (auto resource = m_resourceTarget.lock()) {
-        if (auto* resourceNode = dynamic_cast<ResourceNode*>(resource.get())) {
+        if (auto* resourceNode = resource->asResourceNode()) {
             auto self = std::dynamic_pointer_cast<Entity>(shared_from_this());
             resourceNode->releaseMining(self);
         }
@@ -308,7 +308,7 @@ void Worker::updateBuilding(float deltaTime) {
         return;
     }
     
-    Building* building = dynamic_cast<Building*>(target.get());
+    Building* building = target->asBuilding();
     if (!building) {
         m_state = UnitState::Idle;
         return;
@@ -367,7 +367,7 @@ void Worker::updateBuilding(float deltaTime) {
 
 void Worker::releaseBuildClaim() {
     if (auto target = m_buildTarget.lock()) {
-        if (auto* building = dynamic_cast<Building*>(target.get())) {
+        if (auto* building = target->asBuilding()) {
             // Only release if we are the assigned builder
             if (building->getBuilder().get() == this) {
                 building->releaseBuilder();

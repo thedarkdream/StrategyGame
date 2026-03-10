@@ -23,8 +23,7 @@ private:
     static constexpr float PANEL_WIDTH = 260.0f;
 
     // ---- Font ---------------------------------------------------------------
-    sf::Font m_font;
-    bool     m_fontLoaded = false;
+    const sf::Font* m_font{ nullptr };
 
     // ---- Map ----------------------------------------------------------------
     Map m_map;
@@ -211,9 +210,4 @@ private:
     bool         loadMapByName(const std::string& stem); // reads maps/<stem>.stmap
     void         applyMapData(const MapData& data);      // rebuilds in-editor state
     void         refreshLoadPanel(sf::Vector2u winSize); // populate m_loadButtons
-    static Team  teamFromIndex(int i);
-    static int   teamToIndex(Team t);
-
-    // Team colour for preview/placed entity tinting
-    static sf::Color teamColor(Team t);
 };

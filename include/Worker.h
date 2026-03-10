@@ -29,6 +29,8 @@ public:
     
     // Workers are not collidable when gathering (to allow stacking at resources)
     bool isCollidable() const override;
+    Worker*       asWorker()       override { return this; }
+    const Worker* asWorker() const override { return this; }
     
     // Callback when resources are deposited (int = amount deposited)
     std::function<void(int)> onResourceDeposit;

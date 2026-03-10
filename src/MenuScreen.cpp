@@ -1,24 +1,15 @@
 #include "MenuScreen.h"
+#include "FontManager.h"
 #include "Constants.h"
 #include "MapSerializer.h"
 #include <algorithm>
 #include <iostream>
 
 MenuScreen::MenuScreen() {
-    // Try to load a font - use SFML's default or a system font
-    if (!m_font.openFromFile("C:/Windows/Fonts/arial.ttf")) {
-        // Try another common font
-        if (!m_font.openFromFile("C:/Windows/Fonts/segoeui.ttf")) {
-            std::cerr << "MenuScreen: Could not load any font" << std::endl;
-        } else {
-            m_fontLoaded = true;
-        }
-    } else {
-        m_fontLoaded = true;
-    }
-    
+    m_font = FontManager::instance().defaultFont();
+
     // Title
-    m_title.emplace(m_font, "Strategy Game", 48);
+    m_title.emplace(*m_font, "Strategy Game", 48);
     m_title->setFillColor(sf::Color::White);
     
     // Scan for available maps
@@ -52,7 +43,7 @@ MenuScreen::Button MenuScreen::createButton(const std::string& text, sf::Vector2
     button.shape.setOutlineColor(sf::Color(100, 100, 100));
     button.shape.setOutlineThickness(2.0f);
     
-    button.label.emplace(m_font, text, 22);
+    button.label.emplace(*m_font, text, 22);
     button.label->setFillColor(sf::Color::White);
     
     // Center text in button
@@ -126,7 +117,7 @@ void MenuScreen::layoutSlotPicker(sf::Vector2u windowSize) {
     float buttonH = 50.0f;
     float spacing = 15.0f;
 
-    m_slotPickerTitle.emplace(m_font, "Play as...", 32);
+    m_slotPickerTitle.emplace(*m_font, "Play as...", 32);
     m_slotPickerTitle->setFillColor(sf::Color::White);
     sf::FloatRect tb = m_slotPickerTitle->getLocalBounds();
     m_slotPickerTitle->setOrigin(sf::Vector2f(
@@ -166,7 +157,7 @@ void MenuScreen::layoutMapSelection(sf::Vector2u windowSize) {
     float spacing = 10.0f;
     
     // Title for map selection
-    m_mapSelectionTitle.emplace(m_font, "Select Map", 32);
+    m_mapSelectionTitle.emplace(*m_font, "Select Map", 32);
     m_mapSelectionTitle->setFillColor(sf::Color::White);
     sf::FloatRect titleBounds = m_mapSelectionTitle->getLocalBounds();
     m_mapSelectionTitle->setOrigin(sf::Vector2f(

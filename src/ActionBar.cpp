@@ -128,7 +128,7 @@ int ActionBar::getButtonAtPosition(sf::Vector2i screenPos, EntityPtr entity) con
 int ActionBar::getQueueItemAtPosition(sf::Vector2i screenPos, EntityPtr entity) const {
     if (!entity) return -1;
     
-    Building* building = dynamic_cast<Building*>(entity.get());
+    Building* building = entity->asBuilding();
     if (!building || !building->isProducing()) return -1;
     
     std::vector<EntityType> queue = building->getProductionQueue();
@@ -167,10 +167,10 @@ ActionBarClickResult ActionBar::handleClick(sf::Vector2i screenPos, Player& play
     EntityPtr entity = player.getFirstOwnedSelectedEntity();
     if (!entity) return result;
     
-    Building* building = dynamic_cast<Building*>(entity.get());
-    Unit* unit = dynamic_cast<Unit*>(entity.get());
-    
-    // Handle buildings under construction - only cancel button available
+    Building* building = entity->asBuilding();
+    Unit* unit = entity->asUnit();
+
+    // Handle buildings under construction- only cancel button available
     if (building && !building->isConstructed()) {
         // Check if clicking the cancel button (first button position)
         float panelX = getPanelX();
@@ -220,7 +220,7 @@ ActionBarClickResult ActionBar::handleClick(sf::Vector2i screenPos, Player& play
         case ActionDef::Type::Instant:
             // Stop action - apply to all selected units
             for (auto& e : player.getSelection()) {
-                if (auto* u = dynamic_cast<Unit*>(e.get())) {
+                if (auto* u = e->asUnit()) {
                     u->stop();
                 }
             }
@@ -280,7 +280,7 @@ void ActionBar::render(sf::RenderWindow& window, Player& player) {
     
     if (!m_font) return;
     
-    Building* building = dynamic_cast<Building*>(entity.get());
+    Building* building = entity->asBuilding();
     
     // Show construction UI for buildings under construction
     if (building && !building->isConstructed()) {
@@ -403,9 +403,9 @@ void ActionBar::renderButtons(sf::RenderWindow& window, EntityPtr entity, Player
     ensureTexturesLoaded();
     const auto& registryActions = ENTITY_DATA.getActions(entity->getType());
     
-    Building* building = dynamic_cast<Building*>(entity.get());
-    Unit* unit = dynamic_cast<Unit*>(entity.get());
-    
+    Building* building = entity->asBuilding();
+    Unit* unit = entity->asUnit();
+
     float panelX = getPanelX();
     float row0Y = getRow0Y();
     float row1Y = getRow1Y();

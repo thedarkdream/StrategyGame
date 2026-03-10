@@ -72,7 +72,7 @@ void AIController::manageEconomy() {
             }
             
             if (nearestMineral) {
-                if (auto* worker = dynamic_cast<Worker*>(unit.get())) {
+                if (auto* worker = unit->asWorker()) {
                     worker->gather(nearestMineral);
                 }
             }
