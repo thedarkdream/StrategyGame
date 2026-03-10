@@ -76,6 +76,7 @@ void Renderer::renderUI(Game& game) {
     ActionBar& actionBar = game.getActionBar();
     actionBar.setWindowSize(m_window.getSize());
     actionBar.setTargetingAction(game.getInput().getTargetingAction());
+    actionBar.setBuildModeType(game.getInput().getBuildingType());
     if (m_font) {
         actionBar.setFont(m_font);
     }

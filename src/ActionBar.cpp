@@ -32,8 +32,11 @@ void ActionBar::ensureTexturesLoaded() {
     if (m_texturesLoaded) return;
     m_texturesLoaded = true;
 
-    // The four stems that currently have images
-    static constexpr const char* STEMS[] = { "move", "attack", "stop", "gather" };
+    // The stems that have images — generic actions first, then per-building build buttons
+    static constexpr const char* STEMS[] = {
+        "move", "attack", "stop", "gather",
+        "build_barracks", "build_cc", "build_factory"
+    };
     for (const char* stem : STEMS) {
         ActionTexturePair pair;
         std::string base   = std::string("assets/actions/") + stem;
@@ -50,13 +53,27 @@ void ActionBar::ensureTexturesLoaded() {
 }
 
 std::pair<const sf::Texture*, const sf::Texture*>
-ActionBar::getActionTextures(const std::string& label) const {
-    // Build a lowercase key from the first word of the label
+ActionBar::getActionTextures(const ActionDef& action) const {
     std::string key;
-    for (char c : label) {
-        if (c == ' ') break;
-        key += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+
+    // Build actions use a per-producesType key so each building gets its own icon
+    if (action.type == ActionDef::Type::Build) {
+        switch (action.producesType) {
+            case EntityType::Barracks: key = "build_barracks"; break;
+            case EntityType::Base:     key = "build_cc";       break;
+            case EntityType::Factory:  key = "build_factory";  break;
+            default: break;
+        }
     }
+
+    // Fallback: derive key from the first word of the label (lowercased)
+    if (key.empty()) {
+        for (char c : action.label) {
+            if (c == ' ') break;
+            key += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        }
+    }
+
     auto it = m_textures.find(key);
     if (it == m_textures.end()) return { nullptr, nullptr };
     return { &it->second.normal, &it->second.active };
@@ -437,7 +454,9 @@ void ActionBar::renderButtons(sf::RenderWindow& window, EntityPtr entity, Player
                                (m_targetingAction == TargetingAction::Gather);
                     break;
                 case ActionDef::Type::Build:
-                    // Check if player can afford the building and has required buildings
+                    // Active while this exact building type is being placed
+                    isActive = (m_buildModeType == action.producesType);
+                    // Check affordability and dependencies
                     {
                         int mineralCost = ENTITY_DATA.getMineralCost(action.producesType);
                         int gasCost = ENTITY_DATA.getGasCost(action.producesType);
@@ -465,7 +484,7 @@ void ActionBar::renderButtons(sf::RenderWindow& window, EntityPtr entity, Player
         }
         
         // ---- Try to render with a sprite image --------------------------------
-        auto [texNormal, texActive] = getActionTextures(action.label);
+        auto [texNormal, texActive] = getActionTextures(action);
 
         if (texNormal && texActive) {
             // Choose the appropriate texture state

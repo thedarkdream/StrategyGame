@@ -35,6 +35,7 @@ public:
     void setFont(const sf::Font* font) { m_font = font; }
     void setWindowSize(sf::Vector2u size) { m_windowSize = size; }
     void setTargetingAction(TargetingAction action) { m_targetingAction = action; }
+    void setBuildModeType(EntityType type)           { m_buildModeType = type; }
     
     // Rendering
     void render(sf::RenderWindow& window, Player& player);
@@ -70,7 +71,7 @@ private:
     // Texture helpers
     void ensureTexturesLoaded();
     // Returns pointer to normal+active textures for a label, or {nullptr,nullptr}
-    std::pair<const sf::Texture*, const sf::Texture*> getActionTextures(const std::string& label) const;
+    std::pair<const sf::Texture*, const sf::Texture*> getActionTextures(const ActionDef& action) const;
     
     // Constants for queue rendering
     static constexpr float MAIN_ICON_SIZE   = 32.0f;
@@ -82,6 +83,7 @@ private:
     const sf::Font* m_font = nullptr;
     sf::Vector2u m_windowSize{1280, 720};
     TargetingAction m_targetingAction = TargetingAction::None;
+    EntityType m_buildModeType = EntityType::None;  // Which building type is being placed
 
     // Texture cache: key = filename stem (e.g. "move"), value = {normal, active}
     struct ActionTexturePair {
