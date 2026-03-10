@@ -7,7 +7,7 @@
 
 class Map {
 public:
-    Map(int width = Constants::MAP_WIDTH, int height = Constants::MAP_HEIGHT);
+    Map(int width = Constants::MAP_WIDTH, int height = Constants::MAP_HEIGHT, bool generateRandom = true);
     
     void render(sf::RenderTarget& target, const sf::View& camera);
     
@@ -36,6 +36,10 @@ public:
     void generateRandomMap();
     void addMineralPatches(std::vector<sf::Vector2f>& mineralPositions);
     
+    // Editor
+    void initEmpty();   // Reset all tiles to Ground
+    void setTileType(int x, int y, TileType type);  // Paint a single tile
+    
     // Getters
     int getWidth() const { return m_width; }
     int getHeight() const { return m_height; }
@@ -48,6 +52,7 @@ private:
     // Rendering
     sf::VertexArray m_tileVertices;
     void buildVertexArray();
+    void rebuildTileVertices(int x, int y);  // Update a single tile's vertices
     
     // Pathfinding helper
     struct PathNode {

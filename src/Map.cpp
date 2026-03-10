@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <cstdint>
 
-Map::Map(int width, int height)
+Map::Map(int width, int height, bool generateRandom)
     : m_width(width)
     , m_height(height)
 {
@@ -16,7 +16,8 @@ Map::Map(int width, int height)
         m_tiles[y].resize(width);
     }
     
-    generateRandomMap();
+    if (generateRandom)
+        generateRandomMap();
     buildVertexArray();
 }
 
@@ -295,6 +296,25 @@ void Map::addMineralPatches(std::vector<sf::Vector2f>& mineralPositions) {
     }
 }
 
+void Map::initEmpty() {
+    for (int y = 0; y < m_height; ++y) {
+        for (int x = 0; x < m_width; ++x) {
+            m_tiles[y][x] = Tile{};  // Default: Ground, walkable, buildable
+        }
+    }
+    buildVertexArray();
+}
+
+void Map::setTileType(int x, int y, TileType type) {
+    if (!isValidTile(x, y)) return;
+    Tile& tile = m_tiles[y][x];
+    tile.type = type;
+    tile.walkable  = (type == TileType::Ground || type == TileType::Resource);
+    tile.buildable = (type == TileType::Ground);
+    tile.occupant  = nullptr;
+    rebuildTileVertices(x, y);
+}
+
 void Map::buildVertexArray() {
     m_tileVertices.setPrimitiveType(sf::PrimitiveType::Triangles);
     m_tileVertices.resize(m_width * m_height * 6);  // 2 triangles per tile = 6 vertices
@@ -351,4 +371,35 @@ void Map::buildVertexArray() {
 float Map::heuristic(int x1, int y1, int x2, int y2) const {
     // Manhattan distance
     return static_cast<float>(std::abs(x2 - x1) + std::abs(y2 - y1));
+}
+
+void Map::rebuildTileVertices(int x, int y) {
+    int index = (y * m_width + x) * 6;
+    
+    float px = static_cast<float>(x * Constants::TILE_SIZE);
+    float py = static_cast<float>(y * Constants::TILE_SIZE);
+    float ts = static_cast<float>(Constants::TILE_SIZE);
+    
+    m_tileVertices[index + 0].position = sf::Vector2f(px,      py);
+    m_tileVertices[index + 1].position = sf::Vector2f(px + ts, py);
+    m_tileVertices[index + 2].position = sf::Vector2f(px + ts, py + ts);
+    m_tileVertices[index + 3].position = sf::Vector2f(px,      py);
+    m_tileVertices[index + 4].position = sf::Vector2f(px + ts, py + ts);
+    m_tileVertices[index + 5].position = sf::Vector2f(px,      py + ts);
+    
+    sf::Color tileColor;
+    switch (m_tiles[y][x].type) {
+        case TileType::Ground:   tileColor = sf::Color(34, 139, 34); break;
+        case TileType::Blocked:  tileColor = sf::Color(80,  80,  80); break;
+        case TileType::Resource: tileColor = sf::Color(50, 150, 50); break;
+        default:                 tileColor = sf::Color(34, 139, 34); break;
+    }
+    
+    int variation = ((x + y) % 2) * 10;
+    tileColor.r = static_cast<std::uint8_t>(std::min(255, static_cast<int>(tileColor.r) + variation));
+    tileColor.g = static_cast<std::uint8_t>(std::min(255, static_cast<int>(tileColor.g) + variation));
+    tileColor.b = static_cast<std::uint8_t>(std::min(255, static_cast<int>(tileColor.b) + variation));
+    
+    for (int i = 0; i < 6; ++i)
+        m_tileVertices[index + i].color = tileColor;
 }
