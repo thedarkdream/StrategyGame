@@ -17,8 +17,8 @@ namespace {
 
 struct TileInfo { TileType type; sf::Color color; const char* name; };
 constexpr TileInfo TILE_INFOS[] = {
-    { TileType::Ground,  sf::Color(34, 139, 34), "Ground"  },
-    { TileType::Blocked, sf::Color(80,  80,  80), "Blocked" },
+    { TileType::Grass,  sf::Color(34, 139, 34), "Grass"  },
+    { TileType::Water,  sf::Color(30,  80, 160), "Water" },
 };
 constexpr int NUM_TILE_INFOS = 2;
 
@@ -972,12 +972,12 @@ bool MapEditorScreen::saveCurrentMap() {
     // Infer playerCount from distinct non-Neutral teams used
     data.playerCount = m_mapPlayerCount;
 
-    // Collect non-Ground tiles
+    // Collect non-default tiles (default = Grass variant 1)
     for (int y = 0; y < m_mapH; ++y) {
         for (int x = 0; x < m_mapW; ++x) {
-            TileType tt = m_map.getTile(x, y).type;
-            if (tt != TileType::Ground)
-                data.tiles.push_back({ x, y, tt });
+            const Tile& tile = m_map.getTile(x, y);
+            if (tile.type != TileType::Grass || tile.variant != 1)
+                data.tiles.push_back({ x, y, tile.type, tile.variant });
         }
     }
 
@@ -1013,7 +1013,7 @@ void MapEditorScreen::applyMapData(const MapData& data) {
     m_placedEntities.clear();
 
     for (const auto& t : data.tiles)
-        m_map.setTileType(t.x, t.y, t.type);
+        m_map.setTileType(t.x, t.y, t.type, t.variant);
 
     for (const auto& e : data.entities)
         m_placedEntities.push_back({ e.type, e.team, e.tileX, e.tileY });

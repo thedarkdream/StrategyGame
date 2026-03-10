@@ -10,7 +10,8 @@
 // ---------------------------------------------------------------------------
 struct MapTileData {
     int      x, y;
-    TileType type;   // only non-Ground tiles are stored
+    TileType type;
+    uint8_t  variant = 1;   // Texture variant (1-8 Grass, 1-4 Water)
 };
 
 struct MapEntityData {

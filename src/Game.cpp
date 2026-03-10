@@ -380,7 +380,7 @@ void Game::setupFromMapData(const MapData& data) {
 
     // Apply saved tile types
     for (const auto& t : data.tiles)
-        m_map.setTileType(t.x, t.y, t.type);
+        m_map.setTileType(t.x, t.y, t.type, t.variant);
 
     // Spawn all saved entities
     const float TS = static_cast<float>(Constants::TILE_SIZE);

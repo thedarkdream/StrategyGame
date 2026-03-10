@@ -12,19 +12,20 @@ namespace fs = std::filesystem;
 // ---------------------------------------------------------------------------
 const char* MapSerializer::tileTypeToString(TileType t) {
     switch (t) {
-        case TileType::Ground:   return "Ground";
-        case TileType::Blocked:  return "Blocked";
+        case TileType::Grass:    return "Grass";
+        case TileType::Water:    return "Water";
         case TileType::Resource: return "Resource";
         case TileType::Building: return "Building";
     }
-    return "Ground";
+    return "Grass";
 }
 
 TileType MapSerializer::stringToTileType(const std::string& s) {
-    if (s == "Blocked")  return TileType::Blocked;
+    if (s == "Grass"   || s == "Ground")  return TileType::Grass;   // "Ground"  = legacy
+    if (s == "Water"   || s == "Blocked") return TileType::Water;   // "Blocked" = legacy
     if (s == "Resource") return TileType::Resource;
     if (s == "Building") return TileType::Building;
-    return TileType::Ground;
+    return TileType::Grass;
 }
 
 const char* MapSerializer::entityTypeToString(EntityType t) {
@@ -103,12 +104,12 @@ bool MapSerializer::save(const MapData& data, const std::string& filePath) {
     out << "size    " << data.width   << " " << data.height << "\n";
     out << "players " << data.playerCount << "\n";
 
-    // Sparse tile list – skip Ground tiles
+    // Sparse tile list – skip default tiles (Grass variant 1)
     for (const auto& t : data.tiles) {
-        if (t.type == TileType::Ground) continue;
+        if (t.type == TileType::Grass && t.variant == 1) continue;
         out << "tile    "
             << t.x << " " << t.y << " "
-            << tileTypeToString(t.type) << "\n";
+            << tileTypeToString(t.type) << " " << static_cast<int>(t.variant) << "\n";
     }
 
     for (const auto& e : data.entities) {
@@ -165,6 +166,9 @@ std::optional<MapData> MapSerializer::load(const std::string& filePath) {
             std::string typeStr;
             ss >> t.x >> t.y >> typeStr;
             t.type = stringToTileType(typeStr);
+            int variant = 1;
+            ss >> variant;  // Optional – defaults to 1 if absent (legacy maps)
+            t.variant = static_cast<uint8_t>(variant);
             data.tiles.push_back(t);
         } else if (key == "entity") {
             MapEntityData e;

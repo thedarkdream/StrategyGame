@@ -136,8 +136,8 @@ void Renderer::renderBuildPreview(const InputHandler& input, Map& map) {
 // ---------------------------------------------------------------------------
 static sf::Color tileColor(TileType t) {
     switch (t) {
-        case TileType::Ground:   return sf::Color( 42,  80,  42);   // dark green
-        case TileType::Blocked:  return sf::Color( 70,  60,  50);   // dark brown-grey
+        case TileType::Grass:    return sf::Color( 42,  80,  42);   // dark green
+        case TileType::Water:    return sf::Color( 30,  80, 130);   // dark blue
         case TileType::Resource: return sf::Color( 40, 130,  60);   // brighter green
         case TileType::Building: return sf::Color( 90,  90,  90);   // mid-grey
     }

@@ -4,20 +4,57 @@
 #include <unordered_set>
 #include <algorithm>
 #include <cstdint>
+#include <random>
+#include <iostream>
 
 Map::Map(int width, int height)
     : m_width(width)
     , m_height(height)
 {
+    std::random_device rd;
+    m_rng = std::mt19937(rd());
+
+    loadTerrainTextures();
+
+    std::uniform_int_distribution<int> grassDist(1, 8);
     m_tiles.resize(height);
     for (int y = 0; y < height; ++y) {
         m_tiles[y].resize(width);
+        for (int x = 0; x < width; ++x)
+            m_tiles[y][x].variant = static_cast<uint8_t>(grassDist(m_rng));
     }
-    buildVertexArray();
 }
 
 void Map::render(sf::RenderTarget& target, const sf::View& camera) {
-    target.draw(m_tileVertices);
+    // Only draw tiles visible within the current camera view
+    sf::Vector2f topLeft = camera.getCenter() - camera.getSize() / 2.f;
+    const float ts    = static_cast<float>(Constants::TILE_SIZE);
+    const float scale = ts / 64.f;  // source textures are 64×64, tiles are 32×32
+
+    int startX = std::max(0, static_cast<int>(topLeft.x / ts));
+    int startY = std::max(0, static_cast<int>(topLeft.y / ts));
+    int endX   = std::min(m_width,  static_cast<int>((topLeft.x + camera.getSize().x) / ts) + 2);
+    int endY   = std::min(m_height, static_cast<int>((topLeft.y + camera.getSize().y) / ts) + 2);
+
+    for (int y = startY; y < endY; ++y) {
+        for (int x = startX; x < endX; ++x) {
+            const Tile& tile = m_tiles[y][x];
+            uint8_t v = tile.variant;
+            const sf::Texture* tex = nullptr;
+
+            if (tile.type == TileType::Grass && v >= 1 && v <= 8)
+                tex = &m_grassTextures[v - 1];
+            else if (tile.type == TileType::Water && v >= 1 && v <= 4)
+                tex = &m_waterTextures[v - 1];
+            else
+                tex = &m_grassTextures[0];  // Resource/Building tiles use grass base
+
+            sf::Sprite sprite(*tex);
+            sprite.setScale(sf::Vector2f(scale, scale));
+            sprite.setPosition(sf::Vector2f(x * ts, y * ts));
+            target.draw(sprite);
+        }
+    }
 }
 
 Tile& Map::getTile(int x, int y) {
@@ -100,10 +137,10 @@ void Map::removeBuilding(int tileX, int tileY, int width, int height) {
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             if (isValidTile(tileX + x, tileY + y)) {
-                m_tiles[tileY + y][tileX + x].type = TileType::Ground;
-                m_tiles[tileY + y][tileX + x].walkable = true;
+                m_tiles[tileY + y][tileX + x].type     = TileType::Grass;
+                m_tiles[tileY + y][tileX + x].walkable  = true;
                 m_tiles[tileY + y][tileX + x].buildable = true;
-                m_tiles[tileY + y][tileX + x].occupant = nullptr;
+                m_tiles[tileY + y][tileX + x].occupant  = nullptr;
             }
         }
     }
@@ -243,109 +280,58 @@ std::vector<sf::Vector2f> Map::findPath(sf::Vector2f start, sf::Vector2f end) {
 }
 
 void Map::initEmpty() {
+    std::uniform_int_distribution<int> grassDist(1, 8);
     for (int y = 0; y < m_height; ++y) {
         for (int x = 0; x < m_width; ++x) {
-            m_tiles[y][x] = Tile{};  // Default: Ground, walkable, buildable
+            m_tiles[y][x] = Tile{};  // Default: Grass, walkable, buildable
+            m_tiles[y][x].variant = static_cast<uint8_t>(grassDist(m_rng));
         }
     }
-    buildVertexArray();
 }
 
 void Map::setTileType(int x, int y, TileType type) {
     if (!isValidTile(x, y)) return;
     Tile& tile = m_tiles[y][x];
-    tile.type = type;
-    tile.walkable  = (type == TileType::Ground || type == TileType::Resource);
-    tile.buildable = (type == TileType::Ground);
+    tile.type      = type;
+    tile.walkable  = (type == TileType::Grass || type == TileType::Resource);
+    tile.buildable = (type == TileType::Grass);
     tile.occupant  = nullptr;
-    rebuildTileVertices(x, y);
+    // Assign a random variant for the new tile type
+    if (type == TileType::Grass) {
+        std::uniform_int_distribution<int> dist(1, 8);
+        tile.variant = static_cast<uint8_t>(dist(m_rng));
+    } else if (type == TileType::Water) {
+        std::uniform_int_distribution<int> dist(1, 4);
+        tile.variant = static_cast<uint8_t>(dist(m_rng));
+    } else {
+        tile.variant = 1;
+    }
 }
 
-void Map::buildVertexArray() {
-    m_tileVertices.setPrimitiveType(sf::PrimitiveType::Triangles);
-    m_tileVertices.resize(m_width * m_height * 6);  // 2 triangles per tile = 6 vertices
-    
-    for (int y = 0; y < m_height; ++y) {
-        for (int x = 0; x < m_width; ++x) {
-            int index = (y * m_width + x) * 6;
-            
-            float px = static_cast<float>(x * Constants::TILE_SIZE);
-            float py = static_cast<float>(y * Constants::TILE_SIZE);
-            float ts = static_cast<float>(Constants::TILE_SIZE);
-            
-            // First triangle (top-left, top-right, bottom-right)
-            m_tileVertices[index + 0].position = sf::Vector2f(px, py);
-            m_tileVertices[index + 1].position = sf::Vector2f(px + ts, py);
-            m_tileVertices[index + 2].position = sf::Vector2f(px + ts, py + ts);
-            
-            // Second triangle (top-left, bottom-right, bottom-left)
-            m_tileVertices[index + 3].position = sf::Vector2f(px, py);
-            m_tileVertices[index + 4].position = sf::Vector2f(px + ts, py + ts);
-            m_tileVertices[index + 5].position = sf::Vector2f(px, py + ts);
-            
-            // Color based on tile type
-            sf::Color tileColor;
-            switch (m_tiles[y][x].type) {
-                case TileType::Ground:
-                    tileColor = sf::Color(34, 139, 34);  // Forest green
-                    break;
-                case TileType::Blocked:
-                    tileColor = sf::Color(80, 80, 80);   // Dark gray
-                    break;
-                case TileType::Resource:
-                    tileColor = sf::Color(50, 150, 50);  // Slightly different green
-                    break;
-                default:
-                    tileColor = sf::Color(34, 139, 34);
-                    break;
-            }
-            
-            // Add some variation
-            int variation = ((x + y) % 2) * 10;
-            tileColor.r = static_cast<std::uint8_t>(std::min(255, tileColor.r + variation));
-            tileColor.g = static_cast<std::uint8_t>(std::min(255, tileColor.g + variation));
-            tileColor.b = static_cast<std::uint8_t>(std::min(255, tileColor.b + variation));
-            
-            // Set color for all 6 vertices
-            for (int i = 0; i < 6; ++i) {
-                m_tileVertices[index + i].color = tileColor;
-            }
-        }
+void Map::setTileType(int x, int y, TileType type, uint8_t variant) {
+    if (!isValidTile(x, y)) return;
+    Tile& tile = m_tiles[y][x];
+    tile.type      = type;
+    tile.walkable  = (type == TileType::Grass || type == TileType::Resource);
+    tile.buildable = (type == TileType::Grass);
+    tile.occupant  = nullptr;
+    tile.variant   = variant;
+}
+
+void Map::loadTerrainTextures() {
+    for (int i = 0; i < 8; ++i) {
+        std::string path = "assets/terrain/grass_" + std::to_string(i + 1) + ".png";
+        if (!m_grassTextures[i].loadFromFile(path))
+            std::cerr << "Map: cannot load " << path << "\n";
+    }
+    for (int i = 0; i < 4; ++i) {
+        std::string path = "assets/terrain/water_" + std::to_string(i + 1) + ".png";
+        if (!m_waterTextures[i].loadFromFile(path))
+            std::cerr << "Map: cannot load " << path << "\n";
     }
 }
 
 float Map::heuristic(int x1, int y1, int x2, int y2) const {
     // Manhattan distance
     return static_cast<float>(std::abs(x2 - x1) + std::abs(y2 - y1));
-}
-
-void Map::rebuildTileVertices(int x, int y) {
-    int index = (y * m_width + x) * 6;
-    
-    float px = static_cast<float>(x * Constants::TILE_SIZE);
-    float py = static_cast<float>(y * Constants::TILE_SIZE);
-    float ts = static_cast<float>(Constants::TILE_SIZE);
-    
-    m_tileVertices[index + 0].position = sf::Vector2f(px,      py);
-    m_tileVertices[index + 1].position = sf::Vector2f(px + ts, py);
-    m_tileVertices[index + 2].position = sf::Vector2f(px + ts, py + ts);
-    m_tileVertices[index + 3].position = sf::Vector2f(px,      py);
-    m_tileVertices[index + 4].position = sf::Vector2f(px + ts, py + ts);
-    m_tileVertices[index + 5].position = sf::Vector2f(px,      py + ts);
-    
-    sf::Color tileColor;
-    switch (m_tiles[y][x].type) {
-        case TileType::Ground:   tileColor = sf::Color(34, 139, 34); break;
-        case TileType::Blocked:  tileColor = sf::Color(80,  80,  80); break;
-        case TileType::Resource: tileColor = sf::Color(50, 150, 50); break;
-        default:                 tileColor = sf::Color(34, 139, 34); break;
-    }
-    
-    int variation = ((x + y) % 2) * 10;
-    tileColor.r = static_cast<std::uint8_t>(std::min(255, static_cast<int>(tileColor.r) + variation));
-    tileColor.g = static_cast<std::uint8_t>(std::min(255, static_cast<int>(tileColor.g) + variation));
-    tileColor.b = static_cast<std::uint8_t>(std::min(255, static_cast<int>(tileColor.b) + variation));
-    
-    for (int i = 0; i < 6; ++i)
-        m_tileVertices[index + i].color = tileColor;
 }

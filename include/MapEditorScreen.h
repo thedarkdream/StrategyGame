@@ -41,7 +41,7 @@ private:
     EditorMode m_mode = EditorMode::Tile;
 
     // ---- Tile painting ------------------------------------------------------
-    TileType m_selectedTile = TileType::Ground;
+    TileType m_selectedTile = TileType::Grass;
 
     struct TileSwatch {
         TileType                type;
