@@ -91,6 +91,11 @@ private:
     // Get or create an available sound from the pool
     ActiveSound* getOrCreateSound(sf::SoundBuffer& buffer);
     
+    // Pre-allocate all sound objects (call once after first buffer is loaded)
+    // Warms the OpenAL source pool so no driver allocations happen during gameplay
+    void warmPool(sf::SoundBuffer& seedBuffer);
+    bool m_poolWarmed = false;
+    
     // Calculate volume based on distance from listener
     float calculatePositionalVolume(sf::Vector2f worldPosition) const;
     

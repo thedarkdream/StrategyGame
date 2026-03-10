@@ -84,6 +84,13 @@ sf::SoundBuffer* SoundManager::loadBuffer(const std::string& filepath) {
     
     sf::SoundBuffer* ptr = buffer.get();
     m_buffers[filepath] = std::move(buffer);
+    
+    // Warm the pool on first buffer load so all sf::Sound (OpenAL source) objects
+    // are allocated now instead of lazily during gameplay.
+    if (!m_poolWarmed) {
+        warmPool(*ptr);
+    }
+    
     return ptr;
 }
 
@@ -95,6 +102,7 @@ void SoundManager::preload(const std::vector<std::string>& filepaths) {
     for (const auto& path : filepaths) {
         loadBuffer(path);
     }
+    // Pool is warmed automatically by loadBuffer() on first buffer - nothing extra needed.
 }
 
 void SoundManager::clearBuffers() {
@@ -104,40 +112,58 @@ void SoundManager::clearBuffers() {
 }
 
 void SoundManager::update() {
-    // Remove finished sounds to free up slots
-    m_activeSounds.erase(
-        std::remove_if(m_activeSounds.begin(), m_activeSounds.end(),
-            [](const std::unique_ptr<ActiveSound>& s) { return !s->isPlaying(); }),
-        m_activeSounds.end()
-    );
+    // Pool slots are reused in-place; nothing to erase.
 }
 
 void SoundManager::stopAll() {
-    for (auto& activeSound : m_activeSounds) {
-        activeSound->sound->stop();
+    for (auto& s : m_activeSounds) {
+        if (s) s->sound->stop();
     }
-    m_activeSounds.clear();
+    // Keep pool intact - don't clear, slots will be reused.
 }
 
 void SoundManager::clear() {
-    stopAll();
+    for (auto& s : m_activeSounds) {
+        if (s) s->sound->stop();
+    }
+    m_activeSounds.clear();
     m_buffers.clear();
+    m_poolWarmed = false;
 }
 
 ActiveSound* SoundManager::getOrCreateSound(sf::SoundBuffer& buffer) {
-    // First, clean up finished sounds
-    update();
-    
-    // Check if we're at capacity
-    if (m_activeSounds.size() >= MAX_CONCURRENT_SOUNDS) {
-        // Steal the first (oldest) sound
-        m_activeSounds[0]->sound->stop();
-        m_activeSounds.erase(m_activeSounds.begin());
+    // Scan for a slot that is not currently playing - reuse it (no allocation).
+    for (auto& slot : m_activeSounds) {
+        if (slot && !slot->isPlaying()) {
+            slot->sound->setBuffer(buffer);
+            slot->buffer = &buffer;
+            return slot.get();
+        }
     }
     
-    // Create new sound
-    m_activeSounds.push_back(std::make_unique<ActiveSound>(buffer));
-    return m_activeSounds.back().get();
+    // All slots are busy.
+    if (m_activeSounds.size() < MAX_CONCURRENT_SOUNDS) {
+        // Pool not yet full (pre-warm may not have run) - allocate one more.
+        m_activeSounds.push_back(std::make_unique<ActiveSound>(buffer));
+        return m_activeSounds.back().get();
+    }
+    
+    // Steal the first (oldest) slot.
+    m_activeSounds[0]->sound->stop();
+    m_activeSounds[0]->sound->setBuffer(buffer);
+    m_activeSounds[0]->buffer = &buffer;
+    return m_activeSounds[0].get();
+}
+
+void SoundManager::warmPool(sf::SoundBuffer& seedBuffer) {
+    if (m_poolWarmed) return;
+    m_activeSounds.reserve(MAX_CONCURRENT_SOUNDS);
+    while (m_activeSounds.size() < MAX_CONCURRENT_SOUNDS) {
+        auto slot = std::make_unique<ActiveSound>(seedBuffer);
+        slot->sound->stop();  // Ensure stopped, not playing
+        m_activeSounds.push_back(std::move(slot));
+    }
+    m_poolWarmed = true;
 }
 
 float SoundManager::calculatePositionalVolume(sf::Vector2f worldPosition) const {
