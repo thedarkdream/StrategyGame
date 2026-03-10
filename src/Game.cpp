@@ -558,7 +558,18 @@ void Game::issueGatherCommand(EntityPtr resource) {
 }
 
 void Game::issueBuildCommand(EntityType buildingType, sf::Vector2f position) {
-    getActions().constructBuilding(buildingType, position);
+    // Use the first selected worker so the player's chosen unit does the building,
+    // rather than auto-picking the nearest idle worker.
+    Worker* selectedWorker = nullptr;
+    for (const auto& entity : getPlayer().getSelection()) {
+        if (entity && entity->isAlive()) {
+            if (Worker* w = entity->asWorker()) {
+                selectedWorker = w;
+                break;
+            }
+        }
+    }
+    getActions().constructBuilding(buildingType, position, selectedWorker);
 }
 
 void Game::issueContinueBuildCommand(EntityPtr building) {
