@@ -13,11 +13,13 @@
 #include "Constants.h"
 #include "MathUtil.h"
 #include <algorithm>
+#include <iostream>
 #include <cmath>
 #include <cstdlib>
 
-Game::Game(sf::RenderWindow& window)
+Game::Game(sf::RenderWindow& window, const std::string& mapFile)
     : m_window(window)
+    , m_mapFile(mapFile)
 {
     initialize();
 }
@@ -85,9 +87,21 @@ void Game::initialize() {
 
     // Preload all assets so nothing freezes during gameplay
     preloadAssets();
-    
-    // Setup starting units and buildings
-    setupStartingUnits();
+
+    // Setup starting units – either from a saved map or the default procedural setup
+    if (!m_mapFile.empty() && m_mapFile != "default") {
+        std::string path = "maps/" + m_mapFile + ".stmap";
+        auto data = MapSerializer::load(path);
+        if (data) {
+            setupFromMapData(*data);
+        } else {
+            std::cerr << "Game: failed to load map '" << m_mapFile
+                      << "', falling back to default setup.\n";
+            setupStartingUnits();
+        }
+    } else {
+        setupStartingUnits();
+    }
 }
 
 void Game::preloadAssets() {
@@ -441,6 +455,38 @@ void Game::removeEntity(EntityPtr entity) {
     auto it = std::find(m_allEntities.begin(), m_allEntities.end(), entity);
     if (it != m_allEntities.end()) {
         m_allEntities.erase(it);
+    }
+}
+
+void Game::setupFromMapData(const MapData& data) {
+    // Re-initialise the map to match the saved dimensions
+    m_map = Map(data.width, data.height, /*generateRandom=*/false);
+
+    // Apply saved tile types
+    for (const auto& t : data.tiles)
+        m_map.setTileType(t.x, t.y, t.type);
+
+    // Spawn all saved entities
+    const float TS = static_cast<float>(Constants::TILE_SIZE);
+    for (const auto& e : data.entities) {
+        sf::Vector2i tileSize = ENTITY_DATA.getBuildingTileSize(e.type);
+        // World-space centre of the footprint
+        float wx = (e.tileX + tileSize.x * 0.5f) * TS;
+        float wy = (e.tileY + tileSize.y * 0.5f) * TS;
+        sf::Vector2f pos(wx, wy);
+
+        const EntityDef* def = ENTITY_DATA.get(e.type);
+        if (!def) continue;
+
+        if (def->isResource()) {
+            // Mineral patches / geysers
+            ResourceNodePtr node = ResourceManager::createResourceNode(e.type, pos);
+            if (node) addEntity(node);
+        } else if (def->isBuilding()) {
+            spawnBuilding(e.type, e.team, pos, /*startComplete=*/true);
+        } else if (def->isUnit()) {
+            spawnUnit(e.type, e.team, pos);
+        }
     }
 }
 

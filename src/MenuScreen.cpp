@@ -1,10 +1,8 @@
 #include "MenuScreen.h"
 #include "Constants.h"
-#include <filesystem>
+#include "MapSerializer.h"
 #include <algorithm>
 #include <iostream>
-
-namespace fs = std::filesystem;
 
 MenuScreen::MenuScreen() {
     // Try to load a font - use SFML's default or a system font
@@ -34,28 +32,14 @@ MenuScreen::MenuScreen() {
 
 void MenuScreen::scanForMaps() {
     m_mapFiles.clear();
-    
+
     // Always include "default" option (procedurally generated map)
     m_mapFiles.push_back("default");
-    
-    // Scan assets/maps/ for .map files
-    std::string mapsDir = "assets/maps";
-    try {
-        if (fs::exists(mapsDir) && fs::is_directory(mapsDir)) {
-            for (const auto& entry : fs::directory_iterator(mapsDir)) {
-                if (entry.is_regular_file() && entry.path().extension() == ".map") {
-                    m_mapFiles.push_back(entry.path().stem().string());
-                }
-            }
-        }
-    } catch (...) {
-        // Directory doesn't exist yet, that's fine
-    }
-    
-    // Sort map names (keep "default" first)
-    if (m_mapFiles.size() > 1) {
-        std::sort(m_mapFiles.begin() + 1, m_mapFiles.end());
-    }
+
+    // Scan maps/ directory for .stmap files
+    auto stems = MapSerializer::listMaps("maps");
+    for (auto& s : stems)
+        m_mapFiles.push_back(s);
 }
 
 MenuScreen::Button MenuScreen::createButton(const std::string& text, sf::Vector2f position, sf::Vector2f size) {
@@ -103,6 +87,7 @@ void MenuScreen::updateButtonHover(Button& button, sf::Vector2f mousePos) {
 }
 
 void MenuScreen::layoutButtons(sf::Vector2u windowSize) {
+    m_lastWinSize = windowSize;
     float centerX = windowSize.x / 2.0f;
     float centerY = windowSize.y / 2.0f;
     float buttonW = 280.0f;
@@ -211,6 +196,8 @@ ScreenResult MenuScreen::handleEvent(const sf::Event& event) {
             } else {
                 // Main menu buttons
                 if (isMouseOver(m_newGameButton, mousePos)) {
+                    scanForMaps();
+                    layoutMapSelection(m_lastWinSize);
                     m_showMapSelection = true;
                 }
                 

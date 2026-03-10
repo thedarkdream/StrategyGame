@@ -15,6 +15,7 @@ set(SOURCES
     src/MenuScreen.cpp
     src/GameScreen.cpp
     src/MapEditorScreen.cpp
+    src/MapSerializer.cpp
     src/Map.cpp
     src/Entity.cpp
     src/EntityData.cpp

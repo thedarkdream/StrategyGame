@@ -4,6 +4,7 @@
 #include "Map.h"
 #include "Types.h"
 #include "EntityData.h"
+#include "MapSerializer.h"
 #include <SFML/Graphics.hpp>
 #include <optional>
 #include <string>
@@ -128,6 +129,18 @@ private:
     std::vector<EntityItem> m_buildingItems;
     std::vector<EntityItem> m_unitItems;
 
+    // ---- Load overlay -------------------------------------------------------
+    bool                    m_showLoadPanel = false;
+    std::vector<std::string> m_loadMapFiles;
+    std::vector<PanelButton> m_loadButtons;
+    PanelButton              m_btnLoadCancel;
+    std::optional<sf::Text>  m_lblLoadTitle;
+    sf::RectangleShape       m_loadOverlayBg;
+
+    // ---- Status feedback ----------------------------------------------------
+    std::optional<sf::Text>  m_statusText;
+    float                    m_statusTimer = 0.f;
+
     // ---- State --------------------------------------------------------------
     std::string  m_mapName    = "untitled";
     bool         m_nameActive = false;
@@ -173,6 +186,13 @@ private:
     void         tryPlaceEntity(sf::Vector2i pixel);
     void         renderPlacedEntities(sf::RenderWindow& window);
     void         renderPanel(sf::RenderWindow& window);
+    void         renderLoadOverlay(sf::RenderWindow& window);
+
+    // Save / load
+    bool         saveCurrentMap();           // writes to maps/<name>.stmap
+    bool         loadMapByName(const std::string& stem); // reads maps/<stem>.stmap
+    void         applyMapData(const MapData& data);      // rebuilds in-editor state
+    void         refreshLoadPanel(sf::Vector2u winSize); // populate m_loadButtons
 
     // Team colour for preview/placed entity tinting
     static sf::Color teamColor(Team t);

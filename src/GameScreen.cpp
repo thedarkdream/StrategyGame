@@ -1,9 +1,8 @@
 #include "GameScreen.h"
 
-GameScreen::GameScreen(sf::RenderWindow& window, const std::string& /*mapFile*/)
-    : m_game(std::make_unique<Game>(window))
+GameScreen::GameScreen(sf::RenderWindow& window, const std::string& mapFile)
+    : m_game(std::make_unique<Game>(window, mapFile))
 {
-    // mapFile will be used later when map loading is implemented
 }
 
 ScreenResult GameScreen::handleEvent(const sf::Event& event) {

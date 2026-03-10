@@ -46,4 +46,6 @@ private:
     Button createButton(const std::string& text, sf::Vector2f position, sf::Vector2f size);
     bool isMouseOver(const Button& button, sf::Vector2f mousePos) const;
     void updateButtonHover(Button& button, sf::Vector2f mousePos);
+
+    sf::Vector2u m_lastWinSize = { 0u, 0u };
 };

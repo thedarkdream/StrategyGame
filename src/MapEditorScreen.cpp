@@ -1,10 +1,12 @@
 ﻿#include "MapEditorScreen.h"
 #include "Constants.h"
 #include "ResourceManager.h"
+#include "MapSerializer.h"
 #include <iostream>
 #include <sstream>
 #include <cmath>
 #include <algorithm>
+#include <filesystem>
 
 // ---------------------------------------------------------------------------
 // Palette / colour tables
@@ -634,11 +636,51 @@ ScreenResult MapEditorScreen::handleEvent(const sf::Event& event) {
 
         if (mb->button == sf::Mouse::Button::Left) {
 
+            // ---- Load overlay (intercepts all clicks while open) -----------
+            if (m_showLoadPanel) {
+                if (btnHit(m_btnLoadCancel, pm)) {
+                    m_showLoadPanel = false;
+                    return {};
+                }
+                for (size_t i = 0; i < m_loadButtons.size(); ++i) {
+                    if (btnHit(m_loadButtons[i], pm)) {
+                        bool ok = loadMapByName(m_loadMapFiles[i]);
+                        m_showLoadPanel = false;
+                        if (m_fontLoaded) {
+                            m_statusText.emplace(m_font,
+                                ok ? "Loaded: " + m_loadMapFiles[i] : "Load failed!",
+                                12u);
+                            m_statusText->setFillColor(ok ? sf::Color(80,220,80) : sf::Color(220,80,80));
+                        }
+                        m_statusTimer = 4.f;
+                        return {};
+                    }
+                }
+                // Click outside overlay dismisses it
+                sf::FloatRect ovr(m_loadOverlayBg.getPosition(), m_loadOverlayBg.getSize());
+                if (!ovr.contains(pm)) m_showLoadPanel = false;
+                return {};
+            }
+
             // ---- File / navigation buttons ---------------------------------
             if (btnHit(m_btnBack, pm)) return { ScreenResult::Action::BackToMenu, "" };
             if (btnHit(m_btnNew,  pm)) { m_map.initEmpty(); m_placedEntities.clear(); return {}; }
-            if (btnHit(m_btnLoad, pm)) return {};  // stub
-            if (btnHit(m_btnSave, pm)) return {};  // stub
+            if (btnHit(m_btnLoad, pm)) {
+                refreshLoadPanel(m_lastWinSize);
+                m_showLoadPanel = true;
+                return {};
+            }
+            if (btnHit(m_btnSave, pm)) {
+                bool ok = saveCurrentMap();
+                if (m_fontLoaded) {
+                    m_statusText.emplace(m_font,
+                        ok ? "Saved to maps/" + m_mapName + ".stmap" : "Save failed!",
+                        12u);
+                    m_statusText->setFillColor(ok ? sf::Color(80, 220, 80) : sf::Color(220, 80, 80));
+                }
+                m_statusTimer = 4.f;
+                return {};
+            }
 
             // ---- Building team selector ------------------------------------
             if (btnHit(m_btnBldTeamPlayer, pm)) {
@@ -750,7 +792,8 @@ ScreenResult MapEditorScreen::handleEvent(const sf::Event& event) {
             }
         }
 
-        if (mb->button == sf::Mouse::Button::Right) {
+            if (mb->button == sf::Mouse::Button::Right) {
+            if (m_showLoadPanel) { m_showLoadPanel = false; return {}; }
             if (inMapArea(mb->position)) {
                 m_isPanning      = true;
                 m_panStart       = mb->position;
@@ -815,7 +858,154 @@ ScreenResult MapEditorScreen::handleEvent(const sf::Event& event) {
 // ===========================================================================
 // Update
 // ===========================================================================
-ScreenResult MapEditorScreen::update(float /*dt*/) {
+// ===========================================================================
+// Save / Load helpers
+// ===========================================================================
+static constexpr const char* MAPS_DIR = "maps";
+
+bool MapEditorScreen::saveCurrentMap() {
+    namespace fs = std::filesystem;
+    MapData data;
+    data.name   = m_mapName;
+    data.width  = m_mapW;
+    data.height = m_mapH;
+
+    // Collect non-Ground tiles
+    for (int y = 0; y < m_mapH; ++y) {
+        for (int x = 0; x < m_mapW; ++x) {
+            TileType tt = m_map.getTile(x, y).type;
+            if (tt != TileType::Ground)
+                data.tiles.push_back({ x, y, tt });
+        }
+    }
+
+    // Collect entities
+    for (const auto& pe : m_placedEntities)
+        data.entities.push_back({ pe.type, pe.team, pe.tileX, pe.tileY });
+
+    std::string stem = m_mapName;
+    // Replace spaces with underscores in filename only
+    std::replace(stem.begin(), stem.end(), ' ', '_');
+    std::string path = std::string(MAPS_DIR) + "/" + stem + ".stmap";
+    return MapSerializer::save(data, path);
+}
+
+bool MapEditorScreen::loadMapByName(const std::string& stem) {
+    std::string path = std::string(MAPS_DIR) + "/" + stem + ".stmap";
+    auto result = MapSerializer::load(path);
+    if (!result) return false;
+    applyMapData(*result);
+    return true;
+}
+
+void MapEditorScreen::applyMapData(const MapData& data) {
+    m_mapName = data.name;
+    m_mapW    = data.width;
+    m_mapH    = data.height;
+
+    m_map = Map(m_mapW, m_mapH, /*generateRandom=*/false);
+    m_placedEntities.clear();
+
+    for (const auto& t : data.tiles)
+        m_map.setTileType(t.x, t.y, t.type);
+
+    for (const auto& e : data.entities)
+        m_placedEntities.push_back({ e.type, e.team, e.tileX, e.tileY });
+
+    m_gridDirty = true;
+    buildLayout(m_lastWinSize);
+}
+
+void MapEditorScreen::refreshLoadPanel(sf::Vector2u winSize) {
+    m_loadMapFiles = MapSerializer::listMaps(MAPS_DIR);
+    m_loadButtons.clear();
+
+    float wf = static_cast<float>(winSize.x);
+    float hf = static_cast<float>(winSize.y);
+    float ow = std::min(400.f, wf - 40.f);
+    float bH = 34.f, gap = 8.f, pad = 16.f;
+    float totalH = pad + 32.f + pad   // title
+                 + static_cast<float>(m_loadMapFiles.size()) * (bH + gap)
+                 + bH + pad;          // cancel
+    float oh = std::min(totalH, hf - 40.f);
+
+    float ox = (wf - ow) * 0.5f;
+    float oy = (hf - oh) * 0.5f;
+
+    m_loadOverlayBg.setPosition({ ox, oy });
+    m_loadOverlayBg.setSize({ ow, oh });
+    m_loadOverlayBg.setFillColor(sf::Color(30, 33, 42, 245));
+    m_loadOverlayBg.setOutlineColor(sf::Color(80, 90, 130));
+    m_loadOverlayBg.setOutlineThickness(2.f);
+
+    if (m_fontLoaded) {
+        m_lblLoadTitle.emplace(m_font, "Load Map", 18u);
+        m_lblLoadTitle->setFillColor(sf::Color(220, 225, 235));
+        m_lblLoadTitle->setStyle(sf::Text::Bold);
+        sf::FloatRect lb = m_lblLoadTitle->getLocalBounds();
+        m_lblLoadTitle->setOrigin({ lb.position.x + lb.size.x * 0.5f,
+                                     lb.position.y + lb.size.y * 0.5f });
+        m_lblLoadTitle->setPosition({ ox + ow * 0.5f, oy + pad + 10.f });
+    }
+
+    float by = oy + pad + 36.f;
+    for (const auto& stem : m_loadMapFiles) {
+        PanelButton btn = makePanelButton(stem, { ox + pad, by }, { ow - pad * 2.f, bH });
+        m_loadButtons.push_back(std::move(btn));
+        by += bH + gap;
+    }
+
+    m_btnLoadCancel = makePanelButton("Cancel",
+        { ox + pad, oy + oh - bH - pad }, { ow - pad * 2.f, bH });
+}
+
+void MapEditorScreen::renderLoadOverlay(sf::RenderWindow& window) {
+    if (!m_showLoadPanel) return;
+
+    sf::Vector2u ws = window.getSize();
+    sf::View uiView(sf::FloatRect({ 0.f, 0.f },
+        { static_cast<float>(ws.x), static_cast<float>(ws.y) }));
+    window.setView(uiView);
+
+    // Semi-transparent full-screen dim
+    sf::RectangleShape dim({ static_cast<float>(ws.x), static_cast<float>(ws.y) });
+    dim.setFillColor(sf::Color(0, 0, 0, 160));
+    window.draw(dim);
+
+    window.draw(m_loadOverlayBg);
+    if (m_lblLoadTitle) window.draw(*m_lblLoadTitle);
+
+    if (m_loadMapFiles.empty() && m_fontLoaded) {
+        sf::Text empty(m_font, "No maps found in maps/", 13u);
+        empty.setFillColor(sf::Color(150, 155, 165));
+        sf::FloatRect lb = empty.getLocalBounds();
+        empty.setOrigin({ lb.position.x + lb.size.x * 0.5f,
+                          lb.position.y + lb.size.y * 0.5f });
+        sf::Vector2f oc = { m_loadOverlayBg.getPosition().x + m_loadOverlayBg.getSize().x * 0.5f,
+                             m_loadOverlayBg.getPosition().y + m_loadOverlayBg.getSize().y * 0.5f };
+        empty.setPosition(oc);
+        window.draw(empty);
+    }
+
+    for (auto& btn : m_loadButtons) {
+        window.draw(btn.shape);
+        if (btn.label) window.draw(*btn.label);
+    }
+    window.draw(m_btnLoadCancel.shape);
+    if (m_btnLoadCancel.label) window.draw(*m_btnLoadCancel.label);
+}
+
+// ===========================================================================
+// Update
+// ===========================================================================
+ScreenResult MapEditorScreen::update(float dt) {
+    if (m_statusTimer > 0.f) {
+        m_statusTimer -= dt;
+        if (m_statusTimer <= 0.f) {
+            m_statusText.reset();
+            m_statusTimer = 0.f;
+        }
+    }
     return {};
 }
 
@@ -993,4 +1183,25 @@ void MapEditorScreen::render(sf::RenderWindow& window) {
 
     // ---- Panel (on top of everything) -------------------------------------
     renderPanel(window);
+
+    // ---- Load overlay (modal) ---------------------------------------------
+    renderLoadOverlay(window);
+
+    // ---- Status toast (bottom-left of panel) ------------------------------
+    if (m_statusText && m_statusTimer > 0.f) {
+        sf::Vector2u ws = window.getSize();
+        sf::View uiView(sf::FloatRect({ 0.f, 0.f },
+            { static_cast<float>(ws.x), static_cast<float>(ws.y) }));
+        window.setView(uiView);
+
+        sf::RectangleShape toast({ PANEL_WIDTH - 16.f, 24.f });
+        toast.setPosition({ 8.f, static_cast<float>(ws.y) - 32.f });
+        toast.setFillColor(sf::Color(20, 22, 30, 210));
+        toast.setOutlineColor(sf::Color(60, 65, 80));
+        toast.setOutlineThickness(1.f);
+        window.draw(toast);
+
+        m_statusText->setPosition({ 12.f, static_cast<float>(ws.y) - 29.f });
+        window.draw(*m_statusText);
+    }
 }

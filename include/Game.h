@@ -7,13 +7,15 @@
 #include "Renderer.h"
 #include "AIController.h"
 #include "ActionBar.h"
+#include "MapSerializer.h"
 #include <SFML/Graphics.hpp>
 #include <memory>
 #include <vector>
+#include <string>
 
 class Game {
 public:
-    Game(sf::RenderWindow& window);
+    Game(sf::RenderWindow& window, const std::string& mapFile = "");
     ~Game() = default;
     
     // Per-frame interface (called by GameScreen)
@@ -67,6 +69,7 @@ public:
 private:
     // Window (owned by Application, passed by reference)
     sf::RenderWindow& m_window;
+    std::string       m_mapFile;   // empty / "default" → procedural
     
     // Game state
     GameState m_state = GameState::Playing;
@@ -90,6 +93,7 @@ private:
     void initialize();
     void preloadAssets();   // Load all sounds & textures upfront to avoid mid-game hitches
     void setupStartingUnits();
+    void setupFromMapData(const MapData& data);  // Initialize from editor-saved map
     void cleanupDeadEntities();
     void checkVictoryConditions();
     void flushPendingEntities();  // Merge m_pendingEntities into m_allEntities
