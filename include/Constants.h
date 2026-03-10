@@ -24,7 +24,7 @@ namespace Constants {
     constexpr float CAMERA_EDGE_MARGIN = 20.0f;
     
     // Minimap settings
-    constexpr float MINIMAP_SIZE = 150.0f;
+    constexpr float MINIMAP_SIZE    = 240.0f;  // 150 * 1.6
     constexpr float MINIMAP_PADDING = 10.0f;
     
     // Action bar settings (fixed size)

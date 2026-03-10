@@ -15,11 +15,19 @@ public:
     
     void render(Game& game);
     void setCamera(const sf::View& camera) { m_camera = camera; }
+
+    // Call whenever the map tiles change so the minimap terrain is re-baked
+    void invalidateMinimapTerrain() { m_minimapTerrainDirty = true; }
     
 private:
     sf::RenderWindow& m_window;
     sf::View m_camera;
     std::optional<sf::Font> m_font;
+
+    // Cached terrain layer for the minimap (one pixel per tile)
+    sf::Texture m_minimapTerrainTex;
+    bool        m_minimapTerrainDirty = true;
+    void rebuildMinimapTerrain(Map& map);
     
     // Render layers
     void renderMap(Map& map);

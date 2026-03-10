@@ -3,8 +3,47 @@
 #include "Unit.h"
 #include "Building.h"
 #include "Constants.h"
+#include <iostream>
+#include <algorithm>
 
 ActionBar::ActionBar() {
+}
+
+// ---------------------------------------------------------------------------
+// Texture loading
+// ---------------------------------------------------------------------------
+void ActionBar::ensureTexturesLoaded() {
+    if (m_texturesLoaded) return;
+    m_texturesLoaded = true;
+
+    // The four stems that currently have images
+    static constexpr const char* STEMS[] = { "move", "attack", "stop", "gather" };
+    for (const char* stem : STEMS) {
+        ActionTexturePair pair;
+        std::string base   = std::string("assets/actions/") + stem;
+        std::string normal = base + ".png";
+        std::string active = base + "_active.png";
+
+        if (!pair.normal.loadFromFile(normal))
+            std::cerr << "ActionBar: cannot load " << normal << "\n";
+        if (!pair.active.loadFromFile(active))
+            std::cerr << "ActionBar: cannot load " << active << "\n";
+
+        m_textures[stem] = std::move(pair);
+    }
+}
+
+std::pair<const sf::Texture*, const sf::Texture*>
+ActionBar::getActionTextures(const std::string& label) const {
+    // Build a lowercase key from the first word of the label
+    std::string key;
+    for (char c : label) {
+        if (c == ' ') break;
+        key += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
+    auto it = m_textures.find(key);
+    if (it == m_textures.end()) return { nullptr, nullptr };
+    return { &it->second.normal, &it->second.active };
 }
 
 float ActionBar::getPanelX() const {
@@ -254,9 +293,114 @@ void ActionBar::render(sf::RenderWindow& window, Player& player) {
     if (building && building->isProducing()) {
         renderProductionQueue(window, building);
     }
+
+    renderTooltip(window, entity);
+}
+
+// ---------------------------------------------------------------------------
+// Tooltip
+// ---------------------------------------------------------------------------
+std::string ActionBar::buildTooltipText(const ActionDef& action) const {
+    if (action.type == ActionDef::Type::Build || action.type == ActionDef::Type::Train) {
+        std::string entityName = ENTITY_DATA.getName(action.producesType);
+        int mineralCost = ENTITY_DATA.getMineralCost(action.producesType);
+        int gasCost     = ENTITY_DATA.getGasCost(action.producesType);
+
+        // e.g. "Build Barracks" or "Train Soldier"
+        std::string text = action.label + " " + entityName;
+
+        std::string costStr;
+        if (mineralCost > 0) costStr += std::to_string(mineralCost) + " minerals";
+        if (gasCost > 0) {
+            if (!costStr.empty()) costStr += ", ";
+            costStr += std::to_string(gasCost) + " gas";
+        }
+        if (!costStr.empty()) text += " (" + costStr + ")";
+        return text;
+    } else {
+        // e.g. "Move (M)"
+        std::string text = action.label;
+        if (!action.hotkey.empty()) text += " (" + action.hotkey + ")";
+        return text;
+    }
+}
+
+void ActionBar::renderTooltip(sf::RenderWindow& window, EntityPtr entity) {
+    if (!m_font || !entity) return;
+
+    sf::Vector2i mousePos = sf::Mouse::getPosition(window);
+    int hoveredIdx = getButtonAtPosition(mousePos, entity);
+    if (hoveredIdx < 0) return;
+
+    const auto& actions = ENTITY_DATA.getActions(entity->getType());
+    if (hoveredIdx >= static_cast<int>(actions.size())) return;
+
+    std::string tipText = buildTooltipText(actions[hoveredIdx]);
+
+    // Measure text
+    sf::Text tooltip(*m_font, tipText, 12);
+    tooltip.setFillColor(sf::Color(230, 230, 230));
+    sf::FloatRect textBounds = tooltip.getLocalBounds();
+
+    constexpr float PAD = 6.f;
+    float boxW = textBounds.size.x + PAD * 2.f;
+    float boxH = textBounds.size.y + PAD * 2.f + 2.f;
+
+    // Find button screen position
+    float panelX    = getPanelX();
+    float row0Y     = getRow0Y();
+    float row1Y     = getRow1Y();
+    float btnSize   = Constants::ACTION_BAR_BUTTON_SIZE;
+    float btnSpacing= Constants::ACTION_BAR_BUTTON_SPACING;
+
+    std::vector<size_t> row0, row1;
+    for (size_t i = 0; i < actions.size(); ++i) {
+        if (actions[i].row == 0) row0.push_back(i);
+        else                     row1.push_back(i);
+    }
+
+    float buttonX = 0.f, buttonY = 0.f;
+    bool found = false;
+    float bx = panelX + Constants::ACTION_BAR_PADDING;
+    for (size_t idx : row0) {
+        if (static_cast<int>(idx) == hoveredIdx) { buttonX = bx; buttonY = row0Y; found = true; break; }
+        bx += btnSize + btnSpacing;
+    }
+    if (!found) {
+        bx = panelX + Constants::ACTION_BAR_PADDING;
+        for (size_t idx : row1) {
+            if (static_cast<int>(idx) == hoveredIdx) { buttonX = bx; buttonY = row1Y; found = true; break; }
+            bx += btnSize + btnSpacing;
+        }
+    }
+    if (!found) return;
+
+    // Center tooltip above the button
+    float tipX = buttonX + (btnSize - boxW) / 2.f;
+    float tipY = buttonY - boxH - 5.f;
+
+    // Clamp to window
+    tipX = std::max(2.f, std::min(tipX, static_cast<float>(m_windowSize.x) - boxW - 2.f));
+    tipY = std::max(2.f, tipY);
+
+    // Background
+    sf::RectangleShape box(sf::Vector2f(boxW, boxH));
+    box.setPosition(sf::Vector2f(tipX, tipY));
+    box.setFillColor(sf::Color(20, 20, 30, 220));
+    box.setOutlineThickness(1.f);
+    box.setOutlineColor(sf::Color(120, 120, 150));
+    window.draw(box);
+
+    // Text (offset by localBounds.position to strip SFML's internal top padding)
+    tooltip.setPosition(sf::Vector2f(
+        tipX + PAD - textBounds.position.x,
+        tipY + PAD - textBounds.position.y
+    ));
+    window.draw(tooltip);
 }
 
 void ActionBar::renderButtons(sf::RenderWindow& window, EntityPtr entity, Player& player) {
+    ensureTexturesLoaded();
     const auto& registryActions = ENTITY_DATA.getActions(entity->getType());
     
     Building* building = dynamic_cast<Building*>(entity.get());
@@ -335,43 +479,59 @@ void ActionBar::renderButtons(sf::RenderWindow& window, EntityPtr entity, Player
             }
         }
         
-        // Button background
-        sf::RectangleShape button(sf::Vector2f(buttonSize, buttonSize));
-        button.setPosition(sf::Vector2f(buttonX, buttonY));
-        
-        sf::Color buttonColor;
-        if (!isAvailable) {
-            buttonColor = sf::Color(40, 40, 40);
-        } else if (isActive) {
-            buttonColor = sf::Color(60, 100, 60);
+        // ---- Try to render with a sprite image --------------------------------
+        auto [texNormal, texActive] = getActionTextures(action.label);
+
+        if (texNormal && texActive) {
+            // Choose the appropriate texture state
+            const sf::Texture* tex = (isActive && isAvailable) ? texActive : texNormal;
+
+            sf::Sprite sprite(*tex);
+            // Scale 64x64 source → buttonSize x buttonSize
+            float sc = buttonSize / ACTION_TEX_SRC_SIZE;
+            sprite.setScale(sf::Vector2f(sc, sc));
+            sprite.setPosition(sf::Vector2f(buttonX, buttonY));
+
+            // Dim the sprite when unavailable
+            if (!isAvailable)
+                sprite.setColor(sf::Color(100, 100, 100, 200));
+
+            window.draw(sprite);
         } else {
-            buttonColor = sf::Color(50, 50, 60);
+            // ---- Fallback: plain rectangle + text --------------------------
+            sf::RectangleShape button(sf::Vector2f(buttonSize, buttonSize));
+            button.setPosition(sf::Vector2f(buttonX, buttonY));
+
+            sf::Color buttonColor;
+            if (!isAvailable)       buttonColor = sf::Color(40,  40,  40);
+            else if (isActive)      buttonColor = sf::Color(60, 100,  60);
+            else                    buttonColor = sf::Color(50,  50,  60);
+            button.setFillColor(buttonColor);
+            button.setOutlineThickness(1.0f);
+            button.setOutlineColor(isActive ? sf::Color(100, 180, 100) : sf::Color(70, 70, 80));
+            window.draw(button);
+
+            if (m_font) {
+                std::string shortLabel = ENTITY_DATA.getName(action.producesType).substr(0, 3);
+                sf::Text labelText(*m_font, shortLabel, 11);
+                labelText.setFillColor(isAvailable ? sf::Color::White : sf::Color(100, 100, 100));
+                sf::FloatRect textBounds = labelText.getLocalBounds();
+                labelText.setPosition(sf::Vector2f(
+                    buttonX + (buttonSize - textBounds.size.x) / 2.0f,
+                    buttonY + 8.0f
+                ));
+                window.draw(labelText);
+
+                sf::Text hotkeyText(*m_font, "[" + action.hotkey + "]", 9);
+                hotkeyText.setFillColor(sf::Color(150, 150, 150));
+                sf::FloatRect hkBounds = hotkeyText.getLocalBounds();
+                hotkeyText.setPosition(sf::Vector2f(
+                    buttonX + (buttonSize - hkBounds.size.x) / 2.0f,
+                    buttonY + buttonSize - 18.0f
+                ));
+                window.draw(hotkeyText);
+            }
         }
-        button.setFillColor(buttonColor);
-        button.setOutlineThickness(1.0f);
-        button.setOutlineColor(isActive ? sf::Color(100, 180, 100) : sf::Color(70, 70, 80));
-        window.draw(button);
-        
-        // Action label
-        std::string shortLabel = action.label.substr(0, 3);
-        sf::Text labelText(*m_font, shortLabel, 11);
-        labelText.setFillColor(isAvailable ? sf::Color::White : sf::Color(100, 100, 100));
-        sf::FloatRect textBounds = labelText.getLocalBounds();
-        labelText.setPosition(sf::Vector2f(
-            buttonX + (buttonSize - textBounds.size.x) / 2.0f,
-            buttonY + 8.0f
-        ));
-        window.draw(labelText);
-        
-        // Hotkey
-        sf::Text hotkeyText(*m_font, "[" + action.hotkey + "]", 9);
-        hotkeyText.setFillColor(sf::Color(150, 150, 150));
-        sf::FloatRect hkBounds = hotkeyText.getLocalBounds();
-        hotkeyText.setPosition(sf::Vector2f(
-            buttonX + (buttonSize - hkBounds.size.x) / 2.0f,
-            buttonY + buttonSize - 18.0f
-        ));
-        window.draw(hotkeyText);
     };
     
     // Render row 0

@@ -112,21 +112,21 @@ void EntityRegistry::initializeDefaults() {
         
         // Worker actions
         ActionDef buildBarracks;
-        buildBarracks.label = "Barracks";
+        buildBarracks.label = "Build";
         buildBarracks.hotkey = "B";
         buildBarracks.type = ActionDef::Type::Build;
         buildBarracks.producesType = EntityType::Barracks;
         buildBarracks.row = 1;
         
         ActionDef buildBase;
-        buildBase.label = "Base";
+        buildBase.label = "Build";
         buildBase.hotkey = "C";
         buildBase.type = ActionDef::Type::Build;
         buildBase.producesType = EntityType::Base;
         buildBase.row = 1;
         
         ActionDef buildFactory;
-        buildFactory.label = "Factory";
+        buildFactory.label = "Build";
         buildFactory.hotkey = "F";
         buildFactory.type = ActionDef::Type::Build;
         buildFactory.producesType = EntityType::Factory;
@@ -267,7 +267,7 @@ void EntityRegistry::initializeDefaults() {
         
         // Base actions - train workers
         ActionDef trainWorker;
-        trainWorker.label = "Worker";
+        trainWorker.label = "Train";
         trainWorker.hotkey = "W";
         trainWorker.type = ActionDef::Type::Train;
         trainWorker.producesType = EntityType::Worker;
@@ -297,13 +297,13 @@ void EntityRegistry::initializeDefaults() {
         
         // Barracks actions - train combat units
         ActionDef trainSoldier;
-        trainSoldier.label = "Soldier";
+        trainSoldier.label = "Train";
         trainSoldier.hotkey = "S";
         trainSoldier.type = ActionDef::Type::Train;
         trainSoldier.producesType = EntityType::Soldier;
         
         ActionDef trainBrute;
-        trainBrute.label = "Brute";
+        trainBrute.label = "Train";
         trainBrute.hotkey = "B";
         trainBrute.type = ActionDef::Type::Train;
         trainBrute.producesType = EntityType::Brute;
@@ -354,7 +354,7 @@ void EntityRegistry::initializeDefaults() {
         
         // Factory actions - train Light Tank
         ActionDef trainLightTank;
-        trainLightTank.label = "Light Tank";
+        trainLightTank.label = "Build";
         trainLightTank.hotkey = "T";
         trainLightTank.type = ActionDef::Type::Train;
         trainLightTank.producesType = EntityType::LightTank;

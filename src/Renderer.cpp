@@ -12,6 +12,7 @@
 #include "EffectsManager.h"
 #include <sstream>
 #include <iomanip>
+#include <iostream>
 
 Renderer::Renderer(sf::RenderWindow& window)
     : m_window(window)
@@ -133,46 +134,94 @@ void Renderer::renderBuildPreview(const InputHandler& input, Map& map) {
     previewBuilding.renderPreview(m_window, tint);
 }
 
+// ---------------------------------------------------------------------------
+// Minimap terrain cache
+// ---------------------------------------------------------------------------
+static sf::Color tileColor(TileType t) {
+    switch (t) {
+        case TileType::Ground:   return sf::Color( 42,  80,  42);   // dark green
+        case TileType::Blocked:  return sf::Color( 70,  60,  50);   // dark brown-grey
+        case TileType::Resource: return sf::Color( 40, 130,  60);   // brighter green
+        case TileType::Building: return sf::Color( 90,  90,  90);   // mid-grey
+    }
+    return sf::Color(42, 80, 42);
+}
+
+void Renderer::rebuildMinimapTerrain(Map& map) {
+    const int W = Constants::MAP_WIDTH;
+    const int H = Constants::MAP_HEIGHT;
+
+    sf::Image img;
+    img.resize(sf::Vector2u(static_cast<unsigned>(W), static_cast<unsigned>(H)));
+
+    for (int y = 0; y < H; ++y)
+        for (int x = 0; x < W; ++x)
+            img.setPixel(sf::Vector2u(static_cast<unsigned>(x),
+                                      static_cast<unsigned>(y)),
+                         tileColor(map.getTile(x, y).type));
+
+    if (!m_minimapTerrainTex.loadFromImage(img))
+        std::cerr << "Renderer: failed to upload minimap terrain texture\n";
+
+    m_minimapTerrainDirty = false;
+}
+
 void Renderer::renderMinimap(Game& game) {
     sf::Vector2u windowSize = m_window.getSize();
     const float minimapSize = Constants::MINIMAP_SIZE;
-    const float padding = Constants::MINIMAP_PADDING;
-    
-    // Background
+    const float padding     = Constants::MINIMAP_PADDING;
+
+    const float mmX = padding;
+    const float mmY = static_cast<float>(windowSize.y) - minimapSize - padding;
+
+    // --- Rebuild terrain texture if stale -----------------------------------
+    if (m_minimapTerrainDirty)
+        rebuildMinimapTerrain(game.getMap());
+
+    // --- Background (border + fallback fill) --------------------------------
     sf::RectangleShape bg(sf::Vector2f(minimapSize, minimapSize));
-    bg.setPosition(sf::Vector2f(padding, static_cast<float>(windowSize.y) - minimapSize - padding));
-    bg.setFillColor(sf::Color(30, 30, 30, 200));
+    bg.setPosition(sf::Vector2f(mmX, mmY));
+    bg.setFillColor(sf::Color(30, 30, 30, 220));
     bg.setOutlineThickness(2.0f);
-    bg.setOutlineColor(sf::Color(100, 100, 100));
+    bg.setOutlineColor(sf::Color(110, 120, 130));
     m_window.draw(bg);
-    
-    // Scale factor
-    float scaleX = minimapSize / (Constants::MAP_WIDTH * Constants::TILE_SIZE);
+
+    // --- Terrain layer ------------------------------------------------------
+    sf::Sprite terrainSprite(m_minimapTerrainTex);
+    terrainSprite.setPosition(sf::Vector2f(mmX, mmY));
+    // Scale the 64x64 image to fill minimapSize x minimapSize
+    float tScale = minimapSize / static_cast<float>(Constants::MAP_WIDTH);
+    terrainSprite.setScale(sf::Vector2f(tScale, tScale));
+    m_window.draw(terrainSprite);
+
+    // --- Scale factors (world → minimap pixel) ------------------------------
+    float scaleX = minimapSize / (Constants::MAP_WIDTH  * Constants::TILE_SIZE);
     float scaleY = minimapSize / (Constants::MAP_HEIGHT * Constants::TILE_SIZE);
-    
-    // Draw entities on minimap
+
+    // --- Entities -----------------------------------------------------------
     for (const auto& entity : game.getAllEntities()) {
         if (!entity || !entity->isAlive()) continue;
-        
+
         sf::Vector2f pos = entity->getPosition();
-        float x = padding + pos.x * scaleX;
-        float y = (static_cast<float>(windowSize.y) - minimapSize - padding) + pos.y * scaleY;
-        
-        sf::CircleShape dot(2.0f);
-        dot.setOrigin(sf::Vector2f(2.0f, 2.0f));
+        float x = mmX + pos.x * scaleX;
+        float y = mmY + pos.y * scaleY;
+
+        float dotR = 2.5f;
+        sf::CircleShape dot(dotR);
+        dot.setOrigin(sf::Vector2f(dotR, dotR));
         dot.setPosition(sf::Vector2f(x, y));
         dot.setFillColor(getTeamColor(entity->getTeam()));
         m_window.draw(dot);
     }
-    
-    // Draw camera view rectangle
+
+    // --- Camera view rectangle ----------------------------------------------
     sf::Vector2f camCenter = m_camera.getCenter();
-    sf::Vector2f camSize = m_camera.getSize();
-    
+    sf::Vector2f camSize   = m_camera.getSize();
+
     sf::RectangleShape camRect(sf::Vector2f(camSize.x * scaleX, camSize.y * scaleY));
     camRect.setPosition(sf::Vector2f(
-        padding + (camCenter.x - camSize.x / 2.0f) * scaleX,
-        (static_cast<float>(windowSize.y) - minimapSize - padding) + (camCenter.y - camSize.y / 2.0f) * scaleY
+        mmX + (camCenter.x - camSize.x / 2.0f) * scaleX,
+        mmY + (camCenter.y - camSize.y / 2.0f) * scaleY
     ));
     camRect.setFillColor(sf::Color::Transparent);
     camRect.setOutlineThickness(1.0f);
