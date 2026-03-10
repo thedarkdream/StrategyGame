@@ -82,10 +82,8 @@ void PlayerActions::cancelConstruction(EntityPtr entity) {
     building->releaseBuilder();
 
     sf::Vector2i bSize = ResourceManager::getBuildingSize(building->getType());
-    sf::Vector2f pos = building->getPosition();
-    int tileX = static_cast<int>((pos.x - bSize.x * Constants::TILE_SIZE / 2.0f) / Constants::TILE_SIZE);
-    int tileY = static_cast<int>((pos.y - bSize.y * Constants::TILE_SIZE / 2.0f) / Constants::TILE_SIZE);
-    m_game.getMap().removeBuilding(tileX, tileY, bSize.x, bSize.y);
+    sf::Vector2i tile = MathUtil::buildingTileOrigin(building->getPosition(), bSize, Constants::TILE_SIZE);
+    m_game.getMap().removeBuilding(tile.x, tile.y, bSize.x, bSize.y);
 
     m_player.addResources(
         ENTITY_DATA.getMineralCost(building->getType()),

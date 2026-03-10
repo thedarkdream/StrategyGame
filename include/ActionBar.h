@@ -62,6 +62,11 @@ private:
     void renderTooltip(sf::RenderWindow& window, EntityPtr entity);
     std::string buildTooltipText(const ActionDef& action) const;
 
+    // Splits an action list into row-0 and row-1 index vectors (avoids duplicating
+    // the same loop in getButtonAtPosition, renderTooltip, and renderButtons).
+    static std::pair<std::vector<size_t>, std::vector<size_t>>
+        splitActionsByRow(const std::vector<ActionDef>& actions);
+
     // Texture helpers
     void ensureTexturesLoaded();
     // Returns pointer to normal+active textures for a label, or {nullptr,nullptr}

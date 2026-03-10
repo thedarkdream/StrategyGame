@@ -29,4 +29,15 @@ namespace MathUtil {
     inline float length(sf::Vector2f v) {
         return std::sqrt(v.x * v.x + v.y * v.y);
     }
+
+    // Return the tile-grid top-left corner of a building given its world-space
+    // centre position and tile footprint size.
+    inline sf::Vector2i buildingTileOrigin(sf::Vector2f centerPos,
+                                           sf::Vector2i tileSize,
+                                           int tilePixelSize) {
+        return {
+            static_cast<int>((centerPos.x - tileSize.x * tilePixelSize / 2.0f) / tilePixelSize),
+            static_cast<int>((centerPos.y - tileSize.y * tilePixelSize / 2.0f) / tilePixelSize)
+        };
+    }
 }

@@ -11,6 +11,21 @@ ActionBar::ActionBar() {
 }
 
 // ---------------------------------------------------------------------------
+// Layout helper — splits registry actions into per-row index lists.
+// Used by getButtonAtPosition, renderTooltip, and renderButtons so the loop
+// is not duplicated across all three.
+// ---------------------------------------------------------------------------
+std::pair<std::vector<size_t>, std::vector<size_t>>
+ActionBar::splitActionsByRow(const std::vector<ActionDef>& actions) {
+    std::vector<size_t> row0, row1;
+    for (size_t i = 0; i < actions.size(); ++i) {
+        if (actions[i].row == 0) row0.push_back(i);
+        else                     row1.push_back(i);
+    }
+    return {row0, row1};
+}
+
+// ---------------------------------------------------------------------------
 // Texture loading
 // ---------------------------------------------------------------------------
 void ActionBar::ensureTexturesLoaded() {
@@ -89,35 +104,26 @@ int ActionBar::getButtonAtPosition(sf::Vector2i screenPos, EntityPtr entity) con
     
     const auto& actions = ENTITY_DATA.getActions(entity->getType());
     if (actions.empty()) return -1;
-    
-    // Separate actions by row
-    std::vector<int> row0Indices;
-    std::vector<int> row1Indices;
-    for (size_t i = 0; i < actions.size(); ++i) {
-        if (actions[i].row == 0) {
-            row0Indices.push_back(static_cast<int>(i));
-        } else {
-            row1Indices.push_back(static_cast<int>(i));
-        }
-    }
-    
+
+    auto [row0Indices, row1Indices] = splitActionsByRow(actions);
+
     // Check row 0
     if (screenPos.y >= row0Y && screenPos.y <= row0Y + buttonSize) {
         float buttonX = panelX + Constants::ACTION_BAR_PADDING;
-        for (int idx : row0Indices) {
+        for (size_t idx : row0Indices) {
             if (screenPos.x >= buttonX && screenPos.x <= buttonX + buttonSize) {
-                return idx;
+                return static_cast<int>(idx);
             }
             buttonX += buttonSize + buttonSpacing;
         }
     }
-    
+
     // Check row 1
     if (screenPos.y >= row1Y && screenPos.y <= row1Y + buttonSize) {
         float buttonX = panelX + Constants::ACTION_BAR_PADDING;
-        for (int idx : row1Indices) {
+        for (size_t idx : row1Indices) {
             if (screenPos.x >= buttonX && screenPos.x <= buttonX + buttonSize) {
-                return idx;
+                return static_cast<int>(idx);
             }
             buttonX += buttonSize + buttonSpacing;
         }
@@ -345,11 +351,7 @@ void ActionBar::renderTooltip(sf::RenderWindow& window, EntityPtr entity) {
     float btnSize   = Constants::ACTION_BAR_BUTTON_SIZE;
     float btnSpacing= Constants::ACTION_BAR_BUTTON_SPACING;
 
-    std::vector<size_t> row0, row1;
-    for (size_t i = 0; i < actions.size(); ++i) {
-        if (actions[i].row == 0) row0.push_back(i);
-        else                     row1.push_back(i);
-    }
+    auto [row0, row1] = splitActionsByRow(actions);
 
     float buttonX = 0.f, buttonY = 0.f;
     bool found = false;
@@ -404,17 +406,8 @@ void ActionBar::renderButtons(sf::RenderWindow& window, EntityPtr entity, Player
     float buttonSize = Constants::ACTION_BAR_BUTTON_SIZE;
     float buttonSpacing = Constants::ACTION_BAR_BUTTON_SPACING;
     
-    // Separate actions by row
-    std::vector<size_t> row0Indices;
-    std::vector<size_t> row1Indices;
-    for (size_t i = 0; i < registryActions.size(); ++i) {
-        if (registryActions[i].row == 0) {
-            row0Indices.push_back(i);
-        } else {
-            row1Indices.push_back(i);
-        }
-    }
-    
+    auto [row0Indices, row1Indices] = splitActionsByRow(registryActions);
+
     // Helper lambda to render a single button
     auto renderButton = [&](size_t actionIndex, float buttonX, float buttonY) {
         const auto& action = registryActions[actionIndex];

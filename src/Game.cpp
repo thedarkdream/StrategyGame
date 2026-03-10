@@ -513,9 +513,8 @@ EntityPtr Game::spawnBuilding(EntityType type, Team team, sf::Vector2f position,
         
         // Place on map
         sf::Vector2i buildingSize = ResourceManager::getBuildingSize(type);
-        int tileX = static_cast<int>((position.x - buildingSize.x * Constants::TILE_SIZE / 2.0f) / Constants::TILE_SIZE);
-        int tileY = static_cast<int>((position.y - buildingSize.y * Constants::TILE_SIZE / 2.0f) / Constants::TILE_SIZE);
-        m_map.placeBuilding(tileX, tileY, buildingSize.x, buildingSize.y, building);
+        sf::Vector2i tile = MathUtil::buildingTileOrigin(position, buildingSize, Constants::TILE_SIZE);
+        m_map.placeBuilding(tile.x, tile.y, buildingSize.x, buildingSize.y, building);
         
         if (Player* p = getPlayerByTeam(team)) {
             p->addBuilding(building);
