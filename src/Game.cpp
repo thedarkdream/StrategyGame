@@ -537,27 +537,27 @@ void Game::depositResources(Team team, int amount) {
     if (Player* p = getPlayerByTeam(team)) p->addResources(amount, 0);
 }
 
-void Game::issueMoveCommand(sf::Vector2f target) {
-    getActions().move(getPlayer().getSelection(), target);
+void Game::issueMoveCommand(sf::Vector2f target, bool append) {
+    getActions().move(getPlayer().getSelection(), target, append);
 }
 
-void Game::issueFollowCommand(EntityPtr target) {
-    getActions().follow(getPlayer().getSelection(), target);
+void Game::issueFollowCommand(EntityPtr target, bool append) {
+    getActions().follow(getPlayer().getSelection(), target, append);
 }
 
-void Game::issueAttackMoveCommand(sf::Vector2f target) {
-    getActions().attackMove(getPlayer().getSelection(), target);
+void Game::issueAttackMoveCommand(sf::Vector2f target, bool append) {
+    getActions().attackMove(getPlayer().getSelection(), target, append);
 }
 
-void Game::issueAttackCommand(EntityPtr target) {
-    getActions().attack(getPlayer().getSelection(), target);
+void Game::issueAttackCommand(EntityPtr target, bool append) {
+    getActions().attack(getPlayer().getSelection(), target, append);
 }
 
-void Game::issueGatherCommand(EntityPtr resource) {
-    getActions().gather(getPlayer().getSelection(), resource);
+void Game::issueGatherCommand(EntityPtr resource, bool append) {
+    getActions().gather(getPlayer().getSelection(), resource, append);
 }
 
-void Game::issueBuildCommand(EntityType buildingType, sf::Vector2f position) {
+void Game::issueBuildCommand(EntityType buildingType, sf::Vector2f position, bool append) {
     // Use the first selected worker so the player's chosen unit does the building,
     // rather than auto-picking the nearest idle worker.
     Worker* selectedWorker = nullptr;
@@ -569,11 +569,11 @@ void Game::issueBuildCommand(EntityType buildingType, sf::Vector2f position) {
             }
         }
     }
-    getActions().constructBuilding(buildingType, position, selectedWorker);
+    getActions().constructBuilding(buildingType, position, selectedWorker, append);
 }
 
-void Game::issueContinueBuildCommand(EntityPtr building) {
-    getActions().continueConstruction(building, getPlayer().getSelection());
+void Game::issueContinueBuildCommand(EntityPtr building, bool append) {
+    getActions().continueConstruction(building, getPlayer().getSelection(), append);
 }
 
 void Game::cancelBuildingConstruction(EntityPtr building) {

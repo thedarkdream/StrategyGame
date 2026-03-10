@@ -74,13 +74,13 @@ public:
     PlayerActions& getActions(int slot)   { return *m_actions[slot]; }
 
     // Commands (thin wrappers that apply to the local human's selection)
-    void issueMoveCommand(sf::Vector2f target);
-    void issueFollowCommand(EntityPtr target);
-    void issueAttackMoveCommand(sf::Vector2f target);
-    void issueAttackCommand(EntityPtr target);
-    void issueGatherCommand(EntityPtr resource);
-    void issueBuildCommand(EntityType buildingType, sf::Vector2f position);
-    void issueContinueBuildCommand(EntityPtr building);
+    void issueMoveCommand(sf::Vector2f target, bool append = false);
+    void issueFollowCommand(EntityPtr target, bool append = false);
+    void issueAttackMoveCommand(sf::Vector2f target, bool append = false);
+    void issueAttackCommand(EntityPtr target, bool append = false);
+    void issueGatherCommand(EntityPtr resource, bool append = false);
+    void issueBuildCommand(EntityType buildingType, sf::Vector2f position, bool append = false);
+    void issueContinueBuildCommand(EntityPtr building, bool append = false);
     void cancelBuildingConstruction(EntityPtr building);
     
 private:

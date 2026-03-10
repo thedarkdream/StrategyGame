@@ -28,7 +28,7 @@ bool PlayerActions::trainUnit(BuildingPtr building, EntityType type) {
     return true;
 }
 
-bool PlayerActions::constructBuilding(EntityType type, sf::Vector2f worldPos, Worker* worker) {
+bool PlayerActions::constructBuilding(EntityType type, sf::Vector2f worldPos, Worker* worker, bool append) {
     int mineralCost = ResourceManager::getMineralCost(type);
     if (!m_player.canAfford(mineralCost, 0)) return false;
 
@@ -60,16 +60,35 @@ bool PlayerActions::constructBuilding(EntityType type, sf::Vector2f worldPos, Wo
         tileY * Constants::TILE_SIZE + pixelSize.y / 2.0f
     );
     EntityPtr newBuilding = m_game.spawnBuilding(type, m_player.getTeam(), buildPos, false);
-    if (newBuilding) worker->buildAt(newBuilding);
+    if (newBuilding) {
+        if (append) {
+            std::weak_ptr<Entity> bWeak = newBuilding;
+            worker->appendToQueue([worker, bWeak]{
+                if (auto b = bWeak.lock(); b && b->isAlive()) worker->buildAt(b);
+            });
+        } else {
+            worker->clearActionQueue();
+            worker->buildAt(newBuilding);
+        }
+    }
     return newBuilding != nullptr;
 }
 
-void PlayerActions::continueConstruction(EntityPtr building, const std::vector<EntityPtr>& units) {
+void PlayerActions::continueConstruction(EntityPtr building, const std::vector<EntityPtr>& units, bool append) {
     if (!building) return;
+    std::weak_ptr<Entity> bWeak = building;
     for (const auto& entity : units) {
         if (entity && entity->isAlive()) {
-            if (Worker* w = entity->asWorker())
-                w->buildAt(building);
+            if (Worker* w = entity->asWorker()) {
+                if (append) {
+                    w->appendToQueue([w, bWeak]{
+                        if (auto b = bWeak.lock(); b && b->isAlive()) w->buildAt(b);
+                    });
+                } else {
+                    w->clearActionQueue();
+                    w->buildAt(building);
+                }
+            }
         }
     }
 }
@@ -96,32 +115,81 @@ void PlayerActions::cancelConstruction(EntityPtr entity) {
 // Unit orders
 // ---------------------------------------------------------------------------
 
-void PlayerActions::move(const std::vector<EntityPtr>& units, sf::Vector2f target) {
-    for (const auto& e : units)
-        if (auto* u = e->asUnit()) u->moveTo(target);
+void PlayerActions::move(const std::vector<EntityPtr>& units, sf::Vector2f target, bool append) {
+    for (const auto& e : units) {
+        if (auto* u = e->asUnit()) {
+            if (append) {
+                u->appendToQueue([u, target]{ u->moveTo(target); });
+            } else {
+                u->clearActionQueue();
+                u->moveTo(target);
+            }
+        }
+    }
 }
 
-void PlayerActions::follow(const std::vector<EntityPtr>& units, EntityPtr target) {
+void PlayerActions::follow(const std::vector<EntityPtr>& units, EntityPtr target, bool append) {
     if (m_isLocal && target) target->startHighlight();
-    for (const auto& e : units)
-        if (auto* u = e->asUnit(); u && e != target) u->follow(target);
+    std::weak_ptr<Entity> tWeak = target;
+    for (const auto& e : units) {
+        if (auto* u = e->asUnit(); u && e != target) {
+            if (append) {
+                u->appendToQueue([u, tWeak]{
+                    if (auto t = tWeak.lock(); t && t->isAlive()) u->follow(t);
+                });
+            } else {
+                u->clearActionQueue();
+                u->follow(target);
+            }
+        }
+    }
 }
 
-void PlayerActions::attack(const std::vector<EntityPtr>& units, EntityPtr target) {
+void PlayerActions::attack(const std::vector<EntityPtr>& units, EntityPtr target, bool append) {
     if (m_isLocal && target) target->startHighlight();
-    for (const auto& e : units)
-        if (auto* u = e->asUnit()) u->attack(target);
+    std::weak_ptr<Entity> tWeak = target;
+    for (const auto& e : units) {
+        if (auto* u = e->asUnit()) {
+            if (append) {
+                u->appendToQueue([u, tWeak]{
+                    if (auto t = tWeak.lock(); t && t->isAlive()) u->attack(t);
+                });
+            } else {
+                u->clearActionQueue();
+                u->attack(target);
+            }
+        }
+    }
 }
 
-void PlayerActions::attackMove(const std::vector<EntityPtr>& units, sf::Vector2f target) {
-    for (const auto& e : units)
-        if (auto* u = e->asUnit()) u->attackMoveTo(target);
+void PlayerActions::attackMove(const std::vector<EntityPtr>& units, sf::Vector2f target, bool append) {
+    for (const auto& e : units) {
+        if (auto* u = e->asUnit()) {
+            if (append) {
+                u->appendToQueue([u, target]{ u->attackMoveTo(target); });
+            } else {
+                u->clearActionQueue();
+                u->attackMoveTo(target);
+            }
+        }
+    }
 }
 
-void PlayerActions::gather(const std::vector<EntityPtr>& units, EntityPtr resource) {
-    if (m_isLocal && resource) resource->startHighlight();
-    for (const auto& e : units)
-        if (Worker* w = e->asWorker()) w->gather(resource);
+void PlayerActions::gather(const std::vector<EntityPtr>& units, EntityPtr resource, bool append) {
+    if (m_isLocal && resource && !append) resource->startHighlight();
+    std::weak_ptr<Entity> rWeak = resource;
+    for (const auto& e : units) {
+        if (Worker* w = e->asWorker()) {
+            if (append) {
+                w->appendToQueue([w, rWeak]{
+                    if (auto r = rWeak.lock(); r && r->isAlive()) w->gather(r);
+                });
+            } else {
+                w->clearActionQueue();
+                w->gather(resource);
+            }
+        }
+    }
 }
 
 void PlayerActions::stop(const std::vector<EntityPtr>& units) {

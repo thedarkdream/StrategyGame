@@ -154,6 +154,7 @@ void Unit::attack(EntityPtr target) {
 }
 
 void Unit::stop() {
+    m_actionQueue.clear();
     m_state = UnitState::Idle;
     m_targetPosition = m_position;
     m_path.clear();
@@ -172,6 +173,32 @@ void Unit::follow(EntityPtr target) {
     m_state = UnitState::Following;
     playAnimation(AnimationState::Walk);
     findPath(target->getPosition());
+}
+
+// ---------------------------------------------------------------------------
+// Action queue
+// ---------------------------------------------------------------------------
+
+void Unit::clearActionQueue() {
+    m_actionQueue.clear();
+}
+
+void Unit::appendToQueue(std::function<void()> action) {
+    // Execute immediately if the unit is idle and has nothing pending;
+    // otherwise append so it runs after the current action finishes.
+    if (m_state == UnitState::Idle && m_actionQueue.empty()) {
+        action();
+    } else {
+        m_actionQueue.push_back(std::move(action));
+    }
+}
+
+bool Unit::popNextAction() {
+    if (m_actionQueue.empty()) return false;
+    auto action = std::move(m_actionQueue.front());
+    m_actionQueue.pop_front();
+    action();
+    return true;
 }
 
 void Unit::takeDamage(int damage, EntityPtr attacker) {
@@ -208,7 +235,7 @@ void Unit::updateIdle(float deltaTime) {
 
 void Unit::updateMovement(float deltaTime) {
     if (hasGroupArrived(deltaTime)) {
-        m_state = UnitState::Idle;
+        if (!popNextAction()) m_state = UnitState::Idle;
         return;
     }
     followPath(deltaTime);
@@ -243,7 +270,7 @@ void Unit::updateAttackMove(float deltaTime) {
     
     // No enemies in range - continue moving to destination
     if (hasGroupArrived(deltaTime)) {
-        m_state = UnitState::Idle;
+        if (!popNextAction()) m_state = UnitState::Idle;
         return;
     }
     followPath(deltaTime);
@@ -252,7 +279,7 @@ void Unit::updateAttackMove(float deltaTime) {
 void Unit::updateCombat(float deltaTime) {
     auto target = m_targetEntity.lock();
     if (!target || !target->isAlive()) {
-        m_state = UnitState::Idle;
+        if (!popNextAction()) m_state = UnitState::Idle;
         return;
     }
     
@@ -283,8 +310,8 @@ void Unit::updateFollowing(float deltaTime) {
     auto target = m_followTarget.lock();
     if (!target || !target->isAlive()) {
         // Target gone - stop following
-        m_state = UnitState::Idle;
         m_followTarget.reset();
+        if (!popNextAction()) m_state = UnitState::Idle;
         return;
     }
     

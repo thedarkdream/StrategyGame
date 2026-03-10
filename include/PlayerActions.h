@@ -36,11 +36,12 @@ public:
     // worldPos: world-space point anywhere inside the desired tile footprint.
     // worker:   explicit worker to assign, or nullptr to auto-pick the nearest
     //           idle worker owned by this player.
-    bool constructBuilding(EntityType type, sf::Vector2f worldPos, Worker* worker = nullptr);
+    // append:   if true, the worker's movement is queued rather than issued immediately.
+    bool constructBuilding(EntityType type, sf::Vector2f worldPos, Worker* worker = nullptr, bool append = false);
 
     // Send units (typically workers from selection) to continue building an
     // existing incomplete foundation.
-    void continueConstruction(EntityPtr building, const std::vector<EntityPtr>& units);
+    void continueConstruction(EntityPtr building, const std::vector<EntityPtr>& units, bool append = false);
 
     // Cancel an incomplete building: release builder, free tiles, refund cost.
     void cancelConstruction(EntityPtr building);
@@ -48,12 +49,14 @@ public:
     // --- Unit orders -----------------------------------------------------
     // All methods accept an explicit entity list so they work identically for
     // selection-based (human) and programmatic (AI) callers.
+    // append: when true the action is appended to each unit's queue (shift+click
+    //         behaviour) instead of replacing the current action.
 
-    void move(const std::vector<EntityPtr>& units, sf::Vector2f target);
-    void follow(const std::vector<EntityPtr>& units, EntityPtr target);
-    void attack(const std::vector<EntityPtr>& units, EntityPtr target);
-    void attackMove(const std::vector<EntityPtr>& units, sf::Vector2f target);
-    void gather(const std::vector<EntityPtr>& units, EntityPtr resource);
+    void move(const std::vector<EntityPtr>& units, sf::Vector2f target, bool append = false);
+    void follow(const std::vector<EntityPtr>& units, EntityPtr target, bool append = false);
+    void attack(const std::vector<EntityPtr>& units, EntityPtr target, bool append = false);
+    void attackMove(const std::vector<EntityPtr>& units, sf::Vector2f target, bool append = false);
+    void gather(const std::vector<EntityPtr>& units, EntityPtr resource, bool append = false);
     void stop(const std::vector<EntityPtr>& units);
 
 private:

@@ -2,6 +2,8 @@
 
 #include "Entity.h"
 #include "IUnitContext.h"
+#include <deque>
+#include <functional>
 
 class Map;
 
@@ -21,6 +23,10 @@ public:
     virtual void attack(EntityPtr target);
     void follow(EntityPtr target);  // Follow an allied unit
     void stop();
+
+    // Action queue: shift+click appends; any non-shift command clears and executes immediately.
+    void clearActionQueue();
+    void appendToQueue(std::function<void()> action);  // executes immediately if currently idle
     
     // Combat - override to auto-retaliate when attacked while idle
     void takeDamage(int damage, EntityPtr attacker) override;
@@ -54,6 +60,10 @@ public:
     sf::Vector2f getVelocity() const { return m_velocity; }
     
 protected:
+    // Pops and executes the next queued action; returns true if something was dispatched.
+    // Call instead of "m_state = Idle" at natural action-completion points.
+    bool popNextAction();
+
     // State update methods - can be overridden by subclasses
     virtual void updateIdle(float deltaTime);
     virtual void updateMovement(float deltaTime);
@@ -75,6 +85,9 @@ protected:
     float getDistanceTo(EntityPtr entity) const;
     sf::Vector2f computeRVOVelocity(sf::Vector2f preferredVelocity, float deltaTime);
     
+    // Action queue (populated by shift+commands)
+    std::deque<std::function<void()>> m_actionQueue;
+
     // State
     UnitState m_state = UnitState::Idle;
     float m_speed;

@@ -109,7 +109,7 @@ void Worker::updateGathering(float deltaTime) {
                 return;
             }
         }
-        m_state = UnitState::Idle;
+        if (!popNextAction()) m_state = UnitState::Idle;
         return;
     }
     
@@ -172,7 +172,7 @@ void Worker::updateGathering(float deltaTime) {
                         return;
                     }
                 }
-                m_state = UnitState::Idle;
+                if (!popNextAction()) m_state = UnitState::Idle;
             }
         }
     }
@@ -187,7 +187,7 @@ void Worker::updateReturning(float deltaTime) {
         // Search for a new base using the map callback (would need to be added)
         // For now, just drop resources and go idle
         m_carriedResources = 0;
-        m_state = UnitState::Idle;
+        if (!popNextAction()) m_state = UnitState::Idle;
         return;
     }
     
@@ -216,7 +216,7 @@ void Worker::updateReturning(float deltaTime) {
                     return;
                 }
             }
-            m_state = UnitState::Idle;
+            if (!popNextAction()) m_state = UnitState::Idle;
         }
     }
 }
@@ -245,6 +245,15 @@ void Worker::buildAt(EntityPtr building) {
     releaseBuildClaim();
     
     m_buildTarget = building;
+
+    // Pre-claim the builder slot immediately so no other worker can grab it while
+    // this worker is walking.  Any previous builder is displaced — they will idle
+    // when their updateBuilding runs and sees the slot is now taken by this worker.
+    if (Building* b = building->asBuilding(); b && !b->isConstructed()) {
+        b->releaseBuilder();  // No-op if slot is empty; otherwise displaces old holder
+        auto self = std::dynamic_pointer_cast<Entity>(shared_from_this());
+        b->assignBuilder(self);
+    }
     
     // Calculate the closest point on the building's edge from our current position
     sf::FloatRect bounds = building->getBounds();
@@ -286,13 +295,13 @@ void Worker::updateBuilding(float deltaTime) {
         // Building was destroyed
         releaseBuildClaim();
         m_buildTarget.reset();
-        m_state = UnitState::Idle;
+        if (!popNextAction()) m_state = UnitState::Idle;
         return;
     }
     
     Building* building = target->asBuilding();
     if (!building) {
-        m_state = UnitState::Idle;
+        if (!popNextAction()) m_state = UnitState::Idle;
         return;
     }
     
@@ -300,7 +309,7 @@ void Worker::updateBuilding(float deltaTime) {
     if (building->isConstructed()) {
         releaseBuildClaim();
         m_buildTarget.reset();
-        m_state = UnitState::Idle;
+        if (!popNextAction()) m_state = UnitState::Idle;
         return;
     }
     
@@ -336,7 +345,7 @@ void Worker::updateBuilding(float deltaTime) {
                 building->assignBuilder(self);
             } else {
                 // Another worker is actively building — nothing for us to do
-                m_state = UnitState::Idle;
+                if (!popNextAction()) m_state = UnitState::Idle;
                 m_buildTarget.reset();
                 return;
             }

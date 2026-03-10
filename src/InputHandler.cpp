@@ -171,6 +171,9 @@ void InputHandler::centerCameraAt(sf::Vector2f worldPos) {
 }
 
 void InputHandler::handleMousePress(sf::Vector2i position, sf::Mouse::Button button) {
+    const bool shift = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift) ||
+                       sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RShift);
+
     // Check if clicking on minimap first
     if (button == sf::Mouse::Button::Left && isPositionOnMinimap(position)) {
         m_isDraggingMinimap = true;
@@ -197,31 +200,31 @@ void InputHandler::handleMousePress(sf::Vector2i position, sf::Mouse::Button but
                     // Check if clicking on an ally unit - issue follow command
                     if (target && target->getTeam() == player.getTeam()) {
                         if (target->asUnit()) {
-                            m_game.issueFollowCommand(target);
+                            m_game.issueFollowCommand(target, shift);
                         } else {
                             // Clicked on own building - just move to location
                             EFFECTS.spawnMoveEffect(worldPos, 1.0f);
-                            m_game.issueMoveCommand(worldPos);
+                            m_game.issueMoveCommand(worldPos, shift);
                         }
                     } else {
                         EFFECTS.spawnMoveEffect(worldPos, 1.0f);
-                        m_game.issueMoveCommand(worldPos);
+                        m_game.issueMoveCommand(worldPos, shift);
                     }
                     break;
                 case TargetingAction::Attack:
                     if (target) {
                         // Attack any target (including allies) when using Attack action
-                        m_game.issueAttackCommand(target);
+                        m_game.issueAttackCommand(target, shift);
                     } else {
                         // Attack-move to location (move while attacking enemies on the way)
                         EFFECTS.spawnMoveEffect(worldPos, 1.0f);
-                        m_game.issueAttackMoveCommand(worldPos);
+                        m_game.issueAttackMoveCommand(worldPos, shift);
                     }
                     break;
                 case TargetingAction::Gather:
                     if (target && (target->getType() == EntityType::MineralPatch || 
                                    target->getType() == EntityType::GasGeyser)) {
-                        m_game.issueGatherCommand(target);
+                        m_game.issueGatherCommand(target, shift);
                     }
                     break;
                 default:
@@ -230,7 +233,7 @@ void InputHandler::handleMousePress(sf::Vector2i position, sf::Mouse::Button but
             exitTargetingMode();
         } else if (m_buildMode) {
             // Place building
-            m_game.issueBuildCommand(m_buildingToBuild, worldPos);
+            m_game.issueBuildCommand(m_buildingToBuild, worldPos, shift);
             exitBuildMode();
         } else {
             // Start selection box
@@ -254,30 +257,30 @@ void InputHandler::handleMousePress(sf::Vector2i position, sf::Mouse::Button but
                 if (target) {
                     if (target->getTeam() != player.getTeam() && target->getTeam() != Team::Neutral) {
                         // Attack enemy
-                        m_game.issueAttackCommand(target);
+                        m_game.issueAttackCommand(target, shift);
                     } else if (target->getType() == EntityType::MineralPatch || 
                                target->getType() == EntityType::GasGeyser) {
                         // Gather resources
-                        m_game.issueGatherCommand(target);
+                        m_game.issueGatherCommand(target, shift);
                     } else if (auto* building = target->asBuilding()) {
                         // Check if incomplete building - send workers to continue building
                         if (!building->isConstructed() && target->getTeam() == player.getTeam()) {
-                            m_game.issueContinueBuildCommand(target);
+                            m_game.issueContinueBuildCommand(target, shift);
                         } else {
                             // Move to location (right-click on own completed building)
-                            m_game.issueMoveCommand(worldPos);
+                            m_game.issueMoveCommand(worldPos, shift);
                         }
                     } else if (target->asUnit() && target->getTeam() == player.getTeam()) {
                         // Right-click on allied unit - follow them
-                        m_game.issueFollowCommand(target);
+                        m_game.issueFollowCommand(target, shift);
                     } else {
                         // Move to location
-                        m_game.issueMoveCommand(worldPos);
+                        m_game.issueMoveCommand(worldPos, shift);
                     }
                 } else {
                     // Move to location
                     EFFECTS.spawnMoveEffect(worldPos, 1.0f);
-                    m_game.issueMoveCommand(worldPos);
+                    m_game.issueMoveCommand(worldPos, shift);
                 }
             }
         }
