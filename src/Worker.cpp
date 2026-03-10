@@ -320,13 +320,29 @@ void Worker::updateBuilding(float deltaTime) {
         // Walk animation already set when buildAt was called
     } else {
         // At building - start constructing
-        // Try to assign ourselves as the builder
         auto self = std::dynamic_pointer_cast<Entity>(shared_from_this());
+
         if (!building->hasBuilder()) {
             building->assignBuilder(self);
+        } else if (building->getBuilder().get() != this) {
+            // Someone else holds the builder slot — check if they are still building.
+            // They may have walked away (issued a move/attack command) without releasing
+            // the claim, in which case we can safely take over.
+            EntityPtr currentBuilder = building->getBuilder();
+            Worker* otherWorker = currentBuilder ? currentBuilder->asWorker() : nullptr;
+            if (!otherWorker || !otherWorker->isBuilding()) {
+                // Previous builder abandoned the construction — steal the claim
+                building->releaseBuilder();
+                building->assignBuilder(self);
+            } else {
+                // Another worker is actively building — nothing for us to do
+                m_state = UnitState::Idle;
+                m_buildTarget.reset();
+                return;
+            }
         }
-        
-        // Only add progress if we are the assigned builder
+
+        // We are the assigned builder — contribute progress
         if (building->getBuilder().get() == this) {
             float constructionTime = building->getConstructionTime();
             float progressPerSecond = 1.0f / constructionTime;
@@ -335,14 +351,9 @@ void Worker::updateBuilding(float deltaTime) {
             // Face the building
             sf::Vector2f direction = target->getPosition() - m_position;
             updateSpriteDirection(direction);
-            // Switch to idle/build animation only once when we start building
             if (m_animatedSprite.getCurrentAnimationName() != AnimationState::Idle) {
-                playAnimation(AnimationState::Idle);  // Or a build animation if available
+                playAnimation(AnimationState::Idle);
             }
-        } else {
-            // Another worker is building - stop and wait or go idle
-            m_state = UnitState::Idle;
-            m_buildTarget.reset();
         }
     }
 }
