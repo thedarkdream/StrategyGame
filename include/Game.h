@@ -106,7 +106,6 @@ private:
     // Initialization
     void initialize();
     void preloadAssets();   // Load all sounds & textures upfront to avoid mid-game hitches
-    void setupStartingUnits();
     void setupFromMapData(const MapData& data);  // Initialize from editor-saved map
     void cleanupDeadEntities();
     void checkVictoryConditions();

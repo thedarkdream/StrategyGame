@@ -70,7 +70,7 @@ const sf::Color COL_ITEM_SEL_OUT  = sf::Color(255, 220,  50);
 // Constructor
 // ===========================================================================
 MapEditorScreen::MapEditorScreen()
-    : m_map(Constants::MAP_WIDTH, Constants::MAP_HEIGHT, /*generateRandom=*/false)
+    : m_map(Constants::MAP_WIDTH, Constants::MAP_HEIGHT)
     , m_gridLines(sf::PrimitiveType::Lines)
 {
     m_font = FontManager::instance().defaultFont();
@@ -1009,7 +1009,7 @@ void MapEditorScreen::applyMapData(const MapData& data) {
     if (teamToIndex(m_bldTeam)  >= m_mapPlayerCount) m_bldTeam  = Team::Player1;
     if (teamToIndex(m_unitTeam) >= m_mapPlayerCount) m_unitTeam = Team::Player1;
 
-    m_map = Map(m_mapW, m_mapH, /*generateRandom=*/false);
+    m_map = Map(m_mapW, m_mapH);
     m_placedEntities.clear();
 
     for (const auto& t : data.tiles)
@@ -1143,7 +1143,7 @@ void MapEditorScreen::confirmNewMap() {
     m_mapName        = "untitled";
     m_bldTeam        = Team::Player1;
     m_unitTeam       = Team::Player1;
-    m_map            = Map(m_mapW, m_mapH, /*generateRandom=*/false);
+    m_map            = Map(m_mapW, m_mapH);
     m_placedEntities.clear();
     m_gridDirty      = true;
     buildLayout(m_lastWinSize);

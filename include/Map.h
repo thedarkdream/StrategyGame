@@ -7,7 +7,7 @@
 
 class Map {
 public:
-    Map(int width = Constants::MAP_WIDTH, int height = Constants::MAP_HEIGHT, bool generateRandom = true);
+    Map(int width = Constants::MAP_WIDTH, int height = Constants::MAP_HEIGHT);
     
     void render(sf::RenderTarget& target, const sf::View& camera);
     
@@ -31,10 +31,6 @@ public:
     
     // Pathfinding (simple A*)
     std::vector<sf::Vector2f> findPath(sf::Vector2f start, sf::Vector2f end);
-    
-    // Map generation
-    void generateRandomMap();
-    void addMineralPatches(std::vector<sf::Vector2f>& mineralPositions);
     
     // Editor
     void initEmpty();   // Reset all tiles to Ground

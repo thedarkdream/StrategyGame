@@ -15,7 +15,6 @@
 #include <algorithm>
 #include <iostream>
 #include <cmath>
-#include <cstdlib>
 
 Game::Game(sf::RenderWindow& window, const std::string& mapFile, int localPlayerSlot)
     : m_window(window)
@@ -109,16 +108,11 @@ void Game::initialize() {
     // Preload all assets so nothing freezes during gameplay
     preloadAssets();
 
-    // Setup starting units – either from the loaded map or the default procedural setup
+    // Load map – game requires a valid .stmap file
     if (mapData) {
         setupFromMapData(*mapData);
-    } else if (!m_mapFile.empty() && m_mapFile != "default") {
-        // Map was specified but failed to load
-        std::cerr << "Game: failed to load map '" << m_mapFile
-                  << "', falling back to default setup.\n";
-        setupStartingUnits();
     } else {
-        setupStartingUnits();
+        std::cerr << "Game: failed to load map '" << m_mapFile << "'.\n";
     }
 }
 
@@ -130,111 +124,6 @@ void Game::preloadAssets() {
     LightTank::preload();
     Projectile::preload();
     EffectsManager::preload();
-}
-
-void Game::setupStartingUnits() {
-    // Player starting position - snap to tile grid
-    // Base is 3x3 tiles, place at tile (5, 5) - center position
-    int playerTileX = 5;
-    int playerTileY = 5;
-    sf::Vector2i baseSize = ResourceManager::getBuildingSize(EntityType::Base);
-    sf::Vector2f playerStart(
-        playerTileX * Constants::TILE_SIZE + baseSize.x * Constants::TILE_SIZE / 2.0f,
-        playerTileY * Constants::TILE_SIZE + baseSize.y * Constants::TILE_SIZE / 2.0f
-    );
-    
-    // Enemy starting position - snap to tile grid (bottom-right area)
-    int enemyTileX = Constants::MAP_WIDTH - 5 - baseSize.x;
-    int enemyTileY = Constants::MAP_HEIGHT - 5 - baseSize.y;
-    sf::Vector2f enemyStart(
-        enemyTileX * Constants::TILE_SIZE + baseSize.x * Constants::TILE_SIZE / 2.0f,
-        enemyTileY * Constants::TILE_SIZE + baseSize.y * Constants::TILE_SIZE / 2.0f
-    );
-    
-    // Create player's base
-    auto playerBase = ResourceManager::createBase(Team::Player1, playerStart);
-    playerBase->onUnitProduced = [this](EntityType type, sf::Vector2f pos) {
-        spawnUnit(type, Team::Player1, pos);
-    };
-    playerBase->onProductionCancelled = [this](EntityType type) {
-        if (Player* p = getPlayerByTeam(Team::Player1)) p->addResources(ResourceManager::getMineralCost(type), 0);
-    };
-    m_players[0]->addBuilding(playerBase);
-    addEntity(playerBase);
-    
-    // Mark player base tiles on map
-    m_map.placeBuilding(playerTileX, playerTileY, baseSize.x, baseSize.y, playerBase);
-    
-    // Create player's starting workers
-    for (int i = 0; i < 4; ++i) {
-        sf::Vector2f workerPos = playerStart + sf::Vector2f(60.0f + i * 30.0f, 70.0f);
-        auto worker = ResourceManager::createWorker(Team::Player1, workerPos);
-        setupUnit(worker);
-        if (auto* w = worker->asWorker()) {
-            setupWorker(w, playerBase);
-        }
-        m_players[0]->addUnit(worker);
-        addEntity(worker);
-    }
-
-        // Create player's starting army
-    for (int i = 0; i < 8; ++i) {
-        sf::Vector2f soldierPos = playerStart + sf::Vector2f(60.0f + i * 30.0f, 100.0f);
-        auto soldier = ResourceManager::createSoldier(Team::Player1, soldierPos);
-
-        setupUnit(soldier);
-
-        m_players[0]->addUnit(soldier);
-        addEntity(soldier);
-    }
-
-    // Create enemy's base
-    auto enemyBase = ResourceManager::createBase(Team::Player2, enemyStart);
-    enemyBase->onUnitProduced = [this](EntityType type, sf::Vector2f pos) {
-        spawnUnit(type, Team::Player2, pos);
-    };
-    enemyBase->onProductionCancelled = [this](EntityType type) {
-        if (Player* p = getPlayerByTeam(Team::Player2)) p->addResources(ResourceManager::getMineralCost(type), 0);
-    };
-    m_players[1]->addBuilding(enemyBase);
-    addEntity(enemyBase);
-    
-    // Mark enemy base tiles on map
-    m_map.placeBuilding(enemyTileX, enemyTileY, baseSize.x, baseSize.y, enemyBase);
-    
-    // Create enemy's starting workers
-    for (int i = 0; i < 4; ++i) {
-        sf::Vector2f workerPos = enemyStart + sf::Vector2f(-60.0f - i * 30.0f, -70.0f);
-        auto worker = ResourceManager::createWorker(Team::Player2, workerPos);
-        setupUnit(worker);
-        if (auto* w = worker->asWorker()) {
-            setupWorker(w, enemyBase);
-        }
-        m_players[1]->addUnit(worker);
-        addEntity(worker);
-    }
-    
-    // Create mineral patches near player
-    std::vector<sf::Vector2f> mineralPositions;
-    for (int i = 0; i < 6; ++i) {
-        sf::Vector2f mineralPos = playerStart + sf::Vector2f(150.0f + i * 50.0f, -100.0f);
-        int variant = (std::rand() % 3) + 1;  // Random variant 1-3
-        auto mineral = ResourceManager::createMineralPatch(mineralPos, 1500, variant);
-        mineralPositions.push_back(mineralPos);
-        addEntity(mineral);
-    }
-    
-    // Create mineral patches near enemy
-    for (int i = 0; i < 6; ++i) {
-        sf::Vector2f mineralPos = enemyStart + sf::Vector2f(-150.0f - i * 50.0f, 100.0f);
-        int variant = (std::rand() % 3) + 1;  // Random variant 1-3
-        auto mineral = ResourceManager::createMineralPatch(mineralPos, 1500, variant);
-        mineralPositions.push_back(mineralPos);
-        addEntity(mineral);
-    }
-    
-    m_map.addMineralPatches(mineralPositions);
-    flushPendingEntities();  // Ensure all initialization entities are in m_allEntities
 }
 
 void Game::cleanupDeadEntities() {
@@ -476,7 +365,7 @@ Player* Game::getPlayerByTeam(Team t) {
 
 void Game::setupFromMapData(const MapData& data) {
     // Re-initialise the map to match the saved dimensions
-    m_map = Map(data.width, data.height, /*generateRandom=*/false);
+    m_map = Map(data.width, data.height);
 
     // Apply saved tile types
     for (const auto& t : data.tiles)

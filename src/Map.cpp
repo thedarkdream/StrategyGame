@@ -1,23 +1,18 @@
 #include "Map.h"
 #include "Constants.h"
-#include <random>
 #include <queue>
 #include <unordered_set>
 #include <algorithm>
 #include <cstdint>
 
-Map::Map(int width, int height, bool generateRandom)
+Map::Map(int width, int height)
     : m_width(width)
     , m_height(height)
 {
-    // Initialize tiles
     m_tiles.resize(height);
     for (int y = 0; y < height; ++y) {
         m_tiles[y].resize(width);
     }
-    
-    if (generateRandom)
-        generateRandomMap();
     buildVertexArray();
 }
 
@@ -245,55 +240,6 @@ std::vector<sf::Vector2f> Map::findPath(sf::Vector2f start, sf::Vector2f end) {
     
     // No path found, return direct path
     return { end };
-}
-
-void Map::generateRandomMap() {
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> blockDist(0, 100);
-    
-    for (int y = 0; y < m_height; ++y) {
-        for (int x = 0; x < m_width; ++x) {
-            // Add some random obstacles (5% chance)
-            if (blockDist(gen) < 5) {
-                m_tiles[y][x].type = TileType::Blocked;
-                m_tiles[y][x].walkable = false;
-                m_tiles[y][x].buildable = false;
-            }
-        }
-    }
-    
-    // Clear starting areas (corners)
-    int clearRadius = 10;
-    
-    // Player start area (top-left)
-    for (int y = 0; y < clearRadius; ++y) {
-        for (int x = 0; x < clearRadius; ++x) {
-            m_tiles[y][x].type = TileType::Ground;
-            m_tiles[y][x].walkable = true;
-            m_tiles[y][x].buildable = true;
-        }
-    }
-    
-    // Enemy start area (bottom-right)
-    for (int y = m_height - clearRadius; y < m_height; ++y) {
-        for (int x = m_width - clearRadius; x < m_width; ++x) {
-            m_tiles[y][x].type = TileType::Ground;
-            m_tiles[y][x].walkable = true;
-            m_tiles[y][x].buildable = true;
-        }
-    }
-}
-
-void Map::addMineralPatches(std::vector<sf::Vector2f>& mineralPositions) {
-    // This is called by the game to register mineral positions
-    for (const auto& pos : mineralPositions) {
-        sf::Vector2i tile = worldToTile(pos);
-        if (isValidTile(tile.x, tile.y)) {
-            m_tiles[tile.y][tile.x].type = TileType::Resource;
-            m_tiles[tile.y][tile.x].buildable = false;
-        }
-    }
 }
 
 void Map::initEmpty() {

@@ -25,9 +25,6 @@ MenuScreen::MenuScreen() {
 void MenuScreen::scanForMaps() {
     m_mapFiles.clear();
 
-    // Always include "default" option (procedurally generated map)
-    m_mapFiles.push_back("default");
-
     // Scan maps/ directory for .stmap files
     auto stems = MapSerializer::listMaps("maps");
     for (auto& s : stems)
@@ -143,7 +140,6 @@ void MenuScreen::layoutSlotPicker(sf::Vector2u windowSize) {
 }
 
 int MenuScreen::getMapPlayerCount(const std::string& mapFile) const {
-    if (mapFile == "default") return 2;
     auto data = MapSerializer::load("maps/" + mapFile + ".stmap");
     if (data) return std::max(2, data->playerCount);
     return 2;
@@ -171,9 +167,7 @@ void MenuScreen::layoutMapSelection(sf::Vector2u windowSize) {
     float startY = centerY - 100.0f;
     
     for (size_t i = 0; i < m_mapFiles.size(); ++i) {
-        std::string label = m_mapFiles[i];
-        if (label == "default") label = "Default Map";
-        
+        const std::string& label = m_mapFiles[i];
         Button btn = createButton(label,
             sf::Vector2f(centerX - buttonW / 2.0f, startY + i * (buttonH + spacing)),
             sf::Vector2f(buttonW, buttonH));
