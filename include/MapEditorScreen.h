@@ -55,7 +55,7 @@ private:
 
     // ---- Entity placement ---------------------------------------------------
     EntityType m_pendingEntityType = EntityType::None;
-    Team       m_pendingTeam       = Team::Player;
+    Team       m_pendingTeam       = Team::Player1;
 
     // Preview ghost drawn at hovered tile
     sf::RectangleShape m_placementPreview;
@@ -112,10 +112,8 @@ private:
     PanelButton m_btnSave;
     PanelButton m_btnBack;
 
-    PanelButton m_btnBldTeamPlayer;
-    PanelButton m_btnBldTeamEnemy;
-    PanelButton m_btnUnitTeamPlayer;
-    PanelButton m_btnUnitTeamEnemy;
+    std::vector<PanelButton> m_bldTeamButtons;
+    std::vector<PanelButton> m_unitTeamButtons;
 
     struct EntityItem {
         EntityType              type;
@@ -128,6 +126,18 @@ private:
     std::vector<EntityItem> m_neutralItems;
     std::vector<EntityItem> m_buildingItems;
     std::vector<EntityItem> m_unitItems;
+
+    // ---- New-map dialog -----------------------------------------------------
+    bool m_showNewMapDialog = false;
+    int  m_newMapW = 64, m_newMapH = 64, m_newMapPlayers = 2;
+    sf::RectangleShape       m_newMapOverlayBg;
+    std::optional<sf::Text>  m_lblNewMapTitle;
+    std::optional<sf::Text>  m_lblNewMapSizeHdr;
+    std::optional<sf::Text>  m_lblNewMapPlayersHdr;
+    std::vector<PanelButton> m_newMapSizeButtons;
+    std::vector<PanelButton> m_newMapPlayerBtns;
+    PanelButton              m_btnNewMapConfirm;
+    PanelButton              m_btnNewMapCancel;
 
     // ---- Load overlay -------------------------------------------------------
     bool                    m_showLoadPanel = false;
@@ -142,13 +152,14 @@ private:
     float                    m_statusTimer = 0.f;
 
     // ---- State --------------------------------------------------------------
-    std::string  m_mapName    = "untitled";
-    bool         m_nameActive = false;
-    int          m_mapW       = Constants::MAP_WIDTH;
-    int          m_mapH       = Constants::MAP_HEIGHT;
+    std::string  m_mapName       = "untitled";
+    bool         m_nameActive    = false;
+    int          m_mapW          = Constants::MAP_WIDTH;
+    int          m_mapH          = Constants::MAP_HEIGHT;
+    int          m_mapPlayerCount = 2;
     sf::Vector2u m_lastWinSize = { 0u, 0u };
-    Team         m_bldTeam    = Team::Player;
-    Team         m_unitTeam   = Team::Player;
+    Team         m_bldTeam    = Team::Player1;
+    Team         m_unitTeam   = Team::Player1;
 
     float        m_panelScrollY  = 0.f;
     float        m_panelContentH = 0.f;
@@ -159,6 +170,9 @@ private:
     void buildNeutralItems(float& y);
     void buildBuildingItems(float& y);
     void buildUnitItems(float& y);
+    void buildNewMapDialog(sf::Vector2u winSize);
+    void renderNewMapDialog(sf::RenderWindow& window);
+    void confirmNewMap();
 
     void resetCamera(sf::Vector2u winSize);
     void updateCameraViewport(sf::Vector2u winSize);
@@ -193,6 +207,8 @@ private:
     bool         loadMapByName(const std::string& stem); // reads maps/<stem>.stmap
     void         applyMapData(const MapData& data);      // rebuilds in-editor state
     void         refreshLoadPanel(sf::Vector2u winSize); // populate m_loadButtons
+    static Team  teamFromIndex(int i);
+    static int   teamToIndex(Team t);
 
     // Team colour for preview/placed entity tinting
     static sf::Color teamColor(Team t);

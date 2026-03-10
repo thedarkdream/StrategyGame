@@ -59,16 +59,20 @@ EntityType MapSerializer::stringToEntityType(const std::string& s) {
 
 const char* MapSerializer::teamToString(Team t) {
     switch (t) {
-        case Team::Player:  return "Player";
-        case Team::Enemy:   return "Enemy";
+        case Team::Player1: return "Player1";
+        case Team::Player2: return "Player2";
+        case Team::Player3: return "Player3";
+        case Team::Player4: return "Player4";
         case Team::Neutral: return "Neutral";
     }
     return "Neutral";
 }
 
 Team MapSerializer::stringToTeam(const std::string& s) {
-    if (s == "Player")  return Team::Player;
-    if (s == "Enemy")   return Team::Enemy;
+    if (s == "Player1" || s == "Player") return Team::Player1;  // "Player" = legacy compat
+    if (s == "Player2" || s == "Enemy")  return Team::Player2;  // "Enemy"  = legacy compat
+    if (s == "Player3")                  return Team::Player3;
+    if (s == "Player4")                  return Team::Player4;
     return Team::Neutral;
 }
 
@@ -95,6 +99,7 @@ bool MapSerializer::save(const MapData& data, const std::string& filePath) {
     out << "version " << data.version << "\n";
     out << "name    " << data.name    << "\n";
     out << "size    " << data.width   << " " << data.height << "\n";
+    out << "players " << data.playerCount << "\n";
 
     // Sparse tile list – skip Ground tiles
     for (const auto& t : data.tiles) {
@@ -151,6 +156,8 @@ std::optional<MapData> MapSerializer::load(const std::string& filePath) {
         } else if (key == "size") {
             ss >> data.width >> data.height;
             hasSz = true;
+        } else if (key == "players") {
+            ss >> data.playerCount;
         } else if (key == "tile") {
             MapTileData t;
             std::string typeStr;

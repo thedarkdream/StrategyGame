@@ -13,10 +13,12 @@ Entity::Entity(EntityType type, Team team, sf::Vector2f position)
 {
     // Set color based on team using Constants
     switch (team) {
-        case Team::Player:
+        case Team::Player1:
             m_color = sf::Color(Constants::Colors::PLAYER_COLOR);
             break;
-        case Team::Enemy:
+        case Team::Player2:
+        case Team::Player3:
+        case Team::Player4:
             m_color = sf::Color(Constants::Colors::ENEMY_COLOR);
             break;
         case Team::Neutral:
@@ -100,8 +102,8 @@ void Entity::updateHighlight(float deltaTime) {
 }
 
 void Entity::renderSelectionIndicator(sf::RenderTarget& target) {
-    // Determine team-based color: green for player, red for enemy/neutral
-    sf::Color teamColor = (m_team == Team::Player) ? sf::Color::Green : sf::Color::Red;
+    // Determine team-based color: green for local player's units, red for enemies
+    sf::Color teamColor = m_isLocalTeam ? sf::Color::Green : sf::Color::Red;
     
     // Determine if we should show the selection indicator
     bool showIndicator = m_selected;

@@ -29,7 +29,7 @@ void LightTank::render(sf::RenderTarget& target) {
         ring.setOrigin({radius + 3.0f, radius + 3.0f});
         ring.setPosition(m_position);
         ring.setFillColor(sf::Color::Transparent);
-        if (m_team == Team::Player) {
+        if (m_isLocalTeam) {
             ring.setOutlineColor(sf::Color(0, 220, 0));
         } else {
             ring.setOutlineColor(sf::Color(220, 0, 0));

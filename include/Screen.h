@@ -15,7 +15,8 @@ struct ScreenResult {
     };
     
     Action action = Action::None;
-    std::string mapFile;  // For StartGame: which map to load
+    std::string mapFile;        // For StartGame: which map to load
+    int localPlayerSlot = 0;    // For StartGame: which team slot (0=Player1, 1=Player2…) the human controls
 };
 
 // Abstract base for all screens (menu, game, editor, etc.)

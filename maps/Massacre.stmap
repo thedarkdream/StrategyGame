@@ -1,0 +1,477 @@
+version 1
+name    Massacre
+size    64 64
+players 4
+tile    28 0 Blocked
+tile    29 0 Blocked
+tile    28 1 Blocked
+tile    29 1 Blocked
+tile    30 1 Blocked
+tile    8 2 Resource
+tile    9 2 Resource
+tile    11 2 Resource
+tile    12 2 Resource
+tile    26 2 Blocked
+tile    27 2 Blocked
+tile    28 2 Blocked
+tile    29 2 Blocked
+tile    30 2 Blocked
+tile    50 2 Resource
+tile    51 2 Resource
+tile    53 2 Resource
+tile    54 2 Resource
+tile    5 3 Resource
+tile    6 3 Resource
+tile    7 3 Resource
+tile    8 3 Resource
+tile    10 3 Resource
+tile    11 3 Resource
+tile    13 3 Resource
+tile    14 3 Resource
+tile    29 3 Blocked
+tile    30 3 Blocked
+tile    48 3 Resource
+tile    49 3 Resource
+tile    52 3 Resource
+tile    53 3 Resource
+tile    55 3 Resource
+tile    56 3 Resource
+tile    14 4 Resource
+tile    15 4 Resource
+tile    29 4 Blocked
+tile    30 4 Blocked
+tile    57 4 Resource
+tile    58 4 Resource
+tile    3 5 Resource
+tile    4 5 Resource
+tile    28 5 Blocked
+tile    29 5 Blocked
+tile    30 5 Blocked
+tile    47 5 Resource
+tile    48 5 Resource
+tile    28 6 Blocked
+tile    29 6 Blocked
+tile    30 6 Blocked
+tile    46 6 Resource
+tile    47 6 Resource
+tile    8 7 Building
+tile    9 7 Building
+tile    10 7 Building
+tile    28 7 Blocked
+tile    29 7 Blocked
+tile    30 7 Blocked
+tile    52 7 Building
+tile    53 7 Building
+tile    54 7 Building
+tile    8 8 Building
+tile    9 8 Building
+tile    10 8 Building
+tile    28 8 Blocked
+tile    29 8 Blocked
+tile    30 8 Blocked
+tile    52 8 Building
+tile    53 8 Building
+tile    54 8 Building
+tile    8 9 Building
+tile    9 9 Building
+tile    10 9 Building
+tile    28 9 Blocked
+tile    29 9 Blocked
+tile    30 9 Blocked
+tile    52 9 Building
+tile    53 9 Building
+tile    54 9 Building
+tile    28 10 Blocked
+tile    29 10 Blocked
+tile    30 10 Blocked
+tile    28 11 Blocked
+tile    29 11 Blocked
+tile    30 11 Blocked
+tile    28 12 Blocked
+tile    29 12 Blocked
+tile    30 12 Blocked
+tile    28 13 Blocked
+tile    29 13 Blocked
+tile    28 14 Blocked
+tile    29 14 Blocked
+tile    28 15 Blocked
+tile    29 15 Blocked
+tile    28 16 Blocked
+tile    29 16 Blocked
+tile    28 17 Blocked
+tile    29 17 Blocked
+tile    28 18 Blocked
+tile    29 18 Blocked
+tile    19 19 Blocked
+tile    28 19 Blocked
+tile    29 19 Blocked
+tile    19 20 Blocked
+tile    20 20 Blocked
+tile    28 20 Blocked
+tile    29 20 Blocked
+tile    20 21 Blocked
+tile    21 21 Blocked
+tile    28 21 Blocked
+tile    29 21 Blocked
+tile    38 21 Blocked
+tile    39 21 Blocked
+tile    40 21 Blocked
+tile    41 21 Blocked
+tile    42 21 Blocked
+tile    43 21 Blocked
+tile    21 22 Blocked
+tile    22 22 Blocked
+tile    28 22 Blocked
+tile    29 22 Blocked
+tile    30 22 Blocked
+tile    31 22 Blocked
+tile    32 22 Blocked
+tile    33 22 Blocked
+tile    34 22 Blocked
+tile    35 22 Blocked
+tile    36 22 Blocked
+tile    37 22 Blocked
+tile    38 22 Blocked
+tile    21 23 Blocked
+tile    22 23 Blocked
+tile    22 24 Blocked
+tile    23 24 Blocked
+tile    22 25 Blocked
+tile    23 25 Blocked
+tile    22 26 Blocked
+tile    23 26 Blocked
+tile    22 27 Blocked
+tile    23 27 Blocked
+tile    21 28 Blocked
+tile    22 28 Blocked
+tile    23 28 Blocked
+tile    3 29 Blocked
+tile    5 29 Blocked
+tile    7 29 Blocked
+tile    8 29 Blocked
+tile    10 29 Blocked
+tile    11 29 Blocked
+tile    12 29 Blocked
+tile    13 29 Blocked
+tile    14 29 Blocked
+tile    16 29 Blocked
+tile    20 29 Blocked
+tile    21 29 Blocked
+tile    22 29 Blocked
+tile    44 29 Blocked
+tile    45 29 Blocked
+tile    46 29 Blocked
+tile    47 29 Blocked
+tile    48 29 Blocked
+tile    49 29 Blocked
+tile    50 29 Blocked
+tile    51 29 Blocked
+tile    52 29 Blocked
+tile    53 29 Blocked
+tile    54 29 Blocked
+tile    55 29 Blocked
+tile    56 29 Blocked
+tile    57 29 Blocked
+tile    58 29 Blocked
+tile    59 29 Blocked
+tile    60 29 Blocked
+tile    61 29 Blocked
+tile    62 29 Blocked
+tile    63 29 Blocked
+tile    0 30 Blocked
+tile    1 30 Blocked
+tile    2 30 Blocked
+tile    4 30 Blocked
+tile    5 30 Blocked
+tile    6 30 Blocked
+tile    7 30 Blocked
+tile    8 30 Blocked
+tile    9 30 Blocked
+tile    10 30 Blocked
+tile    11 30 Blocked
+tile    12 30 Blocked
+tile    13 30 Blocked
+tile    14 30 Blocked
+tile    15 30 Blocked
+tile    16 30 Blocked
+tile    17 30 Blocked
+tile    18 30 Blocked
+tile    19 30 Blocked
+tile    20 30 Blocked
+tile    21 30 Blocked
+tile    22 30 Blocked
+tile    36 30 Blocked
+tile    37 30 Blocked
+tile    38 30 Blocked
+tile    39 30 Blocked
+tile    40 30 Blocked
+tile    41 30 Blocked
+tile    42 30 Blocked
+tile    43 30 Blocked
+tile    44 30 Blocked
+tile    45 30 Blocked
+tile    46 30 Blocked
+tile    47 30 Blocked
+tile    48 30 Blocked
+tile    49 30 Blocked
+tile    50 30 Blocked
+tile    51 30 Blocked
+tile    52 30 Blocked
+tile    53 30 Blocked
+tile    54 30 Blocked
+tile    55 30 Blocked
+tile    56 30 Blocked
+tile    0 31 Blocked
+tile    1 31 Blocked
+tile    2 31 Blocked
+tile    3 31 Blocked
+tile    4 31 Blocked
+tile    5 31 Blocked
+tile    6 31 Blocked
+tile    7 31 Blocked
+tile    8 31 Blocked
+tile    9 31 Blocked
+tile    10 31 Blocked
+tile    11 31 Blocked
+tile    12 31 Blocked
+tile    13 31 Blocked
+tile    14 31 Blocked
+tile    15 31 Blocked
+tile    16 31 Blocked
+tile    17 31 Blocked
+tile    18 31 Blocked
+tile    19 31 Blocked
+tile    20 31 Blocked
+tile    36 31 Blocked
+tile    37 31 Blocked
+tile    0 32 Blocked
+tile    1 32 Blocked
+tile    2 32 Blocked
+tile    3 32 Blocked
+tile    4 32 Blocked
+tile    5 32 Blocked
+tile    6 32 Blocked
+tile    7 32 Blocked
+tile    8 32 Blocked
+tile    9 32 Blocked
+tile    11 32 Blocked
+tile    12 32 Blocked
+tile    13 32 Blocked
+tile    36 32 Blocked
+tile    37 32 Blocked
+tile    12 33 Blocked
+tile    13 33 Blocked
+tile    36 33 Blocked
+tile    37 33 Blocked
+tile    36 34 Blocked
+tile    37 34 Blocked
+tile    37 35 Blocked
+tile    36 36 Blocked
+tile    37 36 Blocked
+tile    36 37 Blocked
+tile    37 37 Blocked
+tile    22 38 Blocked
+tile    23 38 Blocked
+tile    24 38 Blocked
+tile    25 38 Blocked
+tile    26 38 Blocked
+tile    27 38 Blocked
+tile    37 38 Blocked
+tile    20 39 Blocked
+tile    21 39 Blocked
+tile    22 39 Blocked
+tile    23 39 Blocked
+tile    24 39 Blocked
+tile    25 39 Blocked
+tile    26 39 Blocked
+tile    27 39 Blocked
+tile    28 39 Blocked
+tile    29 39 Blocked
+tile    30 39 Blocked
+tile    31 39 Blocked
+tile    37 39 Blocked
+tile    38 39 Blocked
+tile    17 40 Blocked
+tile    18 40 Blocked
+tile    19 40 Blocked
+tile    20 40 Blocked
+tile    21 40 Blocked
+tile    30 40 Blocked
+tile    31 40 Blocked
+tile    38 40 Blocked
+tile    39 40 Blocked
+tile    30 41 Blocked
+tile    31 41 Blocked
+tile    39 41 Blocked
+tile    31 42 Blocked
+tile    30 43 Blocked
+tile    31 43 Blocked
+tile    30 44 Blocked
+tile    31 44 Blocked
+tile    29 45 Blocked
+tile    30 45 Blocked
+tile    31 45 Blocked
+tile    29 46 Blocked
+tile    30 46 Blocked
+tile    31 46 Blocked
+tile    30 47 Blocked
+tile    31 47 Blocked
+tile    29 48 Blocked
+tile    30 48 Blocked
+tile    31 48 Blocked
+tile    32 48 Blocked
+tile    30 49 Blocked
+tile    31 49 Blocked
+tile    32 49 Blocked
+tile    29 50 Blocked
+tile    30 50 Blocked
+tile    31 50 Blocked
+tile    32 50 Blocked
+tile    30 51 Blocked
+tile    31 51 Blocked
+tile    32 51 Blocked
+tile    29 52 Blocked
+tile    30 52 Blocked
+tile    31 52 Blocked
+tile    32 52 Blocked
+tile    8 53 Building
+tile    9 53 Building
+tile    10 53 Building
+tile    29 53 Blocked
+tile    30 53 Blocked
+tile    31 53 Blocked
+tile    32 53 Blocked
+tile    53 53 Building
+tile    54 53 Building
+tile    55 53 Building
+tile    8 54 Building
+tile    9 54 Building
+tile    10 54 Building
+tile    29 54 Blocked
+tile    30 54 Blocked
+tile    31 54 Blocked
+tile    32 54 Blocked
+tile    53 54 Building
+tile    54 54 Building
+tile    55 54 Building
+tile    8 55 Building
+tile    9 55 Building
+tile    10 55 Building
+tile    30 55 Blocked
+tile    31 55 Blocked
+tile    32 55 Blocked
+tile    53 55 Building
+tile    54 55 Building
+tile    55 55 Building
+tile    3 56 Resource
+tile    4 56 Resource
+tile    29 56 Blocked
+tile    30 56 Blocked
+tile    31 56 Blocked
+tile    14 57 Resource
+tile    15 57 Resource
+tile    29 57 Blocked
+tile    30 57 Blocked
+tile    31 57 Blocked
+tile    48 57 Resource
+tile    49 57 Resource
+tile    59 57 Resource
+tile    60 57 Resource
+tile    4 58 Resource
+tile    5 58 Resource
+tile    12 58 Resource
+tile    13 58 Resource
+tile    29 58 Blocked
+tile    30 58 Blocked
+tile    31 58 Blocked
+tile    53 58 Resource
+tile    54 58 Resource
+tile    57 58 Resource
+tile    58 58 Resource
+tile    7 59 Resource
+tile    8 59 Resource
+tile    11 59 Resource
+tile    12 59 Resource
+tile    29 59 Blocked
+tile    30 59 Blocked
+tile    31 59 Blocked
+tile    49 59 Resource
+tile    50 59 Resource
+tile    51 59 Resource
+tile    52 59 Resource
+tile    56 59 Resource
+tile    57 59 Resource
+tile    6 60 Resource
+tile    7 60 Resource
+tile    10 60 Resource
+tile    11 60 Resource
+tile    29 60 Blocked
+tile    30 60 Blocked
+tile    31 60 Blocked
+tile    52 60 Resource
+tile    53 60 Resource
+tile    54 60 Resource
+tile    55 60 Resource
+tile    56 60 Resource
+tile    29 61 Blocked
+tile    30 61 Blocked
+tile    29 62 Blocked
+tile    30 62 Blocked
+tile    29 63 Blocked
+tile    30 63 Blocked
+entity  Base Player1 8 7
+entity  Base Player2 52 7
+entity  Base Player3 53 53
+entity  Base Player4 8 53
+entity  Worker Player1 7 10
+entity  Worker Player1 11 10
+entity  Worker Player1 10 10
+entity  Worker Player1 8 10
+entity  Worker Player1 9 10
+entity  Worker Player2 51 10
+entity  Worker Player2 52 10
+entity  Worker Player2 53 10
+entity  Worker Player2 55 10
+entity  Worker Player2 54 10
+entity  Worker Player3 52 56
+entity  Worker Player3 53 56
+entity  Worker Player3 54 56
+entity  Worker Player3 55 56
+entity  Worker Player3 56 56
+entity  Worker Player4 7 56
+entity  Worker Player4 8 56
+entity  Worker Player4 9 56
+entity  Worker Player4 10 56
+entity  Worker Player4 11 56
+entity  MineralPatch Neutral 3 56
+entity  MineralPatch Neutral 7 59
+entity  MineralPatch Neutral 6 60
+entity  MineralPatch Neutral 4 58
+entity  MineralPatch Neutral 10 60
+entity  MineralPatch Neutral 11 59
+entity  MineralPatch Neutral 12 58
+entity  MineralPatch Neutral 14 57
+entity  MineralPatch Neutral 48 57
+entity  MineralPatch Neutral 49 59
+entity  MineralPatch Neutral 51 59
+entity  MineralPatch Neutral 53 58
+entity  MineralPatch Neutral 55 60
+entity  MineralPatch Neutral 56 59
+entity  MineralPatch Neutral 57 58
+entity  MineralPatch Neutral 59 57
+entity  MineralPatch Neutral 52 3
+entity  MineralPatch Neutral 53 2
+entity  MineralPatch Neutral 55 3
+entity  MineralPatch Neutral 50 2
+entity  MineralPatch Neutral 48 3
+entity  MineralPatch Neutral 47 5
+entity  MineralPatch Neutral 46 6
+entity  MineralPatch Neutral 57 4
+entity  MineralPatch Neutral 7 3
+entity  MineralPatch Neutral 8 2
+entity  MineralPatch Neutral 10 3
+entity  MineralPatch Neutral 11 2
+entity  MineralPatch Neutral 13 3
+entity  MineralPatch Neutral 14 4
+entity  MineralPatch Neutral 5 3
+entity  MineralPatch Neutral 3 5

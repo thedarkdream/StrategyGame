@@ -16,6 +16,6 @@ private:
     
     void handleScreenResult(const ScreenResult& result);
     void switchToMenu();
-    void switchToGame(const std::string& mapFile);
+    void switchToGame(const std::string& mapFile, int localPlayerSlot = 0);
     void switchToEditor();
 };

@@ -7,6 +7,7 @@
 #include <cmath>
 #include <algorithm>
 #include <filesystem>
+#include <set>
 
 // ---------------------------------------------------------------------------
 // Palette / colour tables
@@ -67,10 +68,31 @@ const sf::Color COL_ITEM_SEL_OUT  = sf::Color(255, 220,  50);
 // ===========================================================================
 // Static helpers
 // ===========================================================================
+Team MapEditorScreen::teamFromIndex(int i) {
+    switch (i) {
+        case 0: return Team::Player1;
+        case 1: return Team::Player2;
+        case 2: return Team::Player3;
+        default: return Team::Player4;
+    }
+}
+
+int MapEditorScreen::teamToIndex(Team t) {
+    switch (t) {
+        case Team::Player1: return 0;
+        case Team::Player2: return 1;
+        case Team::Player3: return 2;
+        case Team::Player4: return 3;
+        default:            return -1;
+    }
+}
+
 sf::Color MapEditorScreen::teamColor(Team t) {
     switch (t) {
-        case Team::Player:  return sf::Color( 50, 120, 220);
-        case Team::Enemy:   return sf::Color(200,  50,  50);
+        case Team::Player1: return sf::Color( 50, 120, 220);
+        case Team::Player2: return sf::Color(200,  50,  50);
+        case Team::Player3: return sf::Color(220, 140,  30);
+        case Team::Player4: return sf::Color( 40, 180,  80);
         default:            return sf::Color(180, 180, 180);
     }
 }
@@ -347,14 +369,22 @@ void MapEditorScreen::buildBuildingItems(float& y) {
     const float PAD = 10.f, IW = PANEL_WIDTH - PAD * 2.f;
     const float BH = 24.f, SW = 56.f, SH = 60.f, GAP = 8.f;
 
-    // Team selector
-    float bW = (IW - 4.f) / 2.f;
-    m_btnBldTeamPlayer = makePanelButton("Player", { PAD,           y }, { bW, BH });
-    m_btnBldTeamEnemy  = makePanelButton("Enemy",  { PAD + bW + 4.f, y }, { bW, BH });
-    m_btnBldTeamPlayer.selected = (m_bldTeam == Team::Player);
-    m_btnBldTeamEnemy.selected  = (m_bldTeam == Team::Enemy);
-    m_btnBldTeamPlayer.shape.setFillColor(m_bldTeam == Team::Player ? COL_BTN_SEL : COL_BTN_NORMAL);
-    m_btnBldTeamEnemy.shape.setFillColor(m_bldTeam == Team::Enemy   ? COL_BTN_SEL : COL_BTN_NORMAL);
+    // Team selector — dynamic
+    m_bldTeamButtons.clear();
+    {
+        const float BGAP = 4.f;
+        float bW = (IW - BGAP * (m_mapPlayerCount - 1)) / m_mapPlayerCount;
+        unsigned int fs = (m_mapPlayerCount <= 3) ? 13u : 11u;
+        for (int i = 0; i < m_mapPlayerCount; ++i) {
+            Team t = teamFromIndex(i);
+            float bx = PAD + i * (bW + BGAP);
+            std::string lbl = "Player " + std::to_string(i + 1);
+            PanelButton btn = makePanelButton(lbl, { bx, y }, { bW, BH }, fs);
+            btn.selected = (m_bldTeam == t);
+            btn.shape.setFillColor(m_bldTeam == t ? COL_BTN_SEL : COL_BTN_NORMAL);
+            m_bldTeamButtons.push_back(std::move(btn));
+        }
+    }
     y += BH + 6.f;
 
     for (int i = 0; i < NUM_BUILDINGS; ++i) {
@@ -379,14 +409,22 @@ void MapEditorScreen::buildUnitItems(float& y) {
     const float PAD = 10.f, IW = PANEL_WIDTH - PAD * 2.f;
     const float BH = 24.f, SW = 56.f, SH = 60.f, GAP = 8.f;
 
-    // Team selector
-    float bW = (IW - 4.f) / 2.f;
-    m_btnUnitTeamPlayer = makePanelButton("Player", { PAD,            y }, { bW, BH });
-    m_btnUnitTeamEnemy  = makePanelButton("Enemy",  { PAD + bW + 4.f, y }, { bW, BH });
-    m_btnUnitTeamPlayer.selected = (m_unitTeam == Team::Player);
-    m_btnUnitTeamEnemy.selected  = (m_unitTeam == Team::Enemy);
-    m_btnUnitTeamPlayer.shape.setFillColor(m_unitTeam == Team::Player ? COL_BTN_SEL : COL_BTN_NORMAL);
-    m_btnUnitTeamEnemy.shape.setFillColor(m_unitTeam == Team::Enemy   ? COL_BTN_SEL : COL_BTN_NORMAL);
+    // Team selector — dynamic
+    m_unitTeamButtons.clear();
+    {
+        const float BGAP = 4.f;
+        float bW = (IW - BGAP * (m_mapPlayerCount - 1)) / m_mapPlayerCount;
+        unsigned int fs = (m_mapPlayerCount <= 3) ? 13u : 11u;
+        for (int i = 0; i < m_mapPlayerCount; ++i) {
+            Team t = teamFromIndex(i);
+            float bx = PAD + i * (bW + BGAP);
+            std::string lbl = "Player " + std::to_string(i + 1);
+            PanelButton btn = makePanelButton(lbl, { bx, y }, { bW, BH }, fs);
+            btn.selected = (m_unitTeam == t);
+            btn.shape.setFillColor(m_unitTeam == t ? COL_BTN_SEL : COL_BTN_NORMAL);
+            m_unitTeamButtons.push_back(std::move(btn));
+        }
+    }
     y += BH + 6.f;
 
     for (int i = 0; i < NUM_UNITS; ++i) {
@@ -600,10 +638,15 @@ ScreenResult MapEditorScreen::handleEvent(const sf::Event& event) {
         updateButtonHover(m_btnLoad, pm);
         updateButtonHover(m_btnSave, pm);
         updateButtonHover(m_btnBack, pm);
-        updateButtonHover(m_btnBldTeamPlayer, pm);
-        updateButtonHover(m_btnBldTeamEnemy,  pm);
-        updateButtonHover(m_btnUnitTeamPlayer, pm);
-        updateButtonHover(m_btnUnitTeamEnemy,  pm);
+        for (auto& btn : m_bldTeamButtons)  updateButtonHover(btn, pm);
+        for (auto& btn : m_unitTeamButtons) updateButtonHover(btn, pm);
+
+        if (m_showNewMapDialog) {
+            for (auto& btn : m_newMapSizeButtons) updateButtonHover(btn, pm);
+            for (auto& btn : m_newMapPlayerBtns)  updateButtonHover(btn, pm);
+            updateButtonHover(m_btnNewMapConfirm, pm);
+            updateButtonHover(m_btnNewMapCancel,  pm);
+        }
 
         for (auto& sw   : m_swatches)      { (void)sw; }
         for (auto& item : m_neutralItems)  updateEntityItemHover(item, pm);
@@ -636,6 +679,36 @@ ScreenResult MapEditorScreen::handleEvent(const sf::Event& event) {
 
         if (mb->button == sf::Mouse::Button::Left) {
 
+            // ---- New-map dialog (intercepts all clicks while open) ---------
+            if (m_showNewMapDialog) {
+                if (btnHit(m_btnNewMapCancel, pm)) {
+                    m_showNewMapDialog = false;
+                    return {};
+                }
+                if (btnHit(m_btnNewMapConfirm, pm)) {
+                    confirmNewMap();
+                    return {};
+                }
+                static const int SIZES[] = { 32, 48, 64, 96, 128 };
+                for (size_t i = 0; i < m_newMapSizeButtons.size(); ++i) {
+                    if (btnHit(m_newMapSizeButtons[i], pm)) {
+                        m_newMapW = SIZES[i]; m_newMapH = SIZES[i];
+                        buildNewMapDialog(m_lastWinSize);
+                        return {};
+                    }
+                }
+                for (size_t i = 0; i < m_newMapPlayerBtns.size(); ++i) {
+                    if (btnHit(m_newMapPlayerBtns[i], pm)) {
+                        m_newMapPlayers = static_cast<int>(i) + 2;
+                        buildNewMapDialog(m_lastWinSize);
+                        return {};
+                    }
+                }
+                sf::FloatRect ovr(m_newMapOverlayBg.getPosition(), m_newMapOverlayBg.getSize());
+                if (!ovr.contains(pm)) m_showNewMapDialog = false;
+                return {};
+            }
+
             // ---- Load overlay (intercepts all clicks while open) -----------
             if (m_showLoadPanel) {
                 if (btnHit(m_btnLoadCancel, pm)) {
@@ -664,7 +737,11 @@ ScreenResult MapEditorScreen::handleEvent(const sf::Event& event) {
 
             // ---- File / navigation buttons ---------------------------------
             if (btnHit(m_btnBack, pm)) return { ScreenResult::Action::BackToMenu, "" };
-            if (btnHit(m_btnNew,  pm)) { m_map.initEmpty(); m_placedEntities.clear(); return {}; }
+            if (btnHit(m_btnNew,  pm)) {
+                buildNewMapDialog(m_lastWinSize);
+                m_showNewMapDialog = true;
+                return {};
+            }
             if (btnHit(m_btnLoad, pm)) {
                 refreshLoadPanel(m_lastWinSize);
                 m_showLoadPanel = true;
@@ -683,51 +760,41 @@ ScreenResult MapEditorScreen::handleEvent(const sf::Event& event) {
             }
 
             // ---- Building team selector ------------------------------------
-            if (btnHit(m_btnBldTeamPlayer, pm)) {
-                m_bldTeam = Team::Player;
-                if (m_pendingEntityType != EntityType::None) {
-                    bool isBld = false;
-                    for (int i = 0; i < NUM_BUILDINGS; ++i)
-                        if (BUILDING_INFOS[i].type == m_pendingEntityType) { isBld = true; break; }
-                    if (isBld) selectPendingEntity(m_pendingEntityType, m_bldTeam);
+            {
+                bool hit = false;
+                for (int i = 0; i < static_cast<int>(m_bldTeamButtons.size()); ++i) {
+                    if (btnHit(m_bldTeamButtons[i], pm)) {
+                        m_bldTeam = teamFromIndex(i);
+                        if (m_pendingEntityType != EntityType::None) {
+                            bool isBld = false;
+                            for (int b = 0; b < NUM_BUILDINGS; ++b)
+                                if (BUILDING_INFOS[b].type == m_pendingEntityType) { isBld = true; break; }
+                            if (isBld) selectPendingEntity(m_pendingEntityType, m_bldTeam);
+                        }
+                        buildLayout(m_lastWinSize);
+                        hit = true; break;
+                    }
                 }
-                buildLayout(m_lastWinSize);
-                return {};
-            }
-            if (btnHit(m_btnBldTeamEnemy, pm)) {
-                m_bldTeam = Team::Enemy;
-                if (m_pendingEntityType != EntityType::None) {
-                    bool isBld = false;
-                    for (int i = 0; i < NUM_BUILDINGS; ++i)
-                        if (BUILDING_INFOS[i].type == m_pendingEntityType) { isBld = true; break; }
-                    if (isBld) selectPendingEntity(m_pendingEntityType, m_bldTeam);
-                }
-                buildLayout(m_lastWinSize);
-                return {};
+                if (hit) return {};
             }
 
             // ---- Unit team selector ----------------------------------------
-            if (btnHit(m_btnUnitTeamPlayer, pm)) {
-                m_unitTeam = Team::Player;
-                if (m_pendingEntityType != EntityType::None) {
-                    bool isUnit = false;
-                    for (int i = 0; i < NUM_UNITS; ++i)
-                        if (UNIT_INFOS[i].type == m_pendingEntityType) { isUnit = true; break; }
-                    if (isUnit) selectPendingEntity(m_pendingEntityType, m_unitTeam);
+            {
+                bool hit = false;
+                for (int i = 0; i < static_cast<int>(m_unitTeamButtons.size()); ++i) {
+                    if (btnHit(m_unitTeamButtons[i], pm)) {
+                        m_unitTeam = teamFromIndex(i);
+                        if (m_pendingEntityType != EntityType::None) {
+                            bool isUnit = false;
+                            for (int u = 0; u < NUM_UNITS; ++u)
+                                if (UNIT_INFOS[u].type == m_pendingEntityType) { isUnit = true; break; }
+                            if (isUnit) selectPendingEntity(m_pendingEntityType, m_unitTeam);
+                        }
+                        buildLayout(m_lastWinSize);
+                        hit = true; break;
+                    }
                 }
-                buildLayout(m_lastWinSize);
-                return {};
-            }
-            if (btnHit(m_btnUnitTeamEnemy, pm)) {
-                m_unitTeam = Team::Enemy;
-                if (m_pendingEntityType != EntityType::None) {
-                    bool isUnit = false;
-                    for (int i = 0; i < NUM_UNITS; ++i)
-                        if (UNIT_INFOS[i].type == m_pendingEntityType) { isUnit = true; break; }
-                    if (isUnit) selectPendingEntity(m_pendingEntityType, m_unitTeam);
-                }
-                buildLayout(m_lastWinSize);
-                return {};
+                if (hit) return {};
             }
 
             // ---- Tile swatches ---------------------------------------------
@@ -817,7 +884,11 @@ ScreenResult MapEditorScreen::handleEvent(const sf::Event& event) {
     // ---- Keyboard ----------------------------------------------------------
     if (const auto* kp = event.getIf<sf::Event::KeyPressed>()) {
         if (kp->code == sf::Keyboard::Key::Escape) {
-            if (m_pendingEntityType != EntityType::None) {
+            if (m_showNewMapDialog) {
+                m_showNewMapDialog = false;
+            } else if (m_showLoadPanel) {
+                m_showLoadPanel = false;
+            } else if (m_pendingEntityType != EntityType::None) {
                 clearPendingEntity();
                 buildLayout(m_lastWinSize);
             } else if (m_nameActive) {
@@ -870,6 +941,9 @@ bool MapEditorScreen::saveCurrentMap() {
     data.width  = m_mapW;
     data.height = m_mapH;
 
+    // Infer playerCount from distinct non-Neutral teams used
+    data.playerCount = m_mapPlayerCount;
+
     // Collect non-Ground tiles
     for (int y = 0; y < m_mapH; ++y) {
         for (int x = 0; x < m_mapW; ++x) {
@@ -899,9 +973,13 @@ bool MapEditorScreen::loadMapByName(const std::string& stem) {
 }
 
 void MapEditorScreen::applyMapData(const MapData& data) {
-    m_mapName = data.name;
-    m_mapW    = data.width;
-    m_mapH    = data.height;
+    m_mapName       = data.name;
+    m_mapW          = data.width;
+    m_mapH          = data.height;
+    m_mapPlayerCount = std::max(2, data.playerCount);
+    // Clamp active teams to what the map supports
+    if (teamToIndex(m_bldTeam)  >= m_mapPlayerCount) m_bldTeam  = Team::Player1;
+    if (teamToIndex(m_unitTeam) >= m_mapPlayerCount) m_unitTeam = Team::Player1;
 
     m_map = Map(m_mapW, m_mapH, /*generateRandom=*/false);
     m_placedEntities.clear();
@@ -916,8 +994,136 @@ void MapEditorScreen::applyMapData(const MapData& data) {
     buildLayout(m_lastWinSize);
 }
 
+// ===========================================================================
+// New-map dialog
+// ===========================================================================
+void MapEditorScreen::buildNewMapDialog(sf::Vector2u winSize) {
+    const float wf  = static_cast<float>(winSize.x);
+    const float hf  = static_cast<float>(winSize.y);
+    const float ow  = 360.f;
+    const float oh  = 290.f;
+    const float ox  = (wf - ow) * 0.5f;
+    const float oy  = (hf - oh) * 0.5f;
+    const float pad = 16.f;
+    const float bH  = 30.f;
+    const float gap = 8.f;
+    // m_panelScrollY is used by makePanelButton; compensate by adding it to Y
+    // so the net screen position equals the intended oy+... values.
+    const float sy  = m_panelScrollY;
+
+    m_newMapOverlayBg.setPosition({ ox, oy });
+    m_newMapOverlayBg.setSize({ ow, oh });
+    m_newMapOverlayBg.setFillColor(sf::Color(30, 33, 42, 245));
+    m_newMapOverlayBg.setOutlineColor(sf::Color(80, 90, 130));
+    m_newMapOverlayBg.setOutlineThickness(2.f);
+
+    if (m_fontLoaded) {
+        m_lblNewMapTitle.emplace(m_font, "New Map", 18u);
+        m_lblNewMapTitle->setFillColor(sf::Color(220, 225, 235));
+        m_lblNewMapTitle->setStyle(sf::Text::Bold);
+        sf::FloatRect lb = m_lblNewMapTitle->getLocalBounds();
+        m_lblNewMapTitle->setOrigin({ lb.position.x + lb.size.x * 0.5f,
+                                      lb.position.y + lb.size.y * 0.5f });
+        m_lblNewMapTitle->setPosition({ ox + ow * 0.5f, oy + pad + 9.f });
+
+        m_lblNewMapSizeHdr.emplace(m_font, "Map Size", 12u);
+        m_lblNewMapSizeHdr->setFillColor(COL_LABEL);
+        m_lblNewMapSizeHdr->setPosition({ ox + pad, oy + pad + 36.f });
+
+        m_lblNewMapPlayersHdr.emplace(m_font, "Number of Players", 12u);
+        m_lblNewMapPlayersHdr->setFillColor(COL_LABEL);
+        m_lblNewMapPlayersHdr->setPosition({ ox + pad, oy + pad + 36.f + bH + gap + 20.f });
+    }
+
+    // Size preset buttons: 32, 48, 64, 96, 128
+    static const int SIZES[] = { 32, 48, 64, 96, 128 };
+    constexpr int NUM_SIZES  = 5;
+    m_newMapSizeButtons.clear();
+    {
+        float innerW = ow - pad * 2.f;
+        float bw     = (innerW - gap * (NUM_SIZES - 1)) / NUM_SIZES;
+        float by     = oy + pad + 54.f;
+        for (int i = 0; i < NUM_SIZES; ++i) {
+            float bx    = ox + pad + i * (bw + gap);
+            std::string lbl = std::to_string(SIZES[i]);
+            PanelButton btn = makePanelButton(lbl, { bx, by + sy }, { bw, bH }, 12u);
+            bool sel = (m_newMapW == SIZES[i] && m_newMapH == SIZES[i]);
+            btn.selected = sel;
+            btn.shape.setFillColor(sel ? COL_BTN_SEL : COL_BTN_NORMAL);
+            m_newMapSizeButtons.push_back(std::move(btn));
+        }
+    }
+
+    // Player count buttons: 2, 3, 4
+    m_newMapPlayerBtns.clear();
+    {
+        float innerW = ow - pad * 2.f;
+        float bw     = (innerW - gap * 2.f) / 3.f;
+        float by     = oy + pad + 36.f + bH + gap + 20.f + 18.f;
+        for (int i = 2; i <= 4; ++i) {
+            float bx    = ox + pad + (i - 2) * (bw + gap);
+            std::string lbl = std::to_string(i) + " Players";
+            PanelButton btn = makePanelButton(lbl, { bx, by + sy }, { bw, bH }, 12u);
+            bool sel = (m_newMapPlayers == i);
+            btn.selected = sel;
+            btn.shape.setFillColor(sel ? COL_BTN_SEL : COL_BTN_NORMAL);
+            m_newMapPlayerBtns.push_back(std::move(btn));
+        }
+    }
+
+    // Confirm / Cancel
+    {
+        float bw = (ow - pad * 2.f - gap) * 0.5f;
+        float by = oy + oh - bH - pad;
+        m_btnNewMapConfirm = makePanelButton("Create", { ox + pad,            by + sy }, { bw, bH });
+        m_btnNewMapConfirm.shape.setFillColor(sf::Color(45, 110, 55));
+        m_btnNewMapCancel  = makePanelButton("Cancel", { ox + pad + bw + gap, by + sy }, { bw, bH });
+    }
+}
+
+void MapEditorScreen::renderNewMapDialog(sf::RenderWindow& window) {
+    if (!m_showNewMapDialog) return;
+
+    sf::Vector2u ws = window.getSize();
+    sf::View uiView(sf::FloatRect({ 0.f, 0.f },
+        { static_cast<float>(ws.x), static_cast<float>(ws.y) }));
+    window.setView(uiView);
+
+    sf::RectangleShape dim({ static_cast<float>(ws.x), static_cast<float>(ws.y) });
+    dim.setFillColor(sf::Color(0, 0, 0, 160));
+    window.draw(dim);
+
+    window.draw(m_newMapOverlayBg);
+    if (m_lblNewMapTitle)      window.draw(*m_lblNewMapTitle);
+    if (m_lblNewMapSizeHdr)    window.draw(*m_lblNewMapSizeHdr);
+    if (m_lblNewMapPlayersHdr) window.draw(*m_lblNewMapPlayersHdr);
+
+    auto drawBtn = [&](PanelButton& btn) {
+        window.draw(btn.shape);
+        if (btn.label) window.draw(*btn.label);
+    };
+    for (auto& btn : m_newMapSizeButtons) drawBtn(btn);
+    for (auto& btn : m_newMapPlayerBtns)  drawBtn(btn);
+    drawBtn(m_btnNewMapConfirm);
+    drawBtn(m_btnNewMapCancel);
+}
+
+void MapEditorScreen::confirmNewMap() {
+    m_mapW           = m_newMapW;
+    m_mapH           = m_newMapH;
+    m_mapPlayerCount = m_newMapPlayers;
+    m_mapName        = "untitled";
+    m_bldTeam        = Team::Player1;
+    m_unitTeam       = Team::Player1;
+    m_map            = Map(m_mapW, m_mapH, /*generateRandom=*/false);
+    m_placedEntities.clear();
+    m_gridDirty      = true;
+    buildLayout(m_lastWinSize);
+    resetCamera(m_lastWinSize);
+    m_showNewMapDialog = false;
+}
+
 void MapEditorScreen::refreshLoadPanel(sf::Vector2u winSize) {
-    m_loadMapFiles = MapSerializer::listMaps(MAPS_DIR);
     m_loadButtons.clear();
 
     float wf = static_cast<float>(winSize.x);
@@ -1090,8 +1296,8 @@ void MapEditorScreen::renderPanel(sf::RenderWindow& window) {
     };
     drawBtn(m_btnNew);  drawBtn(m_btnLoad);
     drawBtn(m_btnSave); drawBtn(m_btnBack);
-    drawBtn(m_btnBldTeamPlayer); drawBtn(m_btnBldTeamEnemy);
-    drawBtn(m_btnUnitTeamPlayer); drawBtn(m_btnUnitTeamEnemy);
+    for (auto& btn : m_bldTeamButtons)  drawBtn(btn);
+    for (auto& btn : m_unitTeamButtons) drawBtn(btn);
 
     for (auto& sw : m_swatches) {
         window.draw(sw.shape);
@@ -1186,6 +1392,9 @@ void MapEditorScreen::render(sf::RenderWindow& window) {
 
     // ---- Load overlay (modal) ---------------------------------------------
     renderLoadOverlay(window);
+
+    // ---- New-map dialog (modal) -------------------------------------------
+    renderNewMapDialog(window);
 
     // ---- Status toast (bottom-left of panel) ------------------------------
     if (m_statusText && m_statusTimer > 0.f) {

@@ -5,17 +5,22 @@
 #include "Player.h"
 #include "InputHandler.h"
 #include "Renderer.h"
-#include "AIController.h"
+#include "PlayerController.h"
 #include "ActionBar.h"
 #include "MapSerializer.h"
 #include <SFML/Graphics.hpp>
 #include <memory>
 #include <vector>
+#include <array>
 #include <string>
 
 class Game {
 public:
-    Game(sf::RenderWindow& window, const std::string& mapFile = "");
+    // localPlayerSlot: 0 = human controls Team::Player1,
+    //                  1 = human controls Team::Player2, etc.
+    static constexpr int MAX_PLAYERS = 4;
+
+    Game(sf::RenderWindow& window, const std::string& mapFile = "", int localPlayerSlot = 0);
     ~Game() = default;
     
     // Per-frame interface (called by GameScreen)
@@ -29,8 +34,14 @@ public:
     
     // Access to game components
     Map& getMap() { return m_map; }
-    Player& getPlayer() { return *m_player; }
-    Player& getEnemy() { return *m_enemy; }
+    // Local-human player (camera, selection, action bar)
+    Player& getPlayer()       { return *m_players[m_localSlot]; }
+    const Player& getPlayer() const { return *m_players[m_localSlot]; }
+    // Direct slot access (slot 0 = Player1, slot 1 = Player2 …)
+    Player& getPlayer(int slot)       { return *m_players[slot]; }
+    const Player& getPlayer(int slot) const { return *m_players[slot]; }
+    // First non-local occupied slot (convenience for 2-player games)
+    Player& getEnemy();
     InputHandler& getInput() { return *m_input; }
     ActionBar& getActionBar() { return m_actionBar; }
     
@@ -69,19 +80,20 @@ public:
 private:
     // Window (owned by Application, passed by reference)
     sf::RenderWindow& m_window;
-    std::string       m_mapFile;   // empty / "default" → procedural
-    
+    std::string       m_mapFile;
+    int               m_localSlot = 0;   // which m_players slot the human drives
+
     // Game state
     GameState m_state = GameState::Playing;
-    
+
     // Core components
     Map m_map;
     ActionBar m_actionBar;
-    std::unique_ptr<Player> m_player;
-    std::unique_ptr<Player> m_enemy;
+    // Slots 0–3 correspond to Team::Player1–Player4; nullptr = slot unused
+    std::array<std::unique_ptr<Player>,           MAX_PLAYERS> m_players;
+    std::array<std::unique_ptr<PlayerController>, MAX_PLAYERS> m_controllers;
     std::unique_ptr<InputHandler> m_input;
-    std::unique_ptr<Renderer> m_renderer;
-    std::unique_ptr<AIController> m_ai;
+    std::unique_ptr<Renderer>     m_renderer;
     
     // All entities in game
     EntityList m_allEntities;
@@ -101,7 +113,10 @@ private:
     // Unit setup helpers
     void setupUnit(UnitPtr& unit);
     void setupWorker(Worker* worker, EntityPtr homeBase, Team team);
-    
+
+    // Helper: find the Player slot that owns entities of the given Team
+    Player* getPlayerByTeam(Team t);
+
     // Generic entity finder template
     template<typename Predicate>
     EntityPtr findNearest(sf::Vector2f pos, float radius, Predicate predicate);

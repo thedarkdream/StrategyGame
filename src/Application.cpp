@@ -54,7 +54,7 @@ void Application::run() {
 void Application::handleScreenResult(const ScreenResult& result) {
     switch (result.action) {
         case ScreenResult::Action::StartGame:
-            switchToGame(result.mapFile);
+            switchToGame(result.mapFile, result.localPlayerSlot);
             break;
         case ScreenResult::Action::OpenEditor:
             switchToEditor();
@@ -79,9 +79,9 @@ void Application::switchToMenu() {
     m_window.setView(m_window.getDefaultView());
 }
 
-void Application::switchToGame(const std::string& mapFile) {
+void Application::switchToGame(const std::string& mapFile, int localPlayerSlot) {
     if (m_currentScreen) m_currentScreen->onExit();
-    m_currentScreen = std::make_unique<GameScreen>(m_window, mapFile);
+    m_currentScreen = std::make_unique<GameScreen>(m_window, mapFile, localPlayerSlot);
     m_currentScreen->onEnter();
 }
 

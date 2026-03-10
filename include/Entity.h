@@ -29,6 +29,8 @@ public:
     // Setters
     void setPosition(sf::Vector2f position) { m_position = position; }
     void setSelected(bool selected) { m_selected = selected; }
+    void setIsLocalTeam(bool val) { m_isLocalTeam = val; }
+    bool isLocalTeam() const { return m_isLocalTeam; }
     
     // Target highlight (blinking indicator when entity is targeted by a command)
     void startHighlight(float duration = 3.0f);
@@ -47,6 +49,7 @@ protected:
     int m_health;
     int m_maxHealth;
     bool m_selected = false;
+    bool m_isLocalTeam = false;  // True if this entity belongs to the local human player
     bool m_isDying = false;  // True while death animation is playing
     
     // Target highlight (blinking indicator)

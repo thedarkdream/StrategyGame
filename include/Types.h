@@ -75,9 +75,11 @@ enum class GameState {
 };
 
 enum class Team {
-    Player,
-    Enemy,
-    Neutral
+    Neutral,
+    Player1,
+    Player2,
+    Player3,
+    Player4
 };
 
 // Structures

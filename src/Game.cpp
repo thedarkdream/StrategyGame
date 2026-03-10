@@ -17,9 +17,10 @@
 #include <cmath>
 #include <cstdlib>
 
-Game::Game(sf::RenderWindow& window, const std::string& mapFile)
+Game::Game(sf::RenderWindow& window, const std::string& mapFile, int localPlayerSlot)
     : m_window(window)
     , m_mapFile(mapFile)
+    , m_localSlot(localPlayerSlot)
 {
     initialize();
 }
@@ -51,8 +52,11 @@ void Game::update(float deltaTime) {
     }
     flushPendingEntities();  // Safe to add new entities now
 
-    // Update AI
-    m_ai->update(deltaTime);
+    // Update all player controllers (AI ticks, network polling, etc.)
+    for (int i = 0; i < MAX_PLAYERS; ++i) {
+        if (m_controllers[i])
+            m_controllers[i]->update(deltaTime);
+    }
     
     // Update visual effects
     EFFECTS.update(deltaTime);
@@ -70,20 +74,27 @@ void Game::render() {
 }
 
 void Game::initialize() {
-    // Create players
+    // Create players — always Player1 and Player2 for now (expandable to 4)
     Resources startingRes;
     startingRes.minerals = Constants::STARTING_MINERALS;
     startingRes.gas = Constants::STARTING_GAS;
-    
-    m_player = std::make_unique<Player>(Team::Player, startingRes);
-    m_enemy = std::make_unique<Player>(Team::Enemy, startingRes);
-    
+
+    m_players[0] = std::make_unique<Player>(Team::Player1, startingRes);
+    m_players[1] = std::make_unique<Player>(Team::Player2, startingRes);
+
     // Create input handler and renderer
     m_input = std::make_unique<InputHandler>(m_window, *this);
     m_renderer = std::make_unique<Renderer>(m_window);
-    
-    // Create AI controller for enemy
-    m_ai = std::make_unique<AIController>(*m_enemy, *this);
+
+    // Assign controllers: human for the local slot, AI for all others
+    for (int i = 0; i < MAX_PLAYERS; ++i) {
+        if (!m_players[i]) continue;
+        if (i == m_localSlot) {
+            m_controllers[i] = std::make_unique<HumanController>();
+        } else {
+            m_controllers[i] = std::make_unique<AIPlayerController>(*m_players[i], *this);
+        }
+    }
 
     // Preload all assets so nothing freezes during gameplay
     preloadAssets();
@@ -134,14 +145,14 @@ void Game::setupStartingUnits() {
     );
     
     // Create player's base
-    auto playerBase = ResourceManager::createBase(Team::Player, playerStart);
+    auto playerBase = ResourceManager::createBase(Team::Player1, playerStart);
     playerBase->onUnitProduced = [this](EntityType type, sf::Vector2f pos) {
-        spawnUnit(type, Team::Player, pos);
+        spawnUnit(type, Team::Player1, pos);
     };
     playerBase->onProductionCancelled = [this](EntityType type) {
-        m_player->addResources(ResourceManager::getMineralCost(type), 0);
+        if (Player* p = getPlayerByTeam(Team::Player1)) p->addResources(ResourceManager::getMineralCost(type), 0);
     };
-    m_player->addBuilding(playerBase);
+    m_players[0]->addBuilding(playerBase);
     addEntity(playerBase);
     
     // Mark player base tiles on map
@@ -150,35 +161,35 @@ void Game::setupStartingUnits() {
     // Create player's starting workers
     for (int i = 0; i < 4; ++i) {
         sf::Vector2f workerPos = playerStart + sf::Vector2f(60.0f + i * 30.0f, 70.0f);
-        auto worker = ResourceManager::createWorker(Team::Player, workerPos);
+        auto worker = ResourceManager::createWorker(Team::Player1, workerPos);
         setupUnit(worker);
         if (auto* w = dynamic_cast<Worker*>(worker.get())) {
-            setupWorker(w, playerBase, Team::Player);
+            setupWorker(w, playerBase, Team::Player1);
         }
-        m_player->addUnit(worker);
+        m_players[0]->addUnit(worker);
         addEntity(worker);
     }
 
         // Create player's starting army
     for (int i = 0; i < 8; ++i) {
         sf::Vector2f soldierPos = playerStart + sf::Vector2f(60.0f + i * 30.0f, 100.0f);
-        auto soldier = ResourceManager::createSoldier(Team::Player, soldierPos);
+        auto soldier = ResourceManager::createSoldier(Team::Player1, soldierPos);
 
         setupUnit(soldier);
 
-        m_player->addUnit(soldier);
+        m_players[0]->addUnit(soldier);
         addEntity(soldier);
     }
 
     // Create enemy's base
-    auto enemyBase = ResourceManager::createBase(Team::Enemy, enemyStart);
+    auto enemyBase = ResourceManager::createBase(Team::Player2, enemyStart);
     enemyBase->onUnitProduced = [this](EntityType type, sf::Vector2f pos) {
-        spawnUnit(type, Team::Enemy, pos);
+        spawnUnit(type, Team::Player2, pos);
     };
     enemyBase->onProductionCancelled = [this](EntityType type) {
-        m_enemy->addResources(ResourceManager::getMineralCost(type), 0);
+        if (Player* p = getPlayerByTeam(Team::Player2)) p->addResources(ResourceManager::getMineralCost(type), 0);
     };
-    m_enemy->addBuilding(enemyBase);
+    m_players[1]->addBuilding(enemyBase);
     addEntity(enemyBase);
     
     // Mark enemy base tiles on map
@@ -187,12 +198,12 @@ void Game::setupStartingUnits() {
     // Create enemy's starting workers
     for (int i = 0; i < 4; ++i) {
         sf::Vector2f workerPos = enemyStart + sf::Vector2f(-60.0f - i * 30.0f, -70.0f);
-        auto worker = ResourceManager::createWorker(Team::Enemy, workerPos);
+        auto worker = ResourceManager::createWorker(Team::Player2, workerPos);
         setupUnit(worker);
         if (auto* w = dynamic_cast<Worker*>(worker.get())) {
-            setupWorker(w, enemyBase, Team::Enemy);
+            setupWorker(w, enemyBase, Team::Player2);
         }
-        m_enemy->addUnit(worker);
+        m_players[1]->addUnit(worker);
         addEntity(worker);
     }
     
@@ -220,8 +231,7 @@ void Game::setupStartingUnits() {
 }
 
 void Game::cleanupDeadEntities() {
-    m_player->cleanupDeadEntities();
-    m_enemy->cleanupDeadEntities();
+    for (auto& p : m_players) if (p) p->cleanupDeadEntities();
     
     // Remove entities that are ready for removal (dead and death animation finished)
     m_allEntities.erase(
@@ -232,10 +242,15 @@ void Game::cleanupDeadEntities() {
 }
 
 void Game::checkVictoryConditions() {
-    if (m_player->isDefeated()) {
+    if (m_players[m_localSlot] && m_players[m_localSlot]->isDefeated()) {
         m_state = GameState::Defeat;
-    } else if (m_enemy->isDefeated()) {
-        m_state = GameState::Victory;
+    } else {
+        for (int i = 0; i < MAX_PLAYERS; ++i) {
+            if (i != m_localSlot && m_players[i] && m_players[i]->isDefeated()) {
+                m_state = GameState::Victory;
+                break;
+            }
+        }
     }
 }
 
@@ -322,15 +337,9 @@ void Game::setupWorker(Worker* worker, EntityPtr homeBase, Team team) {
     worker->findNearestAvailableResource = [this](sf::Vector2f pos, float radius, EntityPtr exclude) {
         return this->findNearestAvailableResource(pos, radius, exclude);
     };
-    if (team == Team::Player) {
-        worker->onResourceDeposit = [this](int amount) {
-            m_player->addResources(amount, 0);
-        };
-    } else {
-        worker->onResourceDeposit = [this](int amount) {
-            m_enemy->addResources(amount, 0);
-        };
-    }
+    worker->onResourceDeposit = [this, team](int amount) {
+        if (Player* p = getPlayerByTeam(team)) p->addResources(amount, 0);
+    };
 }
 
 bool Game::checkPositionBlocked(sf::Vector2f pos, float radius, Entity* excludeSelf) {
@@ -458,6 +467,28 @@ void Game::removeEntity(EntityPtr entity) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Player slot helpers
+// ---------------------------------------------------------------------------
+Player& Game::getEnemy() {
+    // Returns the first non-local occupied slot (for 2-player games).
+    for (int i = 0; i < MAX_PLAYERS; ++i) {
+        if (i != m_localSlot && m_players[i])
+            return *m_players[i];
+    }
+    return *m_players[m_localSlot]; // Fallback — should never happen
+}
+
+Player* Game::getPlayerByTeam(Team t) {
+    switch (t) {
+        case Team::Player1: return m_players[0].get();
+        case Team::Player2: return m_players[1].get();
+        case Team::Player3: return m_players[2].get();
+        case Team::Player4: return m_players[3].get();
+        default:            return nullptr; // Neutral
+    }
+}
+
 void Game::setupFromMapData(const MapData& data) {
     // Re-initialise the map to match the saved dimensions
     m_map = Map(data.width, data.height, /*generateRandom=*/false);
@@ -518,24 +549,24 @@ void Game::spawnUnit(EntityType type, Team team, sf::Vector2f position) {
     
     if (unit) {
         setupUnit(unit);
+        unit->setIsLocalTeam(m_players[m_localSlot] && team == m_players[m_localSlot]->getTeam());
         
         // Set home base for workers
         if (type == EntityType::Worker) {
-            Player& player = (team == Team::Player) ? *m_player : *m_enemy;
-            for (auto& building : player.getBuildings()) {
-                if (building->getType() == EntityType::Base) {
-                    if (auto* w = dynamic_cast<Worker*>(unit.get())) {
-                        setupWorker(w, building, team);
+            if (Player* playerPtr = getPlayerByTeam(team)) {
+                for (auto& building : playerPtr->getBuildings()) {
+                    if (building->getType() == EntityType::Base) {
+                        if (auto* w = dynamic_cast<Worker*>(unit.get())) {
+                            setupWorker(w, building, team);
+                        }
+                        break;
                     }
-                    break;
                 }
             }
         }
         
-        if (team == Team::Player) {
-            m_player->addUnit(unit);
-        } else {
-            m_enemy->addUnit(unit);
+        if (Player* p = getPlayerByTeam(team)) {
+            p->addUnit(unit);
         }
         
         addEntity(unit);
@@ -572,8 +603,7 @@ EntityPtr Game::spawnBuilding(EntityType type, Team team, sf::Vector2f position,
             spawnUnit(unitType, team, pos);
         };
         building->onProductionCancelled = [this, team](EntityType unitType) {
-            Player& player = (team == Team::Player) ? *m_player : *m_enemy;
-            player.addResources(ResourceManager::getMineralCost(unitType), 0);
+            if (Player* p = getPlayerByTeam(team)) p->addResources(ResourceManager::getMineralCost(unitType), 0);
         };
         
         // Place on map
@@ -582,11 +612,10 @@ EntityPtr Game::spawnBuilding(EntityType type, Team team, sf::Vector2f position,
         int tileY = static_cast<int>((position.y - buildingSize.y * Constants::TILE_SIZE / 2.0f) / Constants::TILE_SIZE);
         m_map.placeBuilding(tileX, tileY, buildingSize.x, buildingSize.y, building);
         
-        if (team == Team::Player) {
-            m_player->addBuilding(building);
-        } else {
-            m_enemy->addBuilding(building);
+        if (Player* p = getPlayerByTeam(team)) {
+            p->addBuilding(building);
         }
+        building->setIsLocalTeam(m_players[m_localSlot] && team == m_players[m_localSlot]->getTeam());
         
         addEntity(building);
         return building;
@@ -630,7 +659,7 @@ void Game::issueCommand(const std::vector<EntityPtr>& entities, Command command)
 }
 
 void Game::issueMoveCommand(sf::Vector2f target) {
-    auto& selection = m_player->getSelection();
+    auto& selection = getPlayer().getSelection();
     for (auto& entity : selection) {
         if (auto* unit = dynamic_cast<Unit*>(entity.get())) {
             unit->moveTo(target);
@@ -642,7 +671,7 @@ void Game::issueFollowCommand(EntityPtr target) {
     if (target) {
         target->startHighlight();
     }
-    auto& selection = m_player->getSelection();
+    auto& selection = getPlayer().getSelection();
     for (auto& entity : selection) {
         if (auto* unit = dynamic_cast<Unit*>(entity.get())) {
             // Don't follow yourself
@@ -654,7 +683,7 @@ void Game::issueFollowCommand(EntityPtr target) {
 }
 
 void Game::issueAttackMoveCommand(sf::Vector2f target) {
-    auto& selection = m_player->getSelection();
+    auto& selection = getPlayer().getSelection();
     for (auto& entity : selection) {
         if (auto* unit = dynamic_cast<Unit*>(entity.get())) {
             unit->attackMoveTo(target);
@@ -666,7 +695,7 @@ void Game::issueAttackCommand(EntityPtr target) {
     if (target) {
         target->startHighlight();
     }
-    auto& selection = m_player->getSelection();
+    auto& selection = getPlayer().getSelection();
     for (auto& entity : selection) {
         if (auto* unit = dynamic_cast<Unit*>(entity.get())) {
             unit->attack(target);
@@ -678,7 +707,7 @@ void Game::issueGatherCommand(EntityPtr resource) {
     if (resource) {
         resource->startHighlight();
     }
-    auto& selection = m_player->getSelection();
+    auto& selection = getPlayer().getSelection();
     for (auto& entity : selection) {
         if (auto* worker = dynamic_cast<Worker*>(entity.get())) {
             worker->gather(resource);
@@ -689,7 +718,7 @@ void Game::issueGatherCommand(EntityPtr resource) {
 void Game::issueBuildCommand(EntityType buildingType, sf::Vector2f position) {
     // Check if player can afford it
     int cost = ResourceManager::getMineralCost(buildingType);
-    if (!m_player->canAfford(cost, 0)) {
+    if (!getPlayer().canAfford(cost, 0)) {
         return;
     }
     
@@ -698,7 +727,7 @@ void Game::issueBuildCommand(EntityType buildingType, sf::Vector2f position) {
     for (const auto& action : actions) {
         if (action.type == ActionDef::Type::Build && action.producesType == buildingType) {
             if (action.requires != EntityType::None && 
-                !m_player->hasCompletedBuilding(action.requires)) {
+                !getPlayer().hasCompletedBuilding(action.requires)) {
                 return;  // Dependency not met
             }
             break;
@@ -716,7 +745,7 @@ void Game::issueBuildCommand(EntityType buildingType, sf::Vector2f position) {
     
     // Find a selected worker to build
     Worker* selectedWorker = nullptr;
-    for (const auto& entity : m_player->getSelection()) {
+    for (const auto& entity : getPlayer().getSelection()) {
         if (entity && entity->isAlive() && entity->getType() == EntityType::Worker) {
             selectedWorker = dynamic_cast<Worker*>(entity.get());
             if (selectedWorker) break;
@@ -728,7 +757,7 @@ void Game::issueBuildCommand(EntityType buildingType, sf::Vector2f position) {
         float nearestDist = std::numeric_limits<float>::max();
         for (const auto& entity : m_allEntities) {
             if (entity && entity->isAlive() && 
-                entity->getTeam() == Team::Player &&
+                entity->getTeam() == getPlayer().getTeam() &&
                 entity->getType() == EntityType::Worker) {
                 Worker* worker = dynamic_cast<Worker*>(entity.get());
                 if (worker && !worker->isBuilding() && !worker->isGathering()) {
@@ -748,7 +777,7 @@ void Game::issueBuildCommand(EntityType buildingType, sf::Vector2f position) {
     }
     
     // Spend resources and spawn incomplete building
-    m_player->spendResources(cost, 0);
+    getPlayer().spendResources(cost, 0);
     
     // Calculate center position: top-left corner + half the pixel size
     sf::Vector2f pixelSize = ENTITY_DATA.getSize(buildingType);
@@ -758,7 +787,7 @@ void Game::issueBuildCommand(EntityType buildingType, sf::Vector2f position) {
     );
     
     // Spawn building (starts incomplete) and get it back directly
-    EntityPtr newBuilding = spawnBuilding(buildingType, Team::Player, buildPos, false);
+    EntityPtr newBuilding = spawnBuilding(buildingType, getPlayer().getTeam(), buildPos, false);
     
     if (newBuilding) {
         selectedWorker->buildAt(newBuilding);
@@ -769,7 +798,7 @@ void Game::issueContinueBuildCommand(EntityPtr building) {
     if (!building) return;
     
     // Send selected workers to continue building
-    for (const auto& entity : m_player->getSelection()) {
+    for (const auto& entity : getPlayer().getSelection()) {
         if (entity && entity->isAlive() && entity->getType() == EntityType::Worker) {
             Worker* worker = dynamic_cast<Worker*>(entity.get());
             if (worker) {
@@ -801,13 +830,13 @@ void Game::cancelBuildingConstruction(EntityPtr entity) {
     int gasCost = ENTITY_DATA.getGasCost(building->getType());
     
     // Refund to the owning player
-    Player* owner = (building->getTeam() == Team::Player) ? m_player.get() : m_enemy.get();
+    Player* owner = getPlayerByTeam(building->getTeam());
     if (owner) {
         owner->addResources(mineralCost, gasCost);
     }
     
     // Clear selection (the building is being removed)
-    m_player->clearSelection();
+    getPlayer().clearSelection();
     
     // Remove the building from the game
     removeEntity(entity);

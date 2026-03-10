@@ -28,6 +28,7 @@ MenuScreen::MenuScreen() {
     sf::Vector2u defaultSize(Constants::WINDOW_WIDTH, Constants::WINDOW_HEIGHT);
     layoutButtons(defaultSize);
     layoutMapSelection(defaultSize);
+    layoutSlotPicker(defaultSize);
 }
 
 void MenuScreen::scanForMaps() {
@@ -118,6 +119,45 @@ void MenuScreen::layoutButtons(sf::Vector2u windowSize) {
         sf::Vector2f(buttonW, buttonH));
 }
 
+void MenuScreen::layoutSlotPicker(sf::Vector2u windowSize) {
+    float centerX = windowSize.x / 2.0f;
+    float centerY = windowSize.y / 2.0f;
+    float buttonW = 280.0f;
+    float buttonH = 50.0f;
+    float spacing = 15.0f;
+
+    m_slotPickerTitle.emplace(m_font, "Play as...", 32);
+    m_slotPickerTitle->setFillColor(sf::Color::White);
+    sf::FloatRect tb = m_slotPickerTitle->getLocalBounds();
+    m_slotPickerTitle->setOrigin(sf::Vector2f(
+        tb.position.x + tb.size.x / 2.0f,
+        tb.position.y + tb.size.y / 2.0f
+    ));
+    m_slotPickerTitle->setPosition(sf::Vector2f(centerX, centerY - 120.0f));
+
+    m_slotButtons.clear();
+    float startY = centerY - 40.0f;
+    for (int i = 0; i < m_slotPlayerCount; ++i) {
+        std::string label = "Player " + std::to_string(i + 1);
+        Button btn = createButton(label,
+            sf::Vector2f(centerX - buttonW / 2.0f, startY + i * (buttonH + spacing)),
+            sf::Vector2f(buttonW, buttonH));
+        m_slotButtons.push_back(std::move(btn));
+    }
+
+    float backY = startY + m_slotPlayerCount * (buttonH + spacing) + 10.0f;
+    m_slotBackButton = createButton("Back",
+        sf::Vector2f(centerX - buttonW / 2.0f, backY),
+        sf::Vector2f(buttonW, buttonH));
+}
+
+int MenuScreen::getMapPlayerCount(const std::string& mapFile) const {
+    if (mapFile == "default") return 2;
+    auto data = MapSerializer::load("maps/" + mapFile + ".stmap");
+    if (data) return std::max(2, data->playerCount);
+    return 2;
+}
+
 void MenuScreen::layoutMapSelection(sf::Vector2u windowSize) {
     float centerX = windowSize.x / 2.0f;
     float centerY = windowSize.y / 2.0f;
@@ -161,7 +201,10 @@ ScreenResult MenuScreen::handleEvent(const sf::Event& event) {
         sf::Vector2f mousePos(static_cast<float>(mouseMove->position.x), 
                              static_cast<float>(mouseMove->position.y));
         
-        if (m_showMapSelection) {
+        if (m_showSlotPicker) {
+            for (auto& btn : m_slotButtons) updateButtonHover(btn, mousePos);
+            updateButtonHover(m_slotBackButton, mousePos);
+        } else if (m_showMapSelection) {
             for (auto& btn : m_mapButtons) {
                 updateButtonHover(btn, mousePos);
             }
@@ -178,14 +221,31 @@ ScreenResult MenuScreen::handleEvent(const sf::Event& event) {
             sf::Vector2f mousePos(static_cast<float>(mouseClick->position.x),
                                  static_cast<float>(mouseClick->position.y));
             
-            if (m_showMapSelection) {
+            if (m_showSlotPicker) {
+                // Slot buttons
+                for (size_t i = 0; i < m_slotButtons.size(); ++i) {
+                    if (isMouseOver(m_slotButtons[i], mousePos)) {
+                        ScreenResult result;
+                        result.action = ScreenResult::Action::StartGame;
+                        result.mapFile = m_selectedMapFile;
+                        result.localPlayerSlot = static_cast<int>(i);
+                        return result;
+                    }
+                }
+                if (isMouseOver(m_slotBackButton, mousePos)) {
+                    m_showSlotPicker = false;
+                    m_showMapSelection = true;
+                }
+            } else if (m_showMapSelection) {
                 // Check map buttons
                 for (size_t i = 0; i < m_mapButtons.size(); ++i) {
                     if (isMouseOver(m_mapButtons[i], mousePos)) {
-                        ScreenResult result;
-                        result.action = ScreenResult::Action::StartGame;
-                        result.mapFile = m_mapFiles[i];
-                        return result;
+                        m_selectedMapFile   = m_mapFiles[i];
+                        m_slotPlayerCount   = getMapPlayerCount(m_mapFiles[i]);
+                        layoutSlotPicker(m_lastWinSize);
+                        m_showSlotPicker    = true;
+                        m_showMapSelection  = false;
+                        return {};
                     }
                 }
                 
@@ -218,6 +278,7 @@ ScreenResult MenuScreen::handleEvent(const sf::Event& event) {
         // View will be applied in render
         layoutButtons(newSize);
         layoutMapSelection(newSize);
+        layoutSlotPicker(newSize);
     }
     
     return { ScreenResult::Action::None, "" };
@@ -237,7 +298,16 @@ void MenuScreen::render(sf::RenderWindow& window) {
     
     window.clear(sf::Color(30, 35, 40));
     
-    if (m_showMapSelection) {
+    if (m_showSlotPicker) {
+        // Draw slot picker panel
+        window.draw(*m_slotPickerTitle);
+        for (auto& btn : m_slotButtons) {
+            window.draw(btn.shape);
+            window.draw(*btn.label);
+        }
+        window.draw(m_slotBackButton.shape);
+        window.draw(*m_slotBackButton.label);
+    } else if (m_showMapSelection) {
         // Draw map selection panel
         window.draw(*m_mapSelectionTitle);
         

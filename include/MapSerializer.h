@@ -20,10 +20,11 @@ struct MapEntityData {
 };
 
 struct MapData {
-    int                      version  = 1;
-    std::string              name     = "untitled";
-    int                      width    = 0;
-    int                      height   = 0;
+    int                      version     = 1;
+    std::string              name        = "untitled";
+    int                      width       = 0;
+    int                      height      = 0;
+    int                      playerCount = 2;   // number of player slots on this map
     std::vector<MapTileData>   tiles;    // sparse – Ground is default
     std::vector<MapEntityData> entities;
 };

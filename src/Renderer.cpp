@@ -129,7 +129,7 @@ void Renderer::renderBuildPreview(const InputHandler& input, Map& map) {
     m_window.draw(preview);
     
     // Create a temporary building to render its sprite preview
-    Building previewBuilding(buildType, Team::Player, pos);
+    Building previewBuilding(buildType, Team::Player1, pos);
     sf::Color tint = canPlace ? sf::Color(150, 255, 150, 180) : sf::Color(255, 150, 150, 180);
     previewBuilding.renderPreview(m_window, tint);
 }
@@ -275,7 +275,9 @@ void Renderer::renderUnitPanel(Game& game) {
     // Determine what we're displaying and set panel color accordingly
     bool isInspection = !player.hasSelection() && inspectedEnemy;
     bool isNeutral = isInspection && inspectedEnemy->getTeam() == Team::Neutral;
-    bool isEnemyInspection = isInspection && inspectedEnemy->getTeam() == Team::Enemy;
+    bool isEnemyInspection = isInspection &&
+                               inspectedEnemy->getTeam() != Team::Neutral &&
+                               inspectedEnemy->getTeam() != game.getPlayer().getTeam();
     
     sf::Color panelOutlineColor;
     if (isEnemyInspection) {
@@ -432,13 +434,11 @@ void Renderer::renderTargetingModeIndicator(Game& game) {
 
 sf::Color Renderer::getTeamColor(Team team) {
     switch (team) {
-        case Team::Player:
-            return sf::Color(0x34, 0x98, 0xDB);  // Blue
-        case Team::Enemy:
-            return sf::Color(0xE7, 0x4C, 0x3C);  // Red
-        case Team::Neutral:
-            return sf::Color(0x95, 0xA5, 0xA6);  // Gray
-        default:
-            return sf::Color::White;
+        case Team::Player1: return sf::Color(0x34, 0x98, 0xDB);  // Blue
+        case Team::Player2: return sf::Color(0xE7, 0x4C, 0x3C);  // Red
+        case Team::Player3: return sf::Color(0xF3, 0x9C, 0x12);  // Orange
+        case Team::Player4: return sf::Color(0x2E, 0xCC, 0x71);  // Green
+        case Team::Neutral: return sf::Color(0x95, 0xA5, 0xA6);  // Gray
+        default:            return sf::Color::White;
     }
 }

@@ -1,7 +1,7 @@
 #include "GameScreen.h"
 
-GameScreen::GameScreen(sf::RenderWindow& window, const std::string& mapFile)
-    : m_game(std::make_unique<Game>(window, mapFile))
+GameScreen::GameScreen(sf::RenderWindow& window, const std::string& mapFile, int localPlayerSlot)
+    : m_game(std::make_unique<Game>(window, mapFile, localPlayerSlot))
 {
 }
 
