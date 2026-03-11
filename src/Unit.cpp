@@ -268,29 +268,14 @@ void Unit::updateMovement(float deltaTime) {
 }
 
 void Unit::updateAttackMove(float deltaTime) {
-    // Check for enemies in attack range while moving
+    // Check for enemies within awareness range while moving
     if (m_context) {
-        float autoAttackRange = m_attackRange + m_autoAttackRangeBonus;
-        EntityPtr enemy = m_context->findPriorityEnemy(m_position, autoAttackRange, m_team);
+        // Use minimum awareness range so melee units can detect ranged threats
+        float searchRange = std::max(m_attackRange + m_autoAttackRangeBonus, MIN_AWARENESS_RANGE);
+        EntityPtr enemy = m_context->findPriorityEnemy(m_position, searchRange, m_team);
         
         if (enemy && enemy->isAlive()) {
             float distance = getDistanceTo(enemy);
-            
-            // Counter-attack priority: if we're being attacked by a unit while
-            // targeting a building, prefer to attack the threatening unit
-            if (enemy->asBuilding()) {
-                auto attacker = m_lastAttacker.lock();
-                if (attacker && attacker->isAlive() && attacker->asUnit() && 
-                    attacker->getTeam() != m_team) {
-                    float attackerDist = getDistanceTo(attacker);
-                    if (attackerDist <= autoAttackRange) {
-                        // Switch to the attacking unit
-                        enemy = attacker;
-                        distance = attackerDist;
-                        m_lastAttacker.reset();
-                    }
-                }
-            }
             
             if (distance <= m_attackRange) {
                 // In range - attack if cooldown ready
@@ -302,13 +287,21 @@ void Unit::updateAttackMove(float deltaTime) {
                 // Stay in AttackMoving state, don't transition to full Attacking
                 // This way when the enemy dies, we continue moving
                 return;
+            } else {
+                // Enemy detected but outside attack range - chase them!
+                // Queue the original destination as next action so we resume after killing
+                sf::Vector2f destination = m_targetPosition;
+                m_actionQueue.push_front([this, destination]() {
+                    attackMoveTo(destination);
+                });
+                // Transition to Attacking state to chase the enemy
+                beginAttacking(enemy, false);
+                return;
             }
-            // If enemy is nearby but not in range, just continue moving to destination
-            // Don't stand around waiting - attack-move means prioritize movement
         }
     }
     
-    // No enemies in range (or enemies only in detection range) - continue moving to destination
+    // No enemies in awareness range - continue moving to destination
     if (hasGroupArrived(deltaTime)) {
         if (!popNextAction()) m_state = UnitState::Idle;
         return;
@@ -327,24 +320,34 @@ void Unit::updateCombat(float deltaTime) {
     
     // For auto-attacks only: check if we should switch targets
     if (!m_isExplicitAttack && m_context) {
-        // Counter-attack: if we're being attacked by a higher-priority target, switch to it
-        // Priority: combat units > workers > buildings
-        auto attacker = m_lastAttacker.lock();
-        if (attacker && attacker->isAlive() && attacker->asUnit() && attacker->getTeam() != m_team) {
-            bool shouldSwitch = false;
+        // Determine current target's priority (lower number = higher priority)
+        // 0 = combat unit, 1 = worker, 2 = building
+        int currentPriority = 0;
+        if (target->asBuilding()) {
+            currentPriority = 2;
+        } else if (target->getType() == EntityType::Worker) {
+            currentPriority = 1;
+        }
+        
+        // If not targeting highest priority (combat unit), scan for better targets
+        if (currentPriority > 0) {
+            float searchRange = std::max(m_attackRange + m_autoAttackRangeBonus, MIN_AWARENESS_RANGE);
+            EntityPtr betterTarget = m_context->findPriorityEnemy(m_position, searchRange, m_team);
             
-            if (target->asBuilding()) {
-                // Always switch from building to any unit attacking us
-                shouldSwitch = true;
-            } else if (target->getType() == EntityType::Worker && attacker->getType() != EntityType::Worker) {
-                // Switch from worker to combat unit attacking us
-                shouldSwitch = true;
-            }
-            
-            if (shouldSwitch) {
-                switchTarget(attacker);
-                m_lastAttacker.reset();
-                return;
+            if (betterTarget && betterTarget->isAlive() && betterTarget != target) {
+                // Check if the new target has higher priority
+                int newPriority = 0;
+                if (betterTarget->asBuilding()) {
+                    newPriority = 2;
+                } else if (betterTarget->getType() == EntityType::Worker) {
+                    newPriority = 1;
+                }
+                
+                if (newPriority < currentPriority) {
+                    // Found a higher-priority target - switch to it
+                    switchTarget(betterTarget);
+                    return;
+                }
             }
         }
         
