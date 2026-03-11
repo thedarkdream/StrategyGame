@@ -17,6 +17,10 @@ public:
     void returnResources();
     void buildAt(EntityPtr building);  // Move to building and construct it
     
+    // Override base movement commands to handle collision escape
+    void moveTo(sf::Vector2f target) override;
+    void attackMoveTo(sf::Vector2f target) override;
+    
     // Worker-specific state
     int getCarriedResources() const { return m_carriedResources; }
     void setHomeBase(EntityPtr base) { m_homeBase = base; }
@@ -52,4 +56,7 @@ private:
     // Release any claimed mining spot
     void releaseMiningClaim();
     void releaseBuildClaim();
+    
+    // Escape collision if overlapping with entities (after transitioning from non-collidable)
+    void escapeCollisionIfNeeded();
 };

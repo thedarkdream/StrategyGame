@@ -1,0 +1,21 @@
+# Aggressive AI Script
+# Rushes with soldiers early
+
+Train Worker 2
+Build Barracks
+Train Soldier 4
+Attack_Add Soldier 4
+Attack
+Train Worker 2
+Train Soldier 3
+Train Brute 2
+Attack_Add Soldier 3
+Attack_Add Brute 2
+Attack
+Build Factory
+Train Worker 2
+Train LightTank 2
+Train Soldier 3
+Attack_Add LightTank 2
+Attack_Add Soldier 3
+Attack

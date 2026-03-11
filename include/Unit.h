@@ -18,8 +18,8 @@ public:
     void render(sf::RenderTarget& target) override;
     
     // Commands
-    void moveTo(sf::Vector2f target);
-    void attackMoveTo(sf::Vector2f target);  // Move while attacking enemies in range
+    virtual void moveTo(sf::Vector2f target);
+    virtual void attackMoveTo(sf::Vector2f target);  // Move while attacking enemies in range
     virtual void attack(EntityPtr target);
     void follow(EntityPtr target);  // Follow an allied unit
     void stop();

@@ -65,6 +65,7 @@ public:
     
     // Collision
     bool checkPositionBlocked(sf::Vector2f pos, float radius, Entity* excludeSelf) override;
+    sf::Vector2f findFreePosition(sf::Vector2f pos, float radius, float maxSearchRadius, Entity* excludeSelf) override;
     sf::Vector2f findSpawnPosition(sf::Vector2f origin, float unitRadius);
     std::vector<RVONeighbor> getNearbyUnitsRVO(sf::Vector2f pos, float radius, Unit* excludeSelf) override;
     

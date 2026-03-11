@@ -35,6 +35,11 @@ public:
     // (building or resource node). [excludeSelf] is the calling unit, ignored.
     virtual bool checkPositionBlocked(sf::Vector2f pos, float radius, Entity* excludeSelf) = 0;
 
+    // Find a non-blocked position near [pos] for an entity with [radius].
+    // Searches in expanding circles up to [maxSearchRadius]. Returns [pos] if already free.
+    // [excludeSelf] is the calling unit and will be ignored in collision checks.
+    virtual sf::Vector2f findFreePosition(sf::Vector2f pos, float radius, float maxSearchRadius, Entity* excludeSelf) = 0;
+
     // Returns all collidable units within [radius] of [pos] for RVO avoidance.
     // [excludeSelf] is the calling unit and should not appear in the result.
     virtual std::vector<RVONeighbor> getNearbyUnitsRVO(sf::Vector2f pos, float radius, Unit* excludeSelf) = 0;

@@ -22,6 +22,32 @@ bool Worker::isCollidable() const {
     return m_state != UnitState::Gathering && m_state != UnitState::Returning;
 }
 
+void Worker::escapeCollisionIfNeeded() {
+    // When transitioning from gathering (non-collidable) to any other state (collidable),
+    // the worker may be overlapping with a resource/building. Move them out.
+    if (m_context) {
+        if (m_context->checkPositionBlocked(m_position, getCollisionRadius(), this)) {
+            sf::Vector2f freePos = m_context->findFreePosition(
+                m_position, getCollisionRadius(), 100.0f, this);
+            m_position = freePos;
+        }
+    }
+}
+
+void Worker::moveTo(sf::Vector2f target) {
+    releaseMiningClaim();
+    releaseBuildClaim();
+    escapeCollisionIfNeeded();
+    Unit::moveTo(target);
+}
+
+void Worker::attackMoveTo(sf::Vector2f target) {
+    releaseMiningClaim();
+    releaseBuildClaim();
+    escapeCollisionIfNeeded();
+    Unit::attackMoveTo(target);
+}
+
 void Worker::render(sf::RenderTarget& target) {
     // Draw animated sprite if available, otherwise fallback to shape
     if (m_hasSprite) {
@@ -243,6 +269,9 @@ void Worker::buildAt(EntityPtr building) {
     // Release any previous claims
     releaseMiningClaim();
     releaseBuildClaim();
+    
+    // Escape collision if overlapping with entities
+    escapeCollisionIfNeeded();
     
     m_buildTarget = building;
 

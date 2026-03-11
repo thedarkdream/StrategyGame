@@ -30,6 +30,7 @@ set(SOURCES
     src/Renderer.cpp
     src/ResourceManager.cpp
     src/AIController.cpp
+    src/AIScript.cpp
     src/ActionBar.cpp
     src/TextureManager.cpp
     src/Animation.cpp
@@ -66,6 +67,7 @@ set(HEADERS
     include/Renderer.h
     include/ResourceManager.h
     include/AIController.h
+    include/AIScript.h
     include/Constants.h
     include/Types.h
     include/IUnitContext.h

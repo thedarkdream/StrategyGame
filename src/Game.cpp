@@ -113,7 +113,9 @@ void Game::initialize() {
         if (i == m_localSlot) {
             m_controllers[i] = std::make_unique<HumanController>();
         } else {
-            m_controllers[i] = std::make_unique<AIPlayerController>(*m_players[i], *this);
+            auto aiController = std::make_unique<AIPlayerController>(*m_players[i], *this);
+            aiController->loadScripts("aiscripts");
+            m_controllers[i] = std::move(aiController);
         }
     }
 
@@ -345,6 +347,37 @@ bool Game::checkPositionBlocked(sf::Vector2f pos, float radius, Entity* excludeS
     } // end list loop
 
     return false;
+}
+
+sf::Vector2f Game::findFreePosition(sf::Vector2f pos, float radius, float maxSearchRadius, Entity* excludeSelf) {
+    // Try the original position first
+    if (!checkPositionBlocked(pos, radius, excludeSelf)) {
+        return pos;
+    }
+    
+    // Search in expanding circles
+    float stepRadius = radius * 2.0f;
+    int maxRings = static_cast<int>(maxSearchRadius / stepRadius) + 1;
+    
+    for (int ring = 1; ring <= maxRings; ++ring) {
+        float ringRadius = stepRadius * ring;
+        int points = 8 * ring;  // More points in outer rings
+        
+        for (int i = 0; i < points; ++i) {
+            float angle = (2.0f * 3.14159f * i) / points;
+            sf::Vector2f testPos = pos + sf::Vector2f(
+                std::cos(angle) * ringRadius,
+                std::sin(angle) * ringRadius
+            );
+            
+            if (!checkPositionBlocked(testPos, radius, excludeSelf)) {
+                return testPos;
+            }
+        }
+    }
+    
+    // Fallback to original if no free spot found
+    return pos;
 }
 
 sf::Vector2f Game::findSpawnPosition(sf::Vector2f origin, float unitRadius) {

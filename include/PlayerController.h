@@ -50,8 +50,8 @@ public:
     void update(float dt) override { m_ai.update(dt); }
     bool isLocalHuman() const override { return false; }
 
-    // Expose for difficulty tuning
-    void setDifficulty(int level) { m_ai.setDifficulty(level); }
+    // Load AI scripts from a directory
+    void loadScripts(const std::string& directory) { m_ai.loadScripts(directory); }
 
 private:
     AIController m_ai;
