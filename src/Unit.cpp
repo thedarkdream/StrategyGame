@@ -253,7 +253,7 @@ void Unit::updateAttackMove(float deltaTime) {
             if (distance <= m_attackRange) {
                 // In range - attack if cooldown ready
                 if (m_attackTimer <= 0.0f) {
-                    enemy->takeDamage(m_damage, shared_from_this());
+                    fireAttack(enemy);
                     m_attackTimer = m_attackCooldown;
                     playAnimation(AnimationState::Attack);
                 }
