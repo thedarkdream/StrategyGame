@@ -2,6 +2,7 @@
 #include "MenuScreen.h"
 #include "GameScreen.h"
 #include "MapEditorScreen.h"
+#include "VictoryScreen.h"
 #include "Constants.h"
 
 Application::Application()
@@ -62,6 +63,11 @@ void Application::handleScreenResult(const ScreenResult& result) {
         case ScreenResult::Action::BackToMenu:
             switchToMenu();
             break;
+        case ScreenResult::Action::ShowVictory:
+            if (result.stats) {
+                switchToVictory(result.isVictory, result.localPlayerSlot, *result.stats);
+            }
+            break;
         case ScreenResult::Action::Quit:
             m_window.close();
             break;
@@ -91,5 +97,14 @@ void Application::switchToEditor() {
     m_currentScreen->onEnter();
     
     // Reset view to default for editor
+    m_window.setView(m_window.getDefaultView());
+}
+
+void Application::switchToVictory(bool isVictory, int localPlayerSlot, const GameStatistics& stats) {
+    if (m_currentScreen) m_currentScreen->onExit();
+    m_currentScreen = std::make_unique<VictoryScreen>(isVictory, localPlayerSlot, stats);
+    m_currentScreen->onEnter();
+    
+    // Reset view to default for victory screen
     m_window.setView(m_window.getDefaultView());
 }

@@ -1,4 +1,5 @@
 #include "GameScreen.h"
+#include "GameStatistics.h"
 
 GameScreen::GameScreen(sf::RenderWindow& window, const std::string& mapFile, int localPlayerSlot)
     : m_game(std::make_unique<Game>(window, mapFile, localPlayerSlot))
@@ -18,9 +19,25 @@ ScreenResult GameScreen::handleEvent(const sf::Event& event) {
 }
 
 ScreenResult GameScreen::update(float deltaTime) {
-    if (m_game->getState() == GameState::Playing) {
+    GameState state = m_game->getState();
+    
+    if (state == GameState::Playing) {
         m_game->update(deltaTime);
+        
+        // Check if game state changed after update
+        state = m_game->getState();
     }
+    
+    // Handle victory or defeat
+    if (state == GameState::Victory || state == GameState::Defeat) {
+        ScreenResult result;
+        result.action = ScreenResult::Action::ShowVictory;
+        result.isVictory = (state == GameState::Victory);
+        result.localPlayerSlot = m_game->getLocalSlot();
+        result.stats = std::make_shared<GameStatistics>(m_game->getStatistics());
+        return result;
+    }
+    
     return {};
 }
 

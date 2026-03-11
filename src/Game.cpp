@@ -91,6 +91,11 @@ void Game::initialize() {
     for (int i = 0; i < playerCount; ++i)
         m_players[i] = std::make_unique<Player>(teamFromIndex(i), startingRes);
 
+    // Initialize statistics for each active player slot
+    for (int i = 0; i < playerCount; ++i) {
+        m_statistics.setPlayerActive(i, teamFromIndex(i));
+    }
+
     // Create per-player action dispatchers (must be before controllers so AI can reference them)
     for (int i = 0; i < MAX_PLAYERS; ++i) {
         if (!m_players[i]) continue;
@@ -135,6 +140,22 @@ void Game::preloadAssets() {
 
 void Game::cleanupDeadEntities() {
     for (auto& p : m_players) if (p) p->cleanupDeadEntities();
+    
+    // Record statistics for dying entities before removal
+    for (const auto& entity : m_allEntities) {
+        if (!entity || !entity->isReadyForRemoval()) continue;
+        
+        Team killerTeam = entity->getLastAttackerTeam();
+        
+        // Check if it's a unit
+        if (entity->asUnit()) {
+            m_statistics.recordUnitDestroyed(entity->getTeam(), killerTeam);
+        }
+        // Check if it's a building
+        else if (entity->asBuilding()) {
+            m_statistics.recordBuildingDestroyed(entity->getTeam(), killerTeam);
+        }
+    }
     
     // Remove entities that are ready for removal (dead and death animation finished)
     m_allEntities.erase(
@@ -474,6 +495,9 @@ void Game::spawnUnit(EntityType type, Team team, sf::Vector2f position) {
             p->addUnit(unit);
         }
         
+        // Record unit creation in statistics
+        m_statistics.recordUnitCreated(team);
+        
         addEntity(unit);
     }
 }
@@ -520,6 +544,11 @@ EntityPtr Game::spawnBuilding(EntityType type, Team team, sf::Vector2f position,
             p->addBuilding(building);
         }
         building->setIsLocalTeam(m_players[m_localSlot] && team == m_players[m_localSlot]->getTeam());
+        
+        // Record building creation in statistics (only for player-constructed buildings, not map setup)
+        if (!startComplete) {
+            m_statistics.recordBuildingCreated(team);
+        }
         
         addEntity(building);
         return building;

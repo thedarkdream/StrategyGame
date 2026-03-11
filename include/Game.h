@@ -10,6 +10,7 @@
 #include "MapSerializer.h"
 #include "IUnitContext.h"
 #include "PlayerActions.h"
+#include "GameStatistics.h"
 #include <SFML/Graphics.hpp>
 #include <memory>
 #include <vector>
@@ -46,6 +47,11 @@ public:
     Player& getEnemy();
     InputHandler& getInput() { return *m_input; }
     ActionBar& getActionBar() { return m_actionBar; }
+    
+    // Statistics tracking
+    GameStatistics& getStatistics() { return m_statistics; }
+    const GameStatistics& getStatistics() const { return m_statistics; }
+    int getLocalSlot() const { return m_localSlot; }
     
     // Entity access
     const EntityList& getAllEntities() const { return m_allEntities; }
@@ -95,6 +101,7 @@ private:
     // Core components
     Map m_map;
     ActionBar m_actionBar;
+    GameStatistics m_statistics;
     // Slots 0–3 correspond to Team::Player1–Player4; nullptr = slot unused
     std::array<std::unique_ptr<Player>,           MAX_PLAYERS> m_players;
     std::array<std::unique_ptr<PlayerController>, MAX_PLAYERS> m_controllers;

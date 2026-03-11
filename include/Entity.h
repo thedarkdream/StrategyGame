@@ -51,6 +51,10 @@ public:
     // Combat
     virtual void takeDamage(int damage);
     virtual void takeDamage(int damage, EntityPtr attacker);  // For retaliation
+    virtual void takeDamage(int damage, Team attackerTeam);   // For projectiles (source may be dead)
+    
+    // Track last attacker (for statistics)
+    Team getLastAttackerTeam() const { return m_lastAttackerTeam; }
     
 protected:
     EntityType m_type;
@@ -62,6 +66,7 @@ protected:
     bool m_selected = false;
     bool m_isLocalTeam = false;  // True if this entity belongs to the local human player
     bool m_isDying = false;  // True while death animation is playing
+    Team m_lastAttackerTeam = Team::Neutral;  // Track who dealt the killing blow
     
     // Target highlight (blinking indicator)
     float m_highlightTimeRemaining = 0.0f;

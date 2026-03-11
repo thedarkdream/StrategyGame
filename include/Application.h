@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Screen.h"
+#include "GameStatistics.h"
 #include <SFML/Graphics.hpp>
 #include <memory>
 
@@ -18,4 +19,5 @@ private:
     void switchToMenu();
     void switchToGame(const std::string& mapFile, int localPlayerSlot = 0);
     void switchToEditor();
+    void switchToVictory(bool isVictory, int localPlayerSlot, const GameStatistics& stats);
 };

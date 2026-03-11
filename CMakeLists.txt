@@ -41,6 +41,8 @@ set(SOURCES
     src/PlayerActions.cpp
     src/LightTank.cpp
     src/Projectile.cpp
+    src/GameStatistics.cpp
+    src/VictoryScreen.cpp
 )
 
 # Header files
@@ -79,6 +81,8 @@ set(HEADERS
     include/SoundManager.h
     include/LightTank.h
     include/Projectile.h
+    include/GameStatistics.h
+    include/VictoryScreen.h
 )
 
 # Create executable

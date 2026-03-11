@@ -35,7 +35,18 @@ void Entity::takeDamage(int damage) {
 }
 
 void Entity::takeDamage(int damage, EntityPtr attacker) {
+    // Store the last attacker's team for statistics tracking
+    if (attacker) {
+        m_lastAttackerTeam = attacker->getTeam();
+    }
     // Base implementation just applies damage
+    takeDamage(damage);
+}
+
+void Entity::takeDamage(int damage, Team attackerTeam) {
+    // Store the attacker's team for statistics tracking
+    m_lastAttackerTeam = attackerTeam;
+    // Apply damage
     takeDamage(damage);
 }
 

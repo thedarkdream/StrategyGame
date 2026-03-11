@@ -20,10 +20,12 @@ public:
     bool isSelectable() const { return false; }
     void takeDamage(int /*damage*/) override { /* rockets are indestructible */ }
     void takeDamage(int /*damage*/, EntityPtr /*attacker*/) override { /* rockets are indestructible */ }
+    void takeDamage(int /*damage*/, Team /*attackerTeam*/) override { /* rockets are indestructible */ }
 
 private:
     std::weak_ptr<Entity> m_source;
     std::weak_ptr<Entity> m_target;
+    Team m_sourceTeam;  // Store source team in case source dies before impact
     int m_damage;
     float m_speed;
     

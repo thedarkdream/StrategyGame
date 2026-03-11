@@ -8,6 +8,7 @@ Projectile::Projectile(EntityPtr source, EntityPtr target, int damage, float spe
              source ? source->getPosition() : sf::Vector2f{0,0})
     , m_source(source)
     , m_target(target)
+    , m_sourceTeam(source ? source->getTeam() : Team::Neutral)
     , m_damage(damage)
     , m_speed(speed)
 {
@@ -42,7 +43,7 @@ void Projectile::update(float deltaTime) {
     if (dist <= IMPACT_RADIUS) {
         // Hit! Apply damage and die
         SOUNDS.playSound("units/lighttank/explode.wav", m_position);
-        target->takeDamage(m_damage, m_source.lock());
+        target->takeDamage(m_damage, m_sourceTeam);
         m_health = 0;
         return;
     }
