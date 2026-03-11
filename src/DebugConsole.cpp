@@ -110,6 +110,9 @@ void DebugConsole::executeCommand(const std::string& cmd) {
     if (verb == "show_waypoints") {
         m_showWaypoints = !m_showWaypoints;
         log(std::string("Waypoints display: ") + (m_showWaypoints ? "ON" : "OFF"));
+    } else if (verb == "show_ids") {
+        m_showIds = !m_showIds;
+        log(std::string("ID display: ") + (m_showIds ? "ON" : "OFF"));
     } else {
         log("Unknown command: " + verb);
     }
@@ -119,6 +122,37 @@ void DebugConsole::log(const std::string& msg) {
     m_log.push_back(msg);
     if (static_cast<int>(m_log.size()) > MAX_LOG_LINES) {
         m_log.erase(m_log.begin());
+    }
+}
+
+// ID rendering  (call with WORLD-SPACE view active on the window)
+// ---------------------------------------------------------------------------
+void DebugConsole::renderIds(sf::RenderWindow& window) {
+    if (!m_showIds || !m_font) return;
+
+    for (const auto& entity : m_game.getAllEntities()) {
+        if (!entity || !entity->isAlive()) continue;
+        if (!entity->isSelected()) continue;
+
+        // Place the label just above the health bar offset used by Entity
+        // (health bar is at -size.y/2 - 8; we go a bit further up)
+        sf::Vector2f pos = entity->getPosition();
+        // Use a readable size relative to tile dimensions (TILE_SIZE = 32 world units)
+        constexpr unsigned CHAR_SIZE = 12;
+
+        sf::Text label(*m_font, "#" + std::to_string(entity->getId()), CHAR_SIZE);
+        label.setFillColor(sf::Color(255, 255, 80));   // bright yellow
+        label.setOutlineColor(sf::Color(0, 0, 0, 200));
+        label.setOutlineThickness(1.0f);
+
+        // Centre the text horizontally above the entity
+        sf::FloatRect bounds = label.getLocalBounds();
+        label.setOrigin(sf::Vector2f(bounds.position.x + bounds.size.x / 2.0f,
+                                     bounds.position.y + bounds.size.y));
+        // Position above health bar
+        label.setPosition(sf::Vector2f(pos.x, pos.y - 24.0f));
+
+        window.draw(label);
     }
 }
 

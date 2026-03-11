@@ -12,6 +12,7 @@
 #include "Projectile.h"
 #include "Constants.h"
 #include "MathUtil.h"
+#include "IdGenerator.h"
 #include <algorithm>
 #include <iostream>
 #include <cmath>
@@ -77,9 +78,10 @@ void Game::render() {
     m_renderer->render(*this);  // ends with UI view active on the window
 
     if (m_debugConsole) {
-        // Waypoints are drawn in world space
+        // World-space overlays (waypoints + IDs)
         m_window.setView(m_input->getCamera());
         m_debugConsole->renderWaypoints(m_window);
+        m_debugConsole->renderIds(m_window);
 
         // Console input bar / log is drawn in screen space
         sf::Vector2u winSize = m_window.getSize();
@@ -92,6 +94,9 @@ void Game::render() {
 }
 
 void Game::initialize() {
+    // Reset entity ID counter so each game starts IDs from 1.
+    IdGenerator::instance().reset();
+
     Resources startingRes;
     startingRes.minerals = Constants::STARTING_MINERALS;
     startingRes.gas = Constants::STARTING_GAS;

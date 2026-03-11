@@ -52,6 +52,7 @@ set(HEADERS
     include/Game.h
     include/Screen.h
     include/DebugConsole.h
+    include/IdGenerator.h
     include/Application.h
     include/MenuScreen.h
     include/GameScreen.h

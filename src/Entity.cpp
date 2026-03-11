@@ -4,7 +4,8 @@
 #include <cmath>
 
 Entity::Entity(EntityType type, Team team, sf::Vector2f position)
-    : m_type(type)
+    : m_id(IdGenerator::instance().nextId())
+    , m_type(type)
     , m_team(team)
     , m_position(position)
     , m_size(32.0f, 32.0f)

@@ -21,12 +21,16 @@ public:
     // Call this while the world camera view is active on the window.
     void renderWaypoints(sf::RenderWindow& window);
 
+    // Draw entity IDs above all currently-selected entities (world-space).
+    void renderIds(sf::RenderWindow& window);
+
     // Draw the console input bar / log in screen-space (call after switching
     // to the UI view).
     void render(sf::RenderWindow& window);
 
-    bool isActive()          const { return m_active; }
-    bool isShowingWaypoints() const { return m_showWaypoints; }
+    bool isActive()           const { return m_active; }
+    bool isShowingWaypoints()  const { return m_showWaypoints; }
+    bool isShowingIds()        const { return m_showIds; }
 
 private:
     sf::RenderWindow& m_window;
@@ -34,6 +38,7 @@ private:
 
     bool        m_active        = false;
     bool        m_showWaypoints = false;
+    bool        m_showIds       = false;
     std::string m_inputText;
 
     // Small scrollback log shown above the input bar

@@ -2,8 +2,10 @@
 
 #include "Types.h"
 #include "AnimatedSprite.h"
+#include "IdGenerator.h"
 #include <SFML/Graphics.hpp>
 #include <memory>
+#include <cstdint>
 
 class Entity : public std::enable_shared_from_this<Entity> {
 public:
@@ -15,6 +17,7 @@ public:
     virtual void render(sf::RenderTarget& target) = 0;
     
     // Getters
+    uint32_t     getId()     const { return m_id; }
     EntityType getType() const { return m_type; }
     Team getTeam() const { return m_team; }
     sf::Vector2f getPosition() const { return m_position; }
@@ -57,6 +60,7 @@ public:
     Team getLastAttackerTeam() const { return m_lastAttackerTeam; }
     
 protected:
+    uint32_t     m_id;
     EntityType m_type;
     Team m_team;
     sf::Vector2f m_position;
