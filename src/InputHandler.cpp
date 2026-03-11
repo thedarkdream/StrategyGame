@@ -174,12 +174,37 @@ void InputHandler::handleMousePress(sf::Vector2i position, sf::Mouse::Button but
     const bool shift = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift) ||
                        sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RShift);
 
-    // Check if clicking on minimap first
-    if (button == sf::Mouse::Button::Left && isPositionOnMinimap(position)) {
-        m_isDraggingMinimap = true;
+    // Check if clicking on minimap
+    bool onMinimap = isPositionOnMinimap(position);
+    
+    if (onMinimap) {
         sf::Vector2f worldPos = minimapToWorld(position);
-        centerCameraAt(worldPos);
-        return;
+        
+        if (button == sf::Mouse::Button::Left) {
+            if (m_targetingMode) {
+                // Execute targeting action on minimap position
+                executeTargetingAction(worldPos, nullptr, shift);
+                exitTargetingMode();
+                return;
+            }
+            // Normal left-click on minimap - pan camera
+            m_isDraggingMinimap = true;
+            centerCameraAt(worldPos);
+            return;
+        } else if (button == sf::Mouse::Button::Right) {
+            if (m_targetingMode) {
+                // Cancel targeting mode
+                exitTargetingMode();
+                return;
+            }
+            // Right-click on minimap - issue move command
+            Player& player = m_game.getPlayer();
+            if (player.hasSelection()) {
+                EFFECTS.spawnMoveEffect(worldPos, 1.0f);
+                m_game.issueMoveCommand(worldPos, shift);
+            }
+            return;
+        }
     }
     
     // Check if clicking on action bar (left-click only)
@@ -192,44 +217,8 @@ void InputHandler::handleMousePress(sf::Vector2i position, sf::Mouse::Button but
     if (button == sf::Mouse::Button::Left) {
         if (m_targetingMode) {
             // Execute the targeted action
-            Player& player = m_game.getPlayer();
             EntityPtr target = m_game.getEntityAtPosition(worldPos);
-
-            switch (m_targetingAction) {
-                case TargetingAction::Move:
-                    // Check if clicking on an ally unit - issue follow command
-                    if (target && target->getTeam() == player.getTeam()) {
-                        if (target->asUnit()) {
-                            m_game.issueFollowCommand(target, shift);
-                        } else {
-                            // Clicked on own building - just move to location
-                            EFFECTS.spawnMoveEffect(worldPos, 1.0f);
-                            m_game.issueMoveCommand(worldPos, shift);
-                        }
-                    } else {
-                        EFFECTS.spawnMoveEffect(worldPos, 1.0f);
-                        m_game.issueMoveCommand(worldPos, shift);
-                    }
-                    break;
-                case TargetingAction::Attack:
-                    if (target) {
-                        // Attack any target (including allies) when using Attack action
-                        m_game.issueAttackCommand(target, shift);
-                    } else {
-                        // Attack-move to location (move while attacking enemies on the way)
-                        EFFECTS.spawnMoveEffect(worldPos, 1.0f);
-                        m_game.issueAttackMoveCommand(worldPos, shift);
-                    }
-                    break;
-                case TargetingAction::Gather:
-                    if (target && (target->getType() == EntityType::MineralPatch || 
-                                   target->getType() == EntityType::GasGeyser)) {
-                        m_game.issueGatherCommand(target, shift);
-                    }
-                    break;
-                default:
-                    break;
-            }
+            executeTargetingAction(worldPos, target, shift);
             exitTargetingMode();
         } else if (m_buildMode) {
             // Place building
@@ -643,6 +632,46 @@ void InputHandler::enterTargetingMode(TargetingAction action) {
 void InputHandler::exitTargetingMode() {
     m_targetingMode = false;
     m_targetingAction = TargetingAction::None;
+}
+
+void InputHandler::executeTargetingAction(sf::Vector2f worldPos, EntityPtr target, bool shift) {
+    Player& player = m_game.getPlayer();
+    
+    switch (m_targetingAction) {
+        case TargetingAction::Move:
+            // Check if clicking on an ally unit - issue follow command
+            if (target && target->getTeam() == player.getTeam()) {
+                if (target->asUnit()) {
+                    m_game.issueFollowCommand(target, shift);
+                } else {
+                    // Clicked on own building - just move to location
+                    EFFECTS.spawnMoveEffect(worldPos, 1.0f);
+                    m_game.issueMoveCommand(worldPos, shift);
+                }
+            } else {
+                EFFECTS.spawnMoveEffect(worldPos, 1.0f);
+                m_game.issueMoveCommand(worldPos, shift);
+            }
+            break;
+        case TargetingAction::Attack:
+            if (target) {
+                // Attack any target (including allies) when using Attack action
+                m_game.issueAttackCommand(target, shift);
+            } else {
+                // Attack-move to location (move while attacking enemies on the way)
+                EFFECTS.spawnMoveEffect(worldPos, 1.0f);
+                m_game.issueAttackMoveCommand(worldPos, shift);
+            }
+            break;
+        case TargetingAction::Gather:
+            if (target && (target->getType() == EntityType::MineralPatch || 
+                           target->getType() == EntityType::GasGeyser)) {
+                m_game.issueGatherCommand(target, shift);
+            }
+            break;
+        default:
+            break;
+    }
 }
 
 bool InputHandler::handleActionBarClick(sf::Vector2i screenPos) {

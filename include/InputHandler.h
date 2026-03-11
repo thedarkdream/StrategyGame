@@ -113,4 +113,7 @@ private:
     void performSelection(sf::Vector2f worldPos);
     void performBoxSelection();
     void selectAllOfTypeOnScreen(EntityType type);
+    
+    // Targeting action execution
+    void executeTargetingAction(sf::Vector2f worldPos, EntityPtr target, bool shift);
 };
