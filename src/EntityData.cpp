@@ -271,7 +271,14 @@ void EntityRegistry::initializeDefaults() {
         trainWorker.hotkey = "W";
         trainWorker.type = ActionDef::Type::Train;
         trainWorker.producesType = EntityType::Worker;
-        def.actions = {trainWorker};
+        
+        ActionDef rallyPoint;
+        rallyPoint.label = "Rally";
+        rallyPoint.hotkey = "Y";
+        rallyPoint.type = ActionDef::Type::TargetRallyPoint;
+        rallyPoint.row = 1;  // Second row
+        
+        def.actions = {trainWorker, rallyPoint};
         
         registerEntity(std::move(def));
     }
@@ -308,7 +315,13 @@ void EntityRegistry::initializeDefaults() {
         trainBrute.type = ActionDef::Type::Train;
         trainBrute.producesType = EntityType::Brute;
         
-        def.actions = {trainSoldier, trainBrute};
+        ActionDef rallyPointBk;
+        rallyPointBk.label = "Rally";
+        rallyPointBk.hotkey = "Y";
+        rallyPointBk.type = ActionDef::Type::TargetRallyPoint;
+        rallyPointBk.row = 1;  // Second row
+        
+        def.actions = {trainSoldier, trainBrute, rallyPointBk};
         
         registerEntity(std::move(def));
     }
@@ -358,7 +371,14 @@ void EntityRegistry::initializeDefaults() {
         trainLightTank.hotkey = "T";
         trainLightTank.type = ActionDef::Type::Train;
         trainLightTank.producesType = EntityType::LightTank;
-        def.actions = {trainLightTank};
+        
+        ActionDef rallyPointFc;
+        rallyPointFc.label = "Rally";
+        rallyPointFc.hotkey = "Y";
+        rallyPointFc.type = ActionDef::Type::TargetRallyPoint;
+        rallyPointFc.row = 1;  // Second row
+        
+        def.actions = {trainLightTank, rallyPointFc};
         
         registerEntity(std::move(def));
     }

@@ -546,6 +546,97 @@ void Game::spawnUnit(EntityType type, Team team, sf::Vector2f position) {
     }
 }
 
+void Game::spawnUnitFromBuilding(EntityType type, Team team, Building* sourceBuilding) {
+    if (!sourceBuilding) return;
+    
+    // Get spawn position near the building
+    sf::Vector2f buildingPos = sourceBuilding->getPosition();
+    sf::Vector2f buildingSize = ENTITY_DATA.getSize(sourceBuilding->getType());
+    sf::Vector2f spawnPos = buildingPos + sf::Vector2f(buildingSize.x / 2.0f + 20.0f, 0.0f);
+    
+    // Use the actual entity pixel size so findSpawnPosition keeps units apart
+    sf::Vector2f entitySize = ENTITY_DATA.getSize(type);
+    float unitRadius = std::max(entitySize.x, entitySize.y) / 2.0f;
+    spawnPos = findSpawnPosition(spawnPos, unitRadius);
+    
+    UnitPtr unit;
+    
+    switch (type) {
+        case EntityType::Worker:
+            unit = ResourceManager::createWorker(team, spawnPos);
+            break;
+        case EntityType::Soldier:
+            unit = ResourceManager::createSoldier(team, spawnPos);
+            break;
+        case EntityType::Brute:
+            unit = ResourceManager::createBrute(team, spawnPos);
+            break;
+        case EntityType::LightTank:
+            unit = ResourceManager::createLightTank(team, spawnPos);
+            break;
+        default:
+            return;
+    }
+    
+    if (unit) {
+        setupUnit(unit);
+        unit->setIsLocalTeam(m_players[m_localSlot] && team == m_players[m_localSlot]->getTeam());
+        
+        // Set home base for workers
+        if (type == EntityType::Worker) {
+            if (Player* playerPtr = getPlayerByTeam(team)) {
+                for (auto& building : playerPtr->getBuildings()) {
+                    if (building->getType() == EntityType::Base) {
+                        if (auto* w = unit->asWorker()) {
+                            setupWorker(w, building);
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        
+        if (Player* p = getPlayerByTeam(team)) {
+            p->addUnit(unit);
+        }
+        
+        // Record unit creation in statistics
+        m_statistics.recordUnitCreated(team);
+        
+        addEntity(unit);
+        
+        // Issue rally point command
+        EntityPtr rallyTarget = sourceBuilding->getRallyTarget();
+        sf::Vector2f rallyPoint = sourceBuilding->getRallyPoint();
+        
+        if (rallyTarget && rallyTarget->isAlive()) {
+            // Rally to entity
+            if (type == EntityType::Worker) {
+                // Workers gather from resources
+                if (rallyTarget->getType() == EntityType::MineralPatch || 
+                    rallyTarget->getType() == EntityType::GasGeyser) {
+                    if (auto* worker = unit->asWorker()) {
+                        worker->gather(rallyTarget);
+                    }
+                } else {
+                    // Move to the target
+                    unit->moveTo(rallyTarget->getPosition());
+                }
+            } else {
+                // Combat units move to the target
+                unit->moveTo(rallyTarget->getPosition());
+            }
+        } else {
+            // Rally to position - attack-move for combat units, move for workers
+            if (type == EntityType::Worker) {
+                unit->moveTo(rallyPoint);
+            } else {
+                unit->attackMoveTo(rallyPoint);
+            }
+        }
+    }
+}
+
 EntityPtr Game::spawnBuilding(EntityType type, Team team, sf::Vector2f position, bool startComplete) {
     BuildingPtr building;
     
@@ -572,8 +663,8 @@ EntityPtr Game::spawnBuilding(EntityType type, Team team, sf::Vector2f position,
             building->startConstruction();
         }
         
-        building->onUnitProduced = [this, team](EntityType unitType, sf::Vector2f pos) {
-            spawnUnit(unitType, team, pos);
+        building->onUnitProduced = [this, team](EntityType unitType, Building* sourceBuilding) {
+            spawnUnitFromBuilding(unitType, team, sourceBuilding);
         };
         building->onProductionCancelled = [this, team](EntityType unitType) {
             if (Player* p = getPlayerByTeam(team)) p->addResources(ResourceManager::getMineralCost(unitType), 0);
@@ -651,4 +742,31 @@ void Game::issueContinueBuildCommand(EntityPtr building, bool append) {
 
 void Game::cancelBuildingConstruction(EntityPtr building) {
     getActions().cancelConstruction(building);
+}
+
+void Game::setRallyPoint(sf::Vector2f position, EntityPtr target) {
+    Player& player = getPlayer();
+    bool anySet = false;
+    
+    for (const auto& entity : player.getSelection()) {
+        if (auto* building = entity->asBuilding()) {
+            // Check if building can produce units
+            if (auto* bldgDef = ENTITY_DATA.getBuildingDef(entity->getType())) {
+                if (bldgDef->canProduce) {
+                    if (target) {
+                        building->setRallyTarget(target);
+                    } else {
+                        building->setRallyPoint(position);
+                    }
+                    anySet = true;
+                }
+            }
+        }
+    }
+    
+    // Spawn visual effect at rally point
+    if (anySet) {
+        sf::Vector2f effectPos = target ? target->getPosition() : position;
+        EFFECTS.spawnMoveEffect(effectPos, 1.0f);
+    }
 }

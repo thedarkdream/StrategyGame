@@ -14,7 +14,8 @@ enum class TargetingAction {
     None,
     Move,
     Attack,
-    Gather
+    Gather,
+    RallyPoint
 };
 
 class InputHandler {

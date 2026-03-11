@@ -72,6 +72,7 @@ public:
     void addEntity(EntityPtr entity);
     void removeEntity(EntityPtr entity);
     void spawnUnit(EntityType type, Team team, sf::Vector2f position);
+    void spawnUnitFromBuilding(EntityType type, Team team, Building* sourceBuilding);
     EntityPtr spawnBuilding(EntityType type, Team team, sf::Vector2f position, bool startComplete = true);
     void spawnProjectile(EntityPtr source, EntityPtr target, int damage, float speed) override;
     void depositResources(Team team, int amount) override;
@@ -89,6 +90,7 @@ public:
     void issueBuildCommand(EntityType buildingType, sf::Vector2f position, bool append = false);
     void issueContinueBuildCommand(EntityPtr building, bool append = false);
     void cancelBuildingConstruction(EntityPtr building);
+    void setRallyPoint(sf::Vector2f position, EntityPtr target = nullptr);
     
 private:
     // Window (owned by Application, passed by reference)

@@ -197,11 +197,32 @@ void InputHandler::handleMousePress(sf::Vector2i position, sf::Mouse::Button but
                 exitTargetingMode();
                 return;
             }
-            // Right-click on minimap - issue move command
+            // Right-click on minimap
             Player& player = m_game.getPlayer();
             if (player.hasSelection()) {
-                EFFECTS.spawnMoveEffect(worldPos, 1.0f);
-                m_game.issueMoveCommand(worldPos, shift);
+                // Check if only buildings are selected (for rally point)
+                bool onlyBuildings = true;
+                bool hasProductionBuilding = false;
+                for (const auto& entity : player.getSelection()) {
+                    if (!entity->asBuilding()) {
+                        onlyBuildings = false;
+                        break;
+                    }
+                    if (auto* bldgDef = ENTITY_DATA.getBuildingDef(entity->getType())) {
+                        if (bldgDef->canProduce) {
+                            hasProductionBuilding = true;
+                        }
+                    }
+                }
+                
+                if (onlyBuildings && hasProductionBuilding) {
+                    // Set rally point (no entity target on minimap)
+                    m_game.setRallyPoint(worldPos, nullptr);
+                } else {
+                    // Issue move command
+                    EFFECTS.spawnMoveEffect(worldPos, 1.0f);
+                    m_game.issueMoveCommand(worldPos, shift);
+                }
             }
             return;
         }
@@ -240,8 +261,30 @@ void InputHandler::handleMousePress(sf::Vector2i position, sf::Mouse::Button but
             // Issue command to selected units
             Player& player = m_game.getPlayer();
             if (player.hasSelection()) {
+                // Check if only buildings are selected (for rally point)
+                bool onlyBuildings = true;
+                bool hasProductionBuilding = false;
+                for (const auto& entity : player.getSelection()) {
+                    if (!entity->asBuilding()) {
+                        onlyBuildings = false;
+                        break;
+                    }
+                    // Check if any building can produce units
+                    if (auto* bldgDef = ENTITY_DATA.getBuildingDef(entity->getType())) {
+                        if (bldgDef->canProduce) {
+                            hasProductionBuilding = true;
+                        }
+                    }
+                }
+                
                 // Check if clicking on an enemy or resource
                 EntityPtr target = m_game.getEntityAtPosition(worldPos);
+                
+                // If only production buildings selected, set rally point
+                if (onlyBuildings && hasProductionBuilding) {
+                    m_game.setRallyPoint(worldPos, target);
+                    return;
+                }
                 
                 if (target) {
                     if (target->getTeam() != player.getTeam() && target->getTeam() != Team::Neutral) {
@@ -669,6 +712,10 @@ void InputHandler::executeTargetingAction(sf::Vector2f worldPos, EntityPtr targe
                 m_game.issueGatherCommand(target, shift);
             }
             break;
+        case TargetingAction::RallyPoint:
+            // Set rally point on selected buildings
+            m_game.setRallyPoint(worldPos, target);
+            break;
         default:
             break;
     }
@@ -695,6 +742,10 @@ bool InputHandler::handleActionBarClick(sf::Vector2i screenPos) {
             
         case ActionBarClickResult::Type::TargetGather:
             enterTargetingMode(TargetingAction::Gather);
+            break;
+            
+        case ActionBarClickResult::Type::TargetRallyPoint:
+            enterTargetingMode(TargetingAction::RallyPoint);
             break;
             
         case ActionBarClickResult::Type::TargetBuild:

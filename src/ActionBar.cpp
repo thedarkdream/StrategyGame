@@ -254,6 +254,10 @@ ActionBarClickResult ActionBar::handleClick(sf::Vector2i screenPos, Player& play
             result.type = ActionBarClickResult::Type::TargetGather;
             break;
             
+        case ActionDef::Type::TargetRallyPoint:
+            result.type = ActionBarClickResult::Type::TargetRallyPoint;
+            break;
+            
         case ActionDef::Type::Train:
             if (building && action.producesType != EntityType::None) {
                 actions.trainUnit(
@@ -480,6 +484,8 @@ void ActionBar::renderButtons(sf::RenderWindow& window, EntityPtr entity, Player
                 if (actionIndex == 0 && building->isProducing()) {
                     isActive = true;
                 }
+            } else if (action.type == ActionDef::Type::TargetRallyPoint) {
+                isActive = (m_targetingAction == TargetingAction::RallyPoint);
             }
         }
         

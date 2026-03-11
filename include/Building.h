@@ -45,13 +45,18 @@ public:
     float getConstructionTime() const;
     
     // Rally point
-    void setRallyPoint(sf::Vector2f point) { m_rallyPoint = point; }
+    void setRallyPoint(sf::Vector2f point);
+    void setRallyTarget(EntityPtr target);
+    void clearRallyTarget() { m_rallyTarget.reset(); }
     sf::Vector2f getRallyPoint() const { return m_rallyPoint; }
+    EntityPtr getRallyTarget() const { return m_rallyTarget.lock(); }
+    bool hasRallyTarget() const { return !m_rallyTarget.expired(); }
+    
     Building*       asBuilding()       override { return this; }
     const Building* asBuilding() const override { return this; }
 
-    // Callback when unit is produced
-    std::function<void(EntityType, sf::Vector2f)> onUnitProduced;
+    // Callback when unit is produced (provides building pointer for rally point info)
+    std::function<void(EntityType, Building*)> onUnitProduced;
     
     // Callback when production is cancelled (for refunding resources)
     std::function<void(EntityType)> onProductionCancelled;
@@ -73,6 +78,7 @@ private:
     
     // Rally point for produced units
     sf::Vector2f m_rallyPoint;
+    std::weak_ptr<Entity> m_rallyTarget;  // Optional entity target
     
     void updateProduction(float deltaTime);
     float getTrainingTime(EntityType unitType) const;

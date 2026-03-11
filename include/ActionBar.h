@@ -18,6 +18,7 @@ struct ActionBarClickResult {
         TargetMove,     // Enter move targeting mode
         TargetAttack,   // Enter attack targeting mode
         TargetGather,   // Enter gather targeting mode
+        TargetRallyPoint, // Enter rally point targeting mode
         TargetBuild,    // Enter build placement mode
         Handled,        // Action was executed (Stop, Train, Cancel queue)
         CancelBuilding  // Cancel building under construction

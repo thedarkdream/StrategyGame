@@ -276,7 +276,7 @@ void Building::updateProduction(float deltaTime) {
     if (current.timeElapsed >= current.timeRequired) {
         // Unit produced!
         if (onUnitProduced) {
-            onUnitProduced(current.unitType, getSpawnPoint());
+            onUnitProduced(current.unitType, this);
         }
         
         m_productionQueue.pop_front();
@@ -289,8 +289,20 @@ float Building::getTrainingTime(EntityType unitType) const {
 }
 
 sf::Vector2f Building::getSpawnPoint() const {
-    // Spawn at rally point or bottom-right of building
-    return m_rallyPoint;
+    // Spawn near the building, not at the rally point
+    return m_position + sf::Vector2f(m_size.x, 0.0f);
+}
+
+void Building::setRallyPoint(sf::Vector2f point) {
+    m_rallyPoint = point;
+    m_rallyTarget.reset();  // Clear entity target when setting position
+}
+
+void Building::setRallyTarget(EntityPtr target) {
+    if (target) {
+        m_rallyTarget = target;
+        m_rallyPoint = target->getPosition();  // Also update position for rendering
+    }
 }
 
 void Building::preload() {

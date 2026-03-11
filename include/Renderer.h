@@ -30,6 +30,7 @@ private:
     // Render layers
     void renderMap(Map& map);
     void renderEntities(Game& game);
+    void renderRallyPoints(Game& game);
     void renderUI(Game& game);
     void renderSelectionBox(const InputHandler& input);
     void renderBuildPreview(const InputHandler& input, Map& map);

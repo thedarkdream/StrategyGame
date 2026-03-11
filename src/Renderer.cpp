@@ -36,6 +36,9 @@ void Renderer::render(Game& game) {
     // Render visual effects (explosions, etc.) on top of entities
     EFFECTS.render(m_window);
     
+    // Render rally points for selected buildings
+    renderRallyPoints(game);
+    
     // Render selection box if selecting
     InputHandler& input = game.getInput();
     renderSelectionBox(input);
@@ -65,6 +68,51 @@ void Renderer::renderEntities(Game& game) {
         if (entity && (entity->isAlive() || entity->isDying())) {
             entity->render(m_window);
         }
+    }
+}
+
+void Renderer::renderRallyPoints(Game& game) {
+    Player& player = game.getPlayer();
+    
+    for (const auto& entity : player.getSelection()) {
+        auto* building = entity->asBuilding();
+        if (!building || !building->isConstructed()) continue;
+        
+        // Check if building can produce units
+        if (auto* bldgDef = ENTITY_DATA.getBuildingDef(entity->getType())) {
+            if (!bldgDef->canProduce) continue;
+        } else {
+            continue;
+        }
+        
+        sf::Vector2f buildingPos = building->getPosition();
+        sf::Vector2f rallyPoint = building->getRallyPoint();
+        
+        // Draw line from building to rally point
+        sf::Vertex line[] = {
+            sf::Vertex{buildingPos, sf::Color(0, 255, 100, 180)},
+            sf::Vertex{rallyPoint, sf::Color(0, 255, 100, 180)}
+        };
+        m_window.draw(line, 2, sf::PrimitiveType::Lines);
+        
+        // Draw rally point flag/marker
+        float flagSize = 8.0f;
+        sf::ConvexShape flag;
+        flag.setPointCount(3);
+        flag.setPoint(0, sf::Vector2f(0.0f, 0.0f));
+        flag.setPoint(1, sf::Vector2f(flagSize * 1.5f, flagSize * 0.5f));
+        flag.setPoint(2, sf::Vector2f(0.0f, flagSize));
+        flag.setPosition(rallyPoint);
+        flag.setFillColor(sf::Color(0, 255, 100, 200));
+        flag.setOutlineThickness(1.0f);
+        flag.setOutlineColor(sf::Color(0, 150, 50));
+        m_window.draw(flag);
+        
+        // Draw flag pole
+        sf::RectangleShape pole(sf::Vector2f(2.0f, flagSize + 8.0f));
+        pole.setPosition(rallyPoint - sf::Vector2f(1.0f, 8.0f));
+        pole.setFillColor(sf::Color(100, 50, 20));
+        m_window.draw(pole);
     }
 }
 

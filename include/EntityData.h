@@ -20,6 +20,7 @@ struct ActionDef {
         TargetMove,         // Requires position target
         TargetAttack,       // Requires entity target
         TargetGather,       // Requires resource target
+        TargetRallyPoint,   // Set building rally point
         Instant,            // Executes immediately (e.g., Stop)
         Train,              // Trains a unit (requires EntityType)
         Build               // Constructs a building (requires EntityType)
