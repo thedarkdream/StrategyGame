@@ -214,24 +214,25 @@ void AIController::handleAttack() {
 }
 
 void AIController::manageIdleWorkers() {
-    // Send idle workers to gather
+    // Pre-collect mineral patches once so we don't re-scan all entities per worker.
+    std::vector<EntityPtr> minerals;
+    for (const auto& entity : m_game.getAllEntities()) {
+        if (entity && entity->isAlive() && entity->getType() == EntityType::MineralPatch)
+            minerals.push_back(entity);
+    }
+    if (minerals.empty()) return;
+
     for (auto& unit : m_player.getUnits()) {
-        if (unit->getType() == EntityType::Worker && unit->isIdle()) {
-            EntityPtr nearestMineral;
-            float nearestDist = 999999.0f;
-            for (auto& entity : m_game.getAllEntities()) {
-                if (entity->getType() == EntityType::MineralPatch) {
-                    float dist = MathUtil::distance(entity->getPosition(), unit->getPosition());
-                    if (dist < nearestDist) {
-                        nearestDist = dist;
-                        nearestMineral = entity;
-                    }
-                }
-            }
-            if (nearestMineral) {
-                m_actions->gather({std::static_pointer_cast<Entity>(unit)}, nearestMineral);
-            }
+        if (unit->getType() != EntityType::Worker || !unit->isIdle()) continue;
+
+        EntityPtr nearest;
+        float nearestDist = std::numeric_limits<float>::max();
+        for (const auto& mineral : minerals) {
+            float dist = MathUtil::distance(mineral->getPosition(), unit->getPosition());
+            if (dist < nearestDist) { nearestDist = dist; nearest = mineral; }
         }
+        if (nearest)
+            m_actions->gather({std::static_pointer_cast<Entity>(unit)}, nearest);
     }
 }
 
@@ -258,64 +259,72 @@ void AIController::processTrainQueue() {
     );
 }
 
+void AIController::reassignBuildWorker(PendingBuild& pb) {
+    // Find the incomplete foundation for this build and send an idle worker to it.
+    for (auto& bld : m_player.getBuildings()) {
+        if (bld->getType() != pb.buildingType || bld->isConstructed()) continue;
+
+        Worker* newWorker = findIdleWorker();
+        if (!newWorker) return;
+
+        for (auto& unit : m_player.getUnits()) {
+            if (unit.get() == newWorker) {
+                m_actions->continueConstruction(
+                    std::static_pointer_cast<Entity>(bld),
+                    {std::static_pointer_cast<Entity>(unit)});
+                pb.assignedWorker = unit;
+                return;
+            }
+        }
+        return;  // found the building but no unit ptr (shouldn't happen)
+    }
+}
+
 void AIController::processBuildQueue() {
-    // Process pending build commands
     for (auto& pb : m_pendingBuilds) {
         if (!pb.started) {
-            // Check if building already exists (e.g. built via a different path)
+            // Already built through another path — mark done.
             if (countBuildingsOfType(pb.buildingType, true) > 0) {
                 pb.started = true;
                 continue;
             }
-            
-            // Try to start construction
+
             if (m_player.canAfford(ENTITY_DATA.getMineralCost(pb.buildingType),
                                    ENTITY_DATA.getGasCost(pb.buildingType))) {
                 sf::Vector2f buildPos = findBuildLocation(pb.buildingType);
                 Worker* worker = findIdleWorker();
-                
                 if (buildPos.x >= 0.f && worker) {
                     m_actions->constructBuilding(pb.buildingType, buildPos, worker);
                     pb.started = true;
-                    pb.assignedWorker = worker;
-                }
-            }
-        } else {
-            // Build was issued — check if the assigned worker has abandoned the job
-            // (e.g. got stuck coming from a resource node, became idle, was re-tasked)
-            if (pb.assignedWorker && pb.assignedWorker->isAlive() &&
-                !pb.assignedWorker->isBuilding()) {
-                // Find the incomplete building and re-assign a worker to it
-                for (auto& bld : m_player.getBuildings()) {
-                    if (bld->getType() == pb.buildingType && !bld->isConstructed()) {
-                        Worker* newWorker = findIdleWorker();
-                        if (newWorker) {
-                            // Find the matching EntityPtr from the unit list
-                            for (auto& unit : m_player.getUnits()) {
-                                if (unit.get() == newWorker) {
-                                    m_actions->continueConstruction(
-                                        std::static_pointer_cast<Entity>(bld),
-                                        {std::static_pointer_cast<Entity>(unit)});
-                                    pb.assignedWorker = newWorker;
-                                    break;
-                                }
-                            }
-                        }
-                        break;
+                    // Find the shared_ptr so we can store it as a weak_ptr.
+                    for (auto& unit : m_player.getUnits()) {
+                        if (unit.get() == worker) { pb.assignedWorker = unit; break; }
                     }
                 }
             }
+        } else {
+            // Build was issued — check if the worker abandoned the job.
+            auto assigned = pb.assignedWorker.lock();
+            if (assigned && assigned->isAlive()) {
+                Worker* w = assigned->asWorker();
+                if (w && !w->isBuilding())
+                    reassignBuildWorker(pb);
+            } else if (!assigned) {
+                // Worker was destroyed; try a fresh one.
+                reassignBuildWorker(pb);
+            }
         }
     }
-    
-    // Clean up completed builds
+
+    // Remove entries only once the building is fully constructed.
+    // Using includeIncomplete=false ensures the entry stays alive (and worker
+    // is monitored/re-assigned) while the foundation is still under construction.
     m_pendingBuilds.erase(
         std::remove_if(m_pendingBuilds.begin(), m_pendingBuilds.end(),
             [this](const PendingBuild& pb) {
-                return pb.started && countBuildingsOfType(pb.buildingType, true) > 0;
+                return pb.started && countBuildingsOfType(pb.buildingType, false) > 0;
             }),
-        m_pendingBuilds.end()
-    );
+        m_pendingBuilds.end());
 }
 
 BuildingPtr AIController::findBuildingForUnit(EntityType unitType) {
@@ -349,25 +358,18 @@ BuildingPtr AIController::findBuildingForUnit(EntityType unitType) {
 }
 
 int AIController::countUnitsOfType(EntityType type) {
-    int count = 0;
-    for (auto& unit : m_player.getUnits()) {
-        if (unit->getType() == type && unit->isAlive()) {
-            ++count;
-        }
-    }
-    return count;
+    const auto& units = m_player.getUnits();
+    return static_cast<int>(std::count_if(units.begin(), units.end(),
+        [type](const UnitPtr& u) { return u->getType() == type && u->isAlive(); }));
 }
 
 int AIController::countBuildingsOfType(EntityType type, bool includeIncomplete) {
-    int count = 0;
-    for (auto& building : m_player.getBuildings()) {
-        if (building->getType() == type && building->isAlive()) {
-            if (includeIncomplete || building->isConstructed()) {
-                ++count;
-            }
-        }
-    }
-    return count;
+    const auto& buildings = m_player.getBuildings();
+    return static_cast<int>(std::count_if(buildings.begin(), buildings.end(),
+        [type, includeIncomplete](const BuildingPtr& b) {
+            return b->getType() == type && b->isAlive()
+                && (includeIncomplete || b->isConstructed());
+        }));
 }
 
 sf::Vector2f AIController::findBuildLocation(EntityType buildingType) {
@@ -432,53 +434,42 @@ sf::Vector2f AIController::findBuildLocation(EntityType buildingType) {
 }
 
 Worker* AIController::findIdleWorker() {
-    for (auto& unit : m_player.getUnits()) {
-        if (unit->getType() == EntityType::Worker && unit->isAlive()) {
-            if (Worker* w = unit->asWorker()) {
-                if (!w->isBuilding() && w->isIdle())
-                    return w;
-            }
-        }
+    // Prefer a truly idle worker; fall back to any worker not actively building.
+    Worker* fallback = nullptr;
+    for (const auto& unit : m_player.getUnits()) {
+        if (unit->getType() != EntityType::Worker || !unit->isAlive()) continue;
+        Worker* w = unit->asWorker();
+        if (!w || w->isBuilding()) continue;
+        if (w->isIdle()) return w;
+        if (!fallback) fallback = w;
     }
-    // Fallback: any worker not actively building
-    for (auto& unit : m_player.getUnits()) {
-        if (unit->getType() == EntityType::Worker && unit->isAlive()) {
-            if (Worker* w = unit->asWorker()) {
-                if (!w->isBuilding())
-                    return w;
-            }
-        }
-    }
-    return nullptr;
+    return fallback;
 }
 
 sf::Vector2f AIController::findEnemyBase() {
-    // Find enemy base positions
-    std::vector<sf::Vector2f> enemyBasePositions;
-    
+    const Team myTeam = m_player.getTeam();
+
+    // Single pass: collect base positions; if none exist, fall back to any building.
+    std::vector<sf::Vector2f> targets;
+    bool foundBase = false;
+
     for (const auto& entity : m_game.getAllEntities()) {
         if (!entity || !entity->isAlive()) continue;
-        if (entity->getTeam() == m_player.getTeam() || entity->getTeam() == Team::Neutral) continue;
-        if (entity->getType() == EntityType::Base)
-            enemyBasePositions.push_back(entity->getPosition());
-    }
+        if (entity->getTeam() == myTeam || entity->getTeam() == Team::Neutral) continue;
+        if (!entity->asBuilding()) continue;
 
-    // Fallback to any enemy building
-    if (enemyBasePositions.empty()) {
-        for (const auto& entity : m_game.getAllEntities()) {
-            if (!entity || !entity->isAlive()) continue;
-            if (entity->getTeam() == m_player.getTeam() || entity->getTeam() == Team::Neutral) continue;
-            if (entity->asBuilding())
-                enemyBasePositions.push_back(entity->getPosition());
+        const bool isBase = (entity->getType() == EntityType::Base);
+        if (isBase && !foundBase) {
+            targets.clear();   // discard any fallback buildings collected so far
+            foundBase = true;
         }
+        if (isBase || !foundBase)
+            targets.push_back(entity->getPosition());
     }
 
-    if (enemyBasePositions.empty()) {
-        return sf::Vector2f(-1, -1);
-    }
+    if (targets.empty()) return sf::Vector2f(-1, -1);
 
-    // Pick a random enemy base
-    std::uniform_int_distribution<int> pick(0, static_cast<int>(enemyBasePositions.size()) - 1);
-    return enemyBasePositions[pick(m_rng)];
+    std::uniform_int_distribution<int> pick(0, static_cast<int>(targets.size()) - 1);
+    return targets[pick(m_rng)];
 }
 

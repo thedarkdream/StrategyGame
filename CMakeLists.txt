@@ -44,12 +44,14 @@ set(SOURCES
     src/Projectile.cpp
     src/GameStatistics.cpp
     src/VictoryScreen.cpp
+    src/DebugConsole.cpp
 )
 
 # Header files
 set(HEADERS
     include/Game.h
     include/Screen.h
+    include/DebugConsole.h
     include/Application.h
     include/MenuScreen.h
     include/GameScreen.h

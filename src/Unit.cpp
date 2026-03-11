@@ -125,6 +125,9 @@ void Unit::moveTo(sf::Vector2f target) {
     m_state = UnitState::Moving;
     m_stuckTimer = 0.0f;
     m_lastDistanceToTarget = 0.0f;
+    m_navSamplePos   = m_position;
+    m_navSampleTimer = 0.0f;
+    m_navStuckTimer  = 0.0f;
     playAnimation(AnimationState::Walk);
     findPath(target);
 }
@@ -135,6 +138,9 @@ void Unit::attackMoveTo(sf::Vector2f target) {
     m_state = UnitState::AttackMoving;
     m_stuckTimer = 0.0f;
     m_lastDistanceToTarget = 0.0f;
+    m_navSamplePos   = m_position;
+    m_navSampleTimer = 0.0f;
+    m_navStuckTimer  = 0.0f;
     playAnimation(AnimationState::Walk);
     findPath(target);
 }
@@ -448,32 +454,79 @@ void Unit::updateCustomState(float deltaTime) {
 }
 
 void Unit::followPath(float deltaTime) {
-    // If no path or path exhausted, move directly to target
-    if (m_path.empty() || m_pathIndex >= m_path.size()) {
-        moveTowardsTarget(deltaTime);
-        return;
-    }
-    
-    // Move towards current waypoint
-    sf::Vector2f waypoint = m_path[m_pathIndex];
-    float distToWaypoint = MathUtil::distance(waypoint, m_position);
-    
-    if (distToWaypoint < 10.0f) {
-        // Reached this waypoint, move to next
-        m_pathIndex++;
-        if (m_pathIndex >= m_path.size()) {
-            // Path exhausted, move directly to final target
-            moveTowardsTarget(deltaTime);
-            return;
+    // Reset the obstacle flag; moveTowardsTarget will set it if fully blocked.
+    m_blockedByStaticObstacle = false;
+
+    bool useWaypoint = !m_path.empty() && m_pathIndex < m_path.size();
+
+    if (useWaypoint) {
+        sf::Vector2f waypoint = m_path[m_pathIndex];
+        float distToWaypoint = MathUtil::distance(waypoint, m_position);
+
+        if (distToWaypoint < 10.0f) {
+            m_pathIndex++;
+            useWaypoint = m_pathIndex < m_path.size();
+            if (useWaypoint)
+                waypoint = m_path[m_pathIndex];
         }
-        waypoint = m_path[m_pathIndex];
+
+        if (useWaypoint) {
+            // Temporarily redirect movement toward the next waypoint while
+            // keepingm_targetPosition pointing at the final destination for
+            // the probe's progress calculation and for the replan below.
+            sf::Vector2f originalTarget = m_targetPosition;
+            m_targetPosition = waypoint;
+            moveTowardsTarget(deltaTime);
+            m_targetPosition = originalTarget;
+        } else {
+            moveTowardsTarget(deltaTime);  // path exhausted mid-tick
+        }
+    } else {
+        moveTowardsTarget(deltaTime);  // no path, go direct
     }
-    
-    // Move towards waypoint
-    sf::Vector2f originalTarget = m_targetPosition;
-    m_targetPosition = waypoint;
-    moveTowardsTarget(deltaTime);
-    m_targetPosition = originalTarget;
+
+    // --- Path-blocked replan -------------------------------------------
+    // Only triggers when ALL probe directions are blocked (very rare with 7
+    // probes, but handles truly pinned units). After the threshold the path
+    // is rebuilt from the current position, giving A* a fresh start point
+    // that naturally routes around whichever obstacle caused the jam.
+    if (m_blockedByStaticObstacle) {
+        m_pathBlockedTimer += deltaTime;
+        if (m_pathBlockedTimer >= PATH_REPLAN_BLOCKED_TIME) {
+            findPath(m_targetPosition);
+            m_pathBlockedTimer = 0.0f;
+        }
+    } else {
+        m_pathBlockedTimer = 0.0f;
+    }
+
+    // --- Net-displacement stuck detection ---------------------------------
+    // Catches oscillation (e.g. bouncing at a building-corner junction) where
+    // the unit is always finding some probe direction but never making real
+    // forward progress.  Every NAV_SAMPLE_INTERVAL seconds we measure how far
+    // the unit physically moved from the last sample point.  If net progress
+    // is below NAV_MIN_PROGRESS we accumulate m_navStuckTimer; once it
+    // exceeds NAV_STUCK_THRESHOLD we replan from the current position so A*
+    // can find a fresh route (one that hopefully avoids the tight junction).
+    if (!m_path.empty() && m_pathIndex < m_path.size()) {
+        m_navSampleTimer += deltaTime;
+        if (m_navSampleTimer >= NAV_SAMPLE_INTERVAL) {
+            float moved = MathUtil::distance(m_position, m_navSamplePos);
+            if (moved < NAV_MIN_PROGRESS)
+                m_navStuckTimer += m_navSampleTimer;
+            else
+                m_navStuckTimer = 0.0f;
+            m_navSamplePos   = m_position;
+            m_navSampleTimer = 0.0f;
+            if (m_navStuckTimer >= NAV_STUCK_THRESHOLD) {
+                findPath(m_targetPosition);
+                m_navStuckTimer = 0.0f;
+            }
+        }
+    } else {
+        m_navSampleTimer = 0.0f;
+        m_navStuckTimer  = 0.0f;
+    }
 }
 
 void Unit::moveTowardsTarget(float deltaTime) {
@@ -504,28 +557,48 @@ void Unit::moveTowardsTarget(float deltaTime) {
     if (m_context && isCollidable()) {
         float radius = getCollisionRadius();
         if (m_context->checkPositionBlocked(newPosition, radius, this)) {
-            // Try to slide along static obstacles
-            sf::Vector2f perpendicular(-direction.y, direction.x);
-            float moveDistance = m_speed * deltaTime;
-            
-            // Try sliding right
-            sf::Vector2f slideRight = m_position + perpendicular * moveDistance * 0.7f;
-            if (!m_context->checkPositionBlocked(slideRight, radius, this)) {
-                m_position = slideRight;
-                m_velocity = perpendicular * m_speed * 0.7f;
-                return;
+            // Probe 7 alternate directions (every 45°, skipping the already-blocked
+            // forward direction) and choose the non-blocked one that makes the most
+            // angular progress toward the actual destination. This cleanly handles
+            // corners where the old ±90° slide would oscillate.
+            constexpr float PROBE_DEG[] = { 90.f, -90.f, 45.f, -45.f, 135.f, -135.f, 180.f };
+            constexpr float DEG_TO_RAD = 3.14159265f / 180.0f;
+
+            float baseAngle = std::atan2(direction.y, direction.x);
+            float moveDist  = m_speed * deltaTime;
+
+            // Direction vector toward the true destination (not necessarily the waypoint).
+            sf::Vector2f toTarget = m_targetPosition - m_position;
+            float ttLen = std::sqrt(toTarget.x * toTarget.x + toTarget.y * toTarget.y);
+            sf::Vector2f targetDir = (ttLen > 0.01f) ? (toTarget / ttLen) : direction;
+
+            sf::Vector2f bestPos;
+            float bestDot = -2.0f;  // sentinel: no valid candidate yet
+
+            for (float deg : PROBE_DEG) {
+                float angle = baseAngle + deg * DEG_TO_RAD;
+                sf::Vector2f probeDir(std::cos(angle), std::sin(angle));
+                sf::Vector2f probePos = m_position + probeDir * moveDist;
+
+                if (!m_context->checkPositionBlocked(probePos, radius, this)) {
+                    float dot = probeDir.x * targetDir.x + probeDir.y * targetDir.y;
+                    if (dot > bestDot) {
+                        bestDot = dot;
+                        bestPos = probePos;
+                    }
+                }
             }
-            
-            // Try sliding left
-            sf::Vector2f slideLeft = m_position - perpendicular * moveDistance * 0.7f;
-            if (!m_context->checkPositionBlocked(slideLeft, radius, this)) {
-                m_position = slideLeft;
-                m_velocity = -perpendicular * m_speed * 0.7f;
-                return;
+
+            if (bestDot > -1.5f) {
+                // Found a legal direction — slide along the obstacle surface.
+                m_velocity = (bestPos - m_position) / deltaTime;
+                m_position = bestPos;
+                // Not fully blocked; leave m_blockedByStaticObstacle as-is (false).
+            } else {
+                // All 8 directions blocked — mark completely stuck.
+                m_velocity = sf::Vector2f(0.0f, 0.0f);
+                m_blockedByStaticObstacle = true;
             }
-            
-            // Blocked completely by static obstacle
-            m_velocity = sf::Vector2f(0.0f, 0.0f);
             return;
         }
     }
@@ -548,33 +621,41 @@ void Unit::fireAttack(EntityPtr target) {
 
 bool Unit::hasGroupArrived(float deltaTime) {
     float distance = MathUtil::distance(m_targetPosition, m_position);
-    
-    // If actually reached target, we're done
+
+    // Exactly at target.
     if (distance < 5.0f) {
+        m_stuckTimer = 0.0f;
         return true;
     }
-    
-    // Only consider group arrival if within reasonable distance
-    if (distance > GROUP_ARRIVAL_RADIUS) {
+
+    // If still far away there is no point tracking stuck time yet; the unit is
+    // legitimately navigating toward the destination.
+    if (distance > GROUP_ARRIVAL_RADIUS_FAR) {
         m_stuckTimer = 0.0f;
         m_lastDistanceToTarget = distance;
         return false;
     }
-    
-    // Check if we're making progress
-    float progressThreshold = 2.0f;  // Minimum movement to consider progress
-    if (m_lastDistanceToTarget > 0.0f && m_lastDistanceToTarget - distance > progressThreshold) {
-        // Making progress, reset timer
+
+    // Within GROUP_ARRIVAL_RADIUS_FAR: measure progress toward destination.
+    // Require at least 2px closer per frame to count as meaningful progress.
+    const bool makingProgress = (m_lastDistanceToTarget > 0.0f &&
+                                 m_lastDistanceToTarget - distance > 2.0f);
+    if (makingProgress)
         m_stuckTimer = 0.0f;
-    } else {
-        // Not making progress, increment timer
+    else
         m_stuckTimer += deltaTime;
-    }
-    
+
     m_lastDistanceToTarget = distance;
-    
-    // If stuck for long enough near destination, consider arrived
-    return m_stuckTimer >= STUCK_THRESHOLD_TIME;
+
+    // Tight check: just arrived at the tile (original behaviour).
+    if (distance <= GROUP_ARRIVAL_RADIUS && m_stuckTimer >= STUCK_THRESHOLD_TIME)
+        return true;
+
+    // Wide check: held back by packed allies — stop and become idle nearby.
+    if (m_stuckTimer >= STUCK_THRESHOLD_FAR)
+        return true;
+
+    return false;
 }
 
 void Unit::findPath(sf::Vector2f target) {

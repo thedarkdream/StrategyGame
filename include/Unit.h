@@ -58,7 +58,11 @@ public:
 
     // Current velocity (for RVO)
     sf::Vector2f getVelocity() const { return m_velocity; }
-    
+
+    // Debug / inspection: read-only access to the current A* path
+    const std::vector<sf::Vector2f>& getPath() const { return m_path; }
+    size_t getPathIndex() const { return m_pathIndex; }
+
 protected:
     // Pops and executes the next queued action; returns true if something was dispatched.
     // Call instead of "m_state = Idle" at natural action-completion points.
@@ -112,8 +116,29 @@ protected:
     // Group arrival detection - unit is "arrived" if stuck near destination
     float m_stuckTimer = 0.0f;
     float m_lastDistanceToTarget = 0.0f;
-    static constexpr float STUCK_THRESHOLD_TIME = 0.5f;  // Time without progress to consider stuck
-    static constexpr float GROUP_ARRIVAL_RADIUS = 40.0f; // Consider arrived if stuck within this distance
+    // Tight check: close + briefly stuck (original behaviour)
+    static constexpr float STUCK_THRESHOLD_TIME  = 0.5f;
+    static constexpr float GROUP_ARRIVAL_RADIUS  = 40.0f;
+    // Wide check: several unit-radii away, blocked by packed allies for longer
+    static constexpr float STUCK_THRESHOLD_FAR   = 1.5f;
+    static constexpr float GROUP_ARRIVAL_RADIUS_FAR = 120.0f;
+
+    // Static-obstacle blocking: replan the path if completely unable to move for too long
+    float m_pathBlockedTimer       = 0.0f;
+    bool  m_blockedByStaticObstacle = false;
+    static constexpr float PATH_REPLAN_BLOCKED_TIME = 0.4f;
+
+    // Net-displacement stuck detection: catches oscillation at building corners
+    // even when individual probes still find some slide direction.
+    // Every NAV_SAMPLE_INTERVAL seconds we check net displacement; if the unit
+    // has not moved NAV_MIN_PROGRESS pixels we accumulate navStuckTimer and
+    // replan once it exceeds NAV_STUCK_THRESHOLD.
+    sf::Vector2f m_navSamplePos        = {};
+    float        m_navSampleTimer      = 0.0f;
+    float        m_navStuckTimer       = 0.0f;
+    static constexpr float NAV_SAMPLE_INTERVAL  = 0.5f;
+    static constexpr float NAV_MIN_PROGRESS     = 8.0f;
+    static constexpr float NAV_STUCK_THRESHOLD  = 1.5f;
     
     // RVO parameters
     static constexpr float RVO_NEIGHBOR_DIST = 80.0f;    // Look for neighbors within this distance

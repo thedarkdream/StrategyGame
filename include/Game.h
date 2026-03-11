@@ -11,6 +11,7 @@
 #include "IUnitContext.h"
 #include "PlayerActions.h"
 #include "GameStatistics.h"
+#include "DebugConsole.h"
 #include <SFML/Graphics.hpp>
 #include <memory>
 #include <vector>
@@ -110,8 +111,9 @@ private:
     std::array<std::unique_ptr<Player>,           MAX_PLAYERS> m_players;
     std::array<std::unique_ptr<PlayerController>, MAX_PLAYERS> m_controllers;
     std::array<std::unique_ptr<PlayerActions>,    MAX_PLAYERS> m_actions;
-    std::unique_ptr<InputHandler> m_input;
-    std::unique_ptr<Renderer>     m_renderer;
+    std::unique_ptr<InputHandler>    m_input;
+    std::unique_ptr<Renderer>          m_renderer;
+    std::unique_ptr<DebugConsole>      m_debugConsole;
     
     // All entities in game
     EntityList m_allEntities;

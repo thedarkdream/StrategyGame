@@ -241,8 +241,8 @@ std::vector<sf::Vector2f> Map::findPath(sf::Vector2f start, sf::Vector2f end) {
             if (!path.empty()) {
                 path.erase(path.begin());  // Remove start position
             }
-            
-            return path;
+
+            return smoothPath(path);
         }
         
         // Explore neighbors
@@ -262,8 +262,31 @@ std::vector<sf::Vector2f> Map::findPath(sf::Vector2f start, sf::Vector2f end) {
                     continue;  // Can't cut corners
                 }
             }
-            
-            float newG = current.g + costs[i];
+
+            // Clearance penalty: strongly prefer paths away from walls.
+            // The penalty is quadratic in the number of non-walkable orthogonal
+            // neighbours so that tight junctions between two adjacent buildings
+            // become very expensive relative to a longer detour:
+            //   1 wall neighbour  → +1.5
+            //   2 wall neighbours → +6.0
+            //   3 wall neighbours → +13.5
+            // A pinch point (walls on both opposite sides of the tile, i.e. a
+            // corridor exactly 1 tile wide) gets an additional +8.0 penalty,
+            // making A* strongly prefer routing around the cluster instead.
+            const int odx[] = { 0, 1, 0, -1 };
+            const int ody[] = { -1, 0, 1,  0 };
+            int wallNeighbors = 0;
+            for (int k = 0; k < 4; ++k) {
+                if (!isWalkable(nx + odx[k], ny + ody[k]))
+                    ++wallNeighbors;
+            }
+            float clearancePenalty = static_cast<float>(wallNeighbors * wallNeighbors) * 1.5f;
+            // Extra hit for pinch points: walls on both left+right or top+bottom
+            bool hPinch = !isWalkable(nx - 1, ny) && !isWalkable(nx + 1, ny);
+            bool vPinch = !isWalkable(nx, ny - 1) && !isWalkable(nx, ny + 1);
+            if (hPinch || vPinch) clearancePenalty += 8.0f;
+
+            float newG = current.g + costs[i] + clearancePenalty;
             float newH = heuristic(nx, ny, endTile.x, endTile.y);
             
             // Check if this path is better
@@ -277,6 +300,63 @@ std::vector<sf::Vector2f> Map::findPath(sf::Vector2f start, sf::Vector2f end) {
     
     // No path found, return direct path
     return { end };
+}
+
+bool Map::hasLineOfSight(int x0, int y0, int x1, int y1) const {
+    // Walk along the line from (x0,y0) to (x1,y1) using a supercover approach.
+    // At each step we check the primary tile *and* the two neighbouring tiles that
+    // are orthogonally adjacent to the line. This makes the check conservative
+    // enough that a unit with non-zero radius won't clip a corner even though the
+    // line itself technically cleared it.
+    int steps = std::max(std::abs(x1 - x0), std::abs(y1 - y0));
+    if (steps == 0) return true;
+
+    for (int i = 1; i <= steps; ++i) {
+        float t  = static_cast<float>(i) / static_cast<float>(steps);
+        float fx = x0 + t * (x1 - x0);
+        float fy = y0 + t * (y1 - y0);
+
+        // Primary tile (round)
+        int tx = static_cast<int>(std::round(fx));
+        int ty = static_cast<int>(std::round(fy));
+        if (!isWalkable(tx, ty)) return false;
+
+        // Conservative side tiles: check floor and ceil on each axis
+        int txf = static_cast<int>(std::floor(fx));
+        int tyf = static_cast<int>(std::floor(fy));
+        int txc = static_cast<int>(std::ceil(fx));
+        int tyc = static_cast<int>(std::ceil(fy));
+        // Only the tiles that differ from the primary tile matter
+        if ((txf != tx || tyf != ty) && !isWalkable(txf, tyf)) return false;
+        if ((txc != tx || tyc != ty) && !isWalkable(txc, tyc)) return false;
+    }
+    return true;
+}
+
+std::vector<sf::Vector2f> Map::smoothPath(const std::vector<sf::Vector2f>& path) const {
+    if (path.size() <= 2) return path;
+
+    std::vector<sf::Vector2f> result;
+    result.push_back(path.front());
+
+    size_t anchor = 0;  // index of the last kept waypoint
+
+    while (anchor < path.size() - 1) {
+        // Try to jump as far forward as possible with direct LOS.
+        size_t farthest = anchor + 1;
+        for (size_t j = path.size() - 1; j > anchor + 1; --j) {
+            sf::Vector2i ta = worldToTile(path[anchor]);
+            sf::Vector2i tb = worldToTile(path[j]);
+            if (hasLineOfSight(ta.x, ta.y, tb.x, tb.y)) {
+                farthest = j;
+                break;
+            }
+        }
+        result.push_back(path[farthest]);
+        anchor = farthest;
+    }
+
+    return result;
 }
 
 void Map::initEmpty() {

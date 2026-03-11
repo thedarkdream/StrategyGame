@@ -62,4 +62,11 @@ private:
         float f() const { return g + h; }
     };
     float heuristic(int x1, int y1, int x2, int y2) const;
+    // Returns true if there is a clear tile-based line of sight between two tiles.
+    // Uses a fat Bresenham check (samples both floor and round at each step) to
+    // ensure a unit with non-zero radius won't clip a corner.
+    bool hasLineOfSight(int x0, int y0, int x1, int y1) const;
+    // Remove redundant waypoints: skip any waypoint that can be reached directly
+    // in a straight line from the previous kept waypoint (string-pulling).
+    std::vector<sf::Vector2f> smoothPath(const std::vector<sf::Vector2f>& path) const;
 };

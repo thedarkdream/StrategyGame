@@ -28,7 +28,12 @@ void Game::handleEvent(const sf::Event& event) {
     if (const auto* resized = event.getIf<sf::Event::Resized>()) {
         m_input->onWindowResize(resized->size);
     }
-    
+
+    // Debug console gets first refusal; if it consumes the event, stop here.
+    if (m_debugConsole && m_debugConsole->handleEvent(event)) {
+        return;
+    }
+
     m_input->handleEvent(event);
 }
 
@@ -69,7 +74,21 @@ void Game::update(float deltaTime) {
 
 void Game::render() {
     m_renderer->setCamera(m_input->getCamera());
-    m_renderer->render(*this);
+    m_renderer->render(*this);  // ends with UI view active on the window
+
+    if (m_debugConsole) {
+        // Waypoints are drawn in world space
+        m_window.setView(m_input->getCamera());
+        m_debugConsole->renderWaypoints(m_window);
+
+        // Console input bar / log is drawn in screen space
+        sf::Vector2u winSize = m_window.getSize();
+        sf::View uiView(sf::FloatRect(
+            sf::Vector2f(0.f, 0.f),
+            sf::Vector2f(static_cast<float>(winSize.x), static_cast<float>(winSize.y))));
+        m_window.setView(uiView);
+        m_debugConsole->render(m_window);
+    }
 }
 
 void Game::initialize() {
@@ -103,9 +122,10 @@ void Game::initialize() {
         m_actions[i]->setLocalPlayer(i == m_localSlot);
     }
 
-    // Create input handler and renderer
-    m_input    = std::make_unique<InputHandler>(m_window, *this);
-    m_renderer = std::make_unique<Renderer>(m_window);
+    // Create input handler, renderer, and debug console
+    m_input        = std::make_unique<InputHandler>(m_window, *this);
+    m_renderer     = std::make_unique<Renderer>(m_window);
+    m_debugConsole = std::make_unique<DebugConsole>(m_window, *this);
 
     // Assign controllers: human for the local slot, AI for all other occupied slots
     for (int i = 0; i < MAX_PLAYERS; ++i) {
