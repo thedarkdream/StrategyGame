@@ -140,6 +140,10 @@ void Unit::attackMoveTo(sf::Vector2f target) {
 }
 
 void Unit::attack(EntityPtr target) {
+    beginAttacking(target, true);  // Explicit attack command
+}
+
+void Unit::beginAttacking(EntityPtr target, bool isExplicit) {
     if (!target || !target->isAlive() || target.get() == this) {
         m_state = UnitState::Idle;
         playAnimation(AnimationState::Idle);
@@ -149,8 +153,25 @@ void Unit::attack(EntityPtr target) {
     m_targetEntity = target;
     m_targetPosition = target->getPosition();
     m_state = UnitState::Attacking;
+    m_isExplicitAttack = isExplicit;
+    resetChaseTracking(target);
     playAnimation(AnimationState::Attack);
     findPath(target->getPosition());
+}
+
+void Unit::switchTarget(EntityPtr newTarget) {
+    if (!newTarget || !newTarget->isAlive()) return;
+    
+    m_targetEntity = newTarget;
+    m_targetPosition = newTarget->getPosition();
+    resetChaseTracking(newTarget);
+    findPath(newTarget->getPosition());
+}
+
+void Unit::resetChaseTracking(EntityPtr target) {
+    m_chaseTimer = 0.0f;
+    m_chaseProgressTimer = 0.0f;
+    m_lastChaseDistance = target ? getDistanceTo(target) : 0.0f;
 }
 
 void Unit::stop() {
@@ -217,8 +238,13 @@ void Unit::takeDamage(int damage, EntityPtr attacker) {
     // Auto-retaliate if idle and not a worker
     if (m_state == UnitState::Idle && m_type != EntityType::Worker) {
         if (attacker && attacker->isAlive() && attacker->getTeam() != m_team) {
-            attack(attacker);
+            beginAttacking(attacker, false);  // Auto-retaliation
         }
+    }
+    
+    // Store last attacker for counter-attack logic
+    if (attacker && attacker->isAlive() && attacker->getTeam() != m_team) {
+        m_lastAttacker = attacker;
     }
 }
 
@@ -226,9 +252,9 @@ void Unit::updateIdle(float deltaTime) {
     // Auto-attack: if idle combat unit and an enemy is in range, attack it
     if (m_isCombatUnit && m_context) {
         float autoAttackRange = m_attackRange + m_autoAttackRangeBonus;
-        EntityPtr enemy = m_context->findNearestEnemy(m_position, autoAttackRange, m_team);
+        EntityPtr enemy = m_context->findPriorityEnemy(m_position, autoAttackRange, m_team);
         if (enemy && enemy->isAlive()) {
-            attack(enemy);
+            beginAttacking(enemy, false);  // Auto-attack
         }
     }
 }
@@ -245,10 +271,26 @@ void Unit::updateAttackMove(float deltaTime) {
     // Check for enemies in attack range while moving
     if (m_context) {
         float autoAttackRange = m_attackRange + m_autoAttackRangeBonus;
-        EntityPtr enemy = m_context->findNearestEnemy(m_position, autoAttackRange, m_team);
+        EntityPtr enemy = m_context->findPriorityEnemy(m_position, autoAttackRange, m_team);
+        
         if (enemy && enemy->isAlive()) {
-            // Found enemy in range - attack it but remember we're attack-moving
             float distance = getDistanceTo(enemy);
+            
+            // Counter-attack priority: if we're being attacked by a unit while
+            // targeting a building, prefer to attack the threatening unit
+            if (enemy->asBuilding()) {
+                auto attacker = m_lastAttacker.lock();
+                if (attacker && attacker->isAlive() && attacker->asUnit() && 
+                    attacker->getTeam() != m_team) {
+                    float attackerDist = getDistanceTo(attacker);
+                    if (attackerDist <= autoAttackRange) {
+                        // Switch to the attacking unit
+                        enemy = attacker;
+                        distance = attackerDist;
+                        m_lastAttacker.reset();
+                    }
+                }
+            }
             
             if (distance <= m_attackRange) {
                 // In range - attack if cooldown ready
@@ -260,15 +302,13 @@ void Unit::updateAttackMove(float deltaTime) {
                 // Stay in AttackMoving state, don't transition to full Attacking
                 // This way when the enemy dies, we continue moving
                 return;
-            } else {
-                // Enemy nearby but not in range - move towards them temporarily
-                followPath(deltaTime);
-                return;
             }
+            // If enemy is nearby but not in range, just continue moving to destination
+            // Don't stand around waiting - attack-move means prioritize movement
         }
     }
     
-    // No enemies in range - continue moving to destination
+    // No enemies in range (or enemies only in detection range) - continue moving to destination
     if (hasGroupArrived(deltaTime)) {
         if (!popNextAction()) m_state = UnitState::Idle;
         return;
@@ -284,6 +324,66 @@ void Unit::updateCombat(float deltaTime) {
     }
     
     float distance = getDistanceTo(target);
+    
+    // For auto-attacks only: check if we should switch targets
+    if (!m_isExplicitAttack && m_context) {
+        // Counter-attack: if we're being attacked by a higher-priority target, switch to it
+        // Priority: combat units > workers > buildings
+        auto attacker = m_lastAttacker.lock();
+        if (attacker && attacker->isAlive() && attacker->asUnit() && attacker->getTeam() != m_team) {
+            bool shouldSwitch = false;
+            
+            if (target->asBuilding()) {
+                // Always switch from building to any unit attacking us
+                shouldSwitch = true;
+            } else if (target->getType() == EntityType::Worker && attacker->getType() != EntityType::Worker) {
+                // Switch from worker to combat unit attacking us
+                shouldSwitch = true;
+            }
+            
+            if (shouldSwitch) {
+                switchTarget(attacker);
+                m_lastAttacker.reset();
+                return;
+            }
+        }
+        
+        // Check if target is fleeing/unreachable
+        if (distance > m_attackRange) {
+            m_chaseTimer += deltaTime;
+            m_chaseProgressTimer += deltaTime;
+            
+            // Check progress periodically
+            if (m_chaseProgressTimer >= CHASE_PROGRESS_CHECK) {
+                m_chaseProgressTimer = 0.0f;
+                float progress = m_lastChaseDistance - distance;
+                
+                // If we're not getting closer (or target is getting away), increment chase timer faster
+                if (progress < 5.0f) {
+                    m_chaseTimer += CHASE_PROGRESS_CHECK;  // Double count this period
+                }
+                m_lastChaseDistance = distance;
+            }
+            
+            // Give up chase if taking too long
+            if (m_chaseTimer >= CHASE_TIMEOUT) {
+                // Look for a new target with priority - use minimum awareness range
+                // so melee units can detect ranged threats
+                float searchRange = std::max(m_attackRange + m_autoAttackRangeBonus, MIN_AWARENESS_RANGE);
+                EntityPtr newTarget = m_context->findPriorityEnemy(m_position, searchRange, m_team);
+                
+                if (newTarget && newTarget->isAlive() && newTarget != target) {
+                    // Found better target - switch to it
+                    switchTarget(newTarget);
+                    return;
+                } else {
+                    // No better target - go back to idle
+                    if (!popNextAction()) m_state = UnitState::Idle;
+                    return;
+                }
+            }
+        }
+    }
     
     if (distance > m_attackRange) {
         // Check if target moved significantly - recompute path
@@ -302,6 +402,8 @@ void Unit::updateCombat(float deltaTime) {
         if (m_attackTimer <= 0.0f) {
             fireAttack(target);
             m_attackTimer = m_attackCooldown;
+            // Reset chase timer on successful attack
+            resetChaseTracking(target);
         }
     }
 }

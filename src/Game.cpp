@@ -220,6 +220,50 @@ EntityPtr Game::findNearestEnemy(sf::Vector2f pos, float radius, Team excludeTea
     });
 }
 
+EntityPtr Game::findPriorityEnemy(sf::Vector2f pos, float radius, Team excludeTeam) {
+    // Priority: combat units > workers > buildings
+    // Within each category, pick the nearest
+    EntityPtr bestCombatUnit = nullptr;
+    EntityPtr bestWorker = nullptr;
+    EntityPtr bestBuilding = nullptr;
+    float bestCombatDist = radius;
+    float bestWorkerDist = radius;
+    float bestBuildingDist = radius;
+    
+    for (auto& entity : m_allEntities) {
+        if (!entity || !entity->isAlive()) continue;
+        if (entity->getTeam() == excludeTeam || entity->getTeam() == Team::Neutral) continue;
+        
+        float dist = MathUtil::distance(entity->getPosition(), pos);
+        if (dist >= radius) continue;
+        
+        if (entity->asBuilding()) {
+            if (dist < bestBuildingDist) {
+                bestBuildingDist = dist;
+                bestBuilding = entity;
+            }
+        } else if (entity->asUnit()) {
+            // Distinguish workers from combat units
+            if (entity->getType() == EntityType::Worker) {
+                if (dist < bestWorkerDist) {
+                    bestWorkerDist = dist;
+                    bestWorker = entity;
+                }
+            } else {
+                if (dist < bestCombatDist) {
+                    bestCombatDist = dist;
+                    bestCombatUnit = entity;
+                }
+            }
+        }
+    }
+    
+    // Return highest priority target found
+    if (bestCombatUnit) return bestCombatUnit;
+    if (bestWorker) return bestWorker;
+    return bestBuilding;
+}
+
 EntityPtr Game::findNearestResource(sf::Vector2f pos, float radius) {
     return findNearest(pos, radius, [](const EntityPtr& entity) {
         return entity->getType() == EntityType::MineralPatch || 

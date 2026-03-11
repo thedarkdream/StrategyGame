@@ -75,6 +75,11 @@ protected:
     // Attack hook - called when a hit lands. Override to fire projectiles, etc.
     virtual void fireAttack(EntityPtr target);
     
+    // Attack helpers
+    void beginAttacking(EntityPtr target, bool isExplicit);  // Common attack initialization
+    void switchTarget(EntityPtr newTarget);                   // Switch to new target (keeps isExplicit=false)
+    void resetChaseTracking(EntityPtr target);                // Reset chase timers for a target
+    
     // Movement helpers
     void moveTowardsTarget(float deltaTime);
     void followPath(float deltaTime);  // Follow current path waypoints
@@ -116,6 +121,16 @@ protected:
     
     // Combat
     std::weak_ptr<Entity> m_targetEntity;
+    bool m_isExplicitAttack = false;     // True if target was from explicit attack command
+    float m_chaseTimer = 0.0f;           // Time spent chasing current target without hitting
+    std::weak_ptr<Entity> m_lastAttacker; // Last entity that attacked us (for counter-attack)
+    
+    // Chase timeout parameters
+    static constexpr float CHASE_TIMEOUT = 3.0f;        // Give up chase after this many seconds
+    static constexpr float CHASE_PROGRESS_CHECK = 0.5f; // Check progress every N seconds
+    static constexpr float MIN_AWARENESS_RANGE = 150.0f; // Minimum range for detecting priority targets
+    float m_lastChaseDistance = 0.0f;                   // Distance to target at last progress check
+    float m_chaseProgressTimer = 0.0f;                  // Timer for progress checks
     
     // Following
     std::weak_ptr<Entity> m_followTarget;

@@ -26,6 +26,10 @@ public:
 
     // Nearest living enemy within [radius] of [pos] that is NOT on [excludeTeam].
     virtual EntityPtr findNearestEnemy(sf::Vector2f pos, float radius, Team excludeTeam) = 0;
+    
+    // Find best enemy target with priority: combat units > workers > buildings.
+    // Used for auto-attack target selection.
+    virtual EntityPtr findPriorityEnemy(sf::Vector2f pos, float radius, Team excludeTeam) = 0;
 
     // Returns true if [pos] (expanded by [radius]) overlaps a static obstacle
     // (building or resource node). [excludeSelf] is the calling unit, ignored.

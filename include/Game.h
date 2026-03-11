@@ -59,6 +59,7 @@ public:
     std::vector<EntityPtr> getEntitiesInRect(sf::FloatRect rect);
     std::vector<EntityPtr> getEntitiesInRect(sf::FloatRect rect, Team team);
     EntityPtr findNearestEnemy(sf::Vector2f pos, float radius, Team excludeTeam) override;
+    EntityPtr findPriorityEnemy(sf::Vector2f pos, float radius, Team excludeTeam) override;
     EntityPtr findNearestResource(sf::Vector2f pos, float radius) override;
     EntityPtr findNearestAvailableResource(sf::Vector2f pos, float radius, EntityPtr exclude = nullptr) override;
     

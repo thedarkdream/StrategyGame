@@ -137,11 +137,18 @@ void AIController::attackEnemy() {
     std::uniform_int_distribution<int> pick(0, static_cast<int>(enemyBasePositions.size()) - 1);
     sf::Vector2f targetPos = enemyBasePositions[pick(m_rng)];
 
-    // Issue attack-move so units fight enemies encountered on the way
+    // Issue attack-move to all combat units:
+    // - Idle units get sent to attack
+    // - Units in Attacking state get refreshed targeting (benefits from priority system)
+    // - Attack-moving units are left alone (already heading to destination)
     std::vector<EntityPtr> attackers;
     for (auto& unit : m_player.getUnits()) {
-        if (unit->getType() != EntityType::Worker && unit->isIdle())
+        if (unit->getType() == EntityType::Worker) continue;
+        
+        UnitState state = unit->getState();
+        if (state == UnitState::Idle || state == UnitState::Attacking) {
             attackers.push_back(std::static_pointer_cast<Entity>(unit));
+        }
     }
     if (!attackers.empty())
         m_actions->attackMove(attackers, targetPos);
