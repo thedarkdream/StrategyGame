@@ -5,9 +5,11 @@
 #include "Constants.h"
 #include "Animation.h"
 #include "MathUtil.h"
+#include "Map.h"
 #include "TextureManager.h"
 #include "SoundManager.h"
 #include <cmath>
+#include <limits>
 
 Worker::Worker(Team team, sf::Vector2f position)
     : Unit(EntityType::Worker, team, position)
@@ -284,38 +286,58 @@ void Worker::buildAt(EntityPtr building) {
         b->assignBuilder(self);
     }
     
-    // Calculate the closest point on the building's edge from our current position
+    // Find the closest *walkable* tile adjacent to the building footprint.
+    // We must NOT use the raw geometric edge point because it often falls on a
+    // non-walkable tile (the building itself, or an adjacent building).  A* would
+    // then reroute to a different tile, but m_targetPosition would still point at
+    // the blocked point, causing moveTowardsTarget to drive straight through the
+    // building when the path is exhausted.
     sf::FloatRect bounds = building->getBounds();
-    sf::Vector2f buildingCenter = building->getPosition();
-    
-    // Find closest point on the building's perimeter to the worker
-    sf::Vector2f closestPoint;
-    
-    // Clamp worker position to building bounds to find nearest edge point
-    float clampedX = std::max(bounds.position.x, std::min(m_position.x, bounds.position.x + bounds.size.x));
-    float clampedY = std::max(bounds.position.y, std::min(m_position.y, bounds.position.y + bounds.size.y));
-    
-    // If worker is inside the building bounds, use center
-    if (bounds.contains(m_position)) {
-        closestPoint = buildingCenter;
-    } else {
-        // Move the target point slightly outside the building edge (add small offset for build range)
-        sf::Vector2f dirToWorker = m_position - sf::Vector2f(clampedX, clampedY);
-        float dist = std::sqrt(dirToWorker.x * dirToWorker.x + dirToWorker.y * dirToWorker.y);
-        if (dist > 0.1f) {
-            dirToWorker = dirToWorker / dist;
-            // Offset by worker collision radius plus a small margin
-            float offset = getCollisionRadius() + 5.0f;
-            closestPoint = sf::Vector2f(clampedX, clampedY) + dirToWorker * offset;
-        } else {
-            closestPoint = sf::Vector2f(clampedX, clampedY);
+    sf::Vector2f approachPoint = building->getPosition(); // fallback: center
+
+    if (m_map) {
+        // Tile footprint of the building
+        sf::Vector2i bMin = m_map->worldToTile(bounds.position);
+        sf::Vector2i bMax = m_map->worldToTile(
+            sf::Vector2f(bounds.position.x + bounds.size.x - 1.0f,
+                         bounds.position.y + bounds.size.y - 1.0f));
+
+        // Search expanding rings around the footprint until a walkable tile is found.
+        // Ring 1 = direct neighbours; ring 2+ handles buildings surrounded by others.
+        bool found = false;
+        for (int ring = 1; ring <= 5 && !found; ++ring) {
+            float bestDist = std::numeric_limits<float>::max();
+            sf::Vector2i bestTile(-1, -1);
+
+            for (int tx = bMin.x - ring; tx <= bMax.x + ring; ++tx) {
+                for (int ty = bMin.y - ring; ty <= bMax.y + ring; ++ty) {
+                    // Only consider tiles on the current ring's border
+                    bool onBorder = (tx == bMin.x - ring || tx == bMax.x + ring ||
+                                     ty == bMin.y - ring || ty == bMax.y + ring);
+                    if (!onBorder) continue;
+                    if (!m_map->isValidTile(tx, ty)) continue;
+                    if (!m_map->isWalkable(tx, ty)) continue;
+
+                    sf::Vector2f tileCenter = m_map->tileToWorldCenter(tx, ty);
+                    float dist = MathUtil::distance(tileCenter, m_position);
+                    if (dist < bestDist) {
+                        bestDist = dist;
+                        bestTile = sf::Vector2i(tx, ty);
+                    }
+                }
+            }
+
+            if (bestTile.x >= 0) {
+                approachPoint = m_map->tileToWorldCenter(bestTile.x, bestTile.y);
+                found = true;
+            }
         }
     }
-    
-    m_targetPosition = closestPoint;
+
+    m_targetPosition = approachPoint;
     m_state = UnitState::Building;
     playAnimation(AnimationState::Walk);  // Walk to building first
-    findPath(closestPoint);
+    findPath(approachPoint);
 }
 
 void Worker::updateBuilding(float deltaTime) {
@@ -353,7 +375,48 @@ void Worker::updateBuilding(float deltaTime) {
     float buildRange = getCollisionRadius() + 15.0f;
     
     if (distanceToEdge > buildRange) {
-        // Still moving to building
+        // Still moving toward building.
+        // If the path is completely exhausted but we still have not reached build
+        // range, the original approach point was unreachable (e.g. a second building
+        // was placed between us and the target while we were walking).  Refresh the
+        // approach point via the same tile-aware search used in buildAt() and replan.
+        bool pathExhausted = m_path.empty() || m_pathIndex >= m_path.size();
+        if (pathExhausted && m_map) {
+            sf::Vector2i bMin = m_map->worldToTile(bounds.position);
+            sf::Vector2i bMax = m_map->worldToTile(
+                sf::Vector2f(bounds.position.x + bounds.size.x - 1.0f,
+                             bounds.position.y + bounds.size.y - 1.0f));
+
+            bool found = false;
+            for (int ring = 1; ring <= 5 && !found; ++ring) {
+                float bestDist = std::numeric_limits<float>::max();
+                sf::Vector2i bestTile(-1, -1);
+
+                for (int tx = bMin.x - ring; tx <= bMax.x + ring; ++tx) {
+                    for (int ty = bMin.y - ring; ty <= bMax.y + ring; ++ty) {
+                        bool onBorder = (tx == bMin.x - ring || tx == bMax.x + ring ||
+                                         ty == bMin.y - ring || ty == bMax.y + ring);
+                        if (!onBorder) continue;
+                        if (!m_map->isValidTile(tx, ty)) continue;
+                        if (!m_map->isWalkable(tx, ty)) continue;
+
+                        sf::Vector2f tileCenter = m_map->tileToWorldCenter(tx, ty);
+                        float dist = MathUtil::distance(tileCenter, m_position);
+                        if (dist < bestDist) {
+                            bestDist = dist;
+                            bestTile = sf::Vector2i(tx, ty);
+                        }
+                    }
+                }
+
+                if (bestTile.x >= 0) {
+                    m_targetPosition = m_map->tileToWorldCenter(bestTile.x, bestTile.y);
+                    findPath(m_targetPosition);
+                    found = true;
+                }
+            }
+        }
+
         followPath(deltaTime);
         // Walk animation already set when buildAt was called
     } else {
