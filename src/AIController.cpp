@@ -43,6 +43,7 @@ void AIController::selectRandomScript() {
     m_pendingBuilds.clear();
     m_attackGroupNeeded.clear();
     m_attackGroupUnits.clear();
+    m_loopCounters.clear();
     
     // Execute the first command
     if (!m_currentScript->getCommands().empty()) {
@@ -155,6 +156,11 @@ bool AIController::isCurrentCommandComplete() {
         case AICommand::Type::Attack:
             // Attack is instant, always complete
             return true;
+
+        case AICommand::Type::LoopStart:
+        case AICommand::Type::LoopEnd:
+            // These are flow-control markers; they complete instantly.
+            return true;
     }
     
     return true;
@@ -174,6 +180,37 @@ void AIController::processCommand(const AICommand& cmd) {
         case AICommand::Type::Attack:
             handleAttack();
             break;
+
+        case AICommand::Type::LoopStart: {
+            // Initialise counter only on the first pass through this loop header.
+            // On subsequent passes (after a back-jump from LoopEnd) the counter
+            // is already in the map and must NOT be reset.
+            if (m_loopCounters.find(m_commandIndex) == m_loopCounters.end()) {
+                // count==0 means infinite (-1 sentinel)
+                m_loopCounters[m_commandIndex] = (cmd.count == 0) ? -1 : cmd.count;
+            }
+            break;
+        }
+
+        case AICommand::Type::LoopEnd: {
+            if (cmd.loopStartIndex < 0) break;  // unmatched EndLoop, skip
+
+            auto it = m_loopCounters.find(cmd.loopStartIndex);
+            int remaining = (it != m_loopCounters.end()) ? it->second : -1;
+
+            if (remaining == -1) {
+                // Infinite loop — always jump back to the LoopStart.
+                m_commandIndex = static_cast<size_t>(cmd.loopStartIndex);
+            } else if (remaining > 1) {
+                // More iterations left — decrement and jump back.
+                m_loopCounters[cmd.loopStartIndex] = remaining - 1;
+                m_commandIndex = static_cast<size_t>(cmd.loopStartIndex);
+            } else {
+                // Last iteration just finished — erase counter and fall through.
+                m_loopCounters.erase(cmd.loopStartIndex);
+            }
+            break;
+        }
     }
 }
 

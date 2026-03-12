@@ -50,6 +50,23 @@ bool AIScript::loadFromFile(const std::string& filepath) {
         }
     }
     
+    // Post-process: resolve each EndLoop's loopStartIndex to its matching Loop.
+    // Uses a stack to support nested loops.
+    {
+        std::vector<int> loopStack;
+        for (int i = 0; i < static_cast<int>(m_commands.size()); ++i) {
+            if (m_commands[i].type == AICommand::Type::LoopStart) {
+                loopStack.push_back(i);
+            } else if (m_commands[i].type == AICommand::Type::LoopEnd) {
+                if (!loopStack.empty()) {
+                    m_commands[i].loopStartIndex = loopStack.back();
+                    loopStack.pop_back();
+                }
+                // Unmatched EndLoop: loopStartIndex stays -1 (ignored at runtime)
+            }
+        }
+    }
+
     return !m_commands.empty();
 }
 
@@ -119,6 +136,17 @@ std::optional<AICommand> AIScript::parseLine(const std::string& line) {
     }
     else if (cmdLower == "attack") {
         cmd.type = AICommand::Type::Attack;
+    }
+    else if (cmdLower == "loop") {
+        // Loop [N]  — N optional, 0 or omitted means infinite
+        int n = 0;
+        iss >> n;
+        cmd.type  = AICommand::Type::LoopStart;
+        cmd.count = n;
+    }
+    else if (cmdLower == "endloop") {
+        cmd.type = AICommand::Type::LoopEnd;
+        // loopStartIndex is resolved in the post-processing pass below
     }
     else {
         // Unknown command

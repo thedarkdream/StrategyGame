@@ -36,6 +36,11 @@ private:
     float m_decisionTimer    = 0.0f;
     float m_decisionInterval = 1.0f;  // seconds between script-progress checks
 
+    // ----- Loop execution state ------------------------------------------
+    // Maps the command index of a LoopStart to its remaining iteration count.
+    // -1 means infinite; 0 means the entry has been erased (loop done).
+    std::unordered_map<int, int> m_loopCounters;
+
     // ----- Pending work ---------------------------------------------------
     struct PendingTrain {
         EntityType unitType;

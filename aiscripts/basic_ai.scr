@@ -1,8 +1,11 @@
 Train Worker 3
 Build Barracks
-Train Soldier 3
 Train Worker 4
+
+Loop
+Train Soldier 3
 Train Brute 2
 Attack_Add Brute 2
 Attack_Add Soldier 2
 Attack
+EndLoop

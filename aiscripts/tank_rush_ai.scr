@@ -2,10 +2,10 @@ Train Worker 3
 Build Barracks
 Train Worker 2
 Build Factory
-Train LightTank 2
-Attack_Add LightTank 2
-Attack
 
+# Keep sending waves of 4 tanks indefinitely
+Loop
 Train LightTank 4
 Attack_Add LightTank 4
 Attack
+EndLoop

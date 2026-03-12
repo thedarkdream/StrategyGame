@@ -11,12 +11,15 @@ struct AICommand {
         Train,      // Train UnitType Count
         Build,      // Build BuildingType
         AttackAdd,  // Attack_Add UnitType Count
-        Attack      // Attack (execute attack with accumulated units)
+        Attack,     // Attack (execute attack with accumulated units)
+        LoopStart,  // Loop [N]  — begin loop body; count=N (0 = infinite)
+        LoopEnd     // EndLoop   — jump back to matching LoopStart
     };
     
     Type type;
     EntityType entityType = EntityType::None;  // For Train/Build/AttackAdd
-    int count = 1;  // For Train/AttackAdd
+    int count = 1;          // For Train/AttackAdd; iterations for LoopStart (0=infinite)
+    int loopStartIndex = -1;// For LoopEnd: index of matching LoopStart (set at load time)
 };
 
 // Parses and holds an AI script
