@@ -15,6 +15,7 @@ Map::Map(int width, int height)
     m_rng = std::mt19937(rd());
 
     loadTerrainTextures();
+    loadTransitionTextures();
 
     std::uniform_int_distribution<int> grassDist(1, 8);
     m_tiles.resize(height);
@@ -36,23 +37,67 @@ void Map::render(sf::RenderTarget& target, const sf::View& camera) {
     int endX   = std::min(m_width,  static_cast<int>((topLeft.x + camera.getSize().x) / ts) + 2);
     int endY   = std::min(m_height, static_cast<int>((topLeft.y + camera.getSize().y) / ts) + 2);
 
+    auto drawTex = [&](const sf::Texture& tex, int x, int y) {
+        sf::Sprite sp(tex);
+        sp.setScale(sf::Vector2f(scale, scale));
+        sp.setPosition(sf::Vector2f(x * ts, y * ts));
+        target.draw(sp);
+    };
+
     for (int y = startY; y < endY; ++y) {
         for (int x = startX; x < endX; ++x) {
             const Tile& tile = m_tiles[y][x];
-            uint8_t v = tile.variant;
-            const sf::Texture* tex = nullptr;
 
-            if (tile.type == TileType::Grass && v >= 1 && v <= 8)
-                tex = &m_grassTextures[v - 1];
-            else if (tile.type == TileType::Water && v >= 1 && v <= 4)
-                tex = &m_waterTextures[v - 1];
-            else
-                tex = &m_grassTextures[0];  // Resource/Building tiles use grass base
+            // ── Water tiles: always drawn as-is ───────────────────────────────
+            if (tile.type == TileType::Water) {
+                uint8_t v = tile.variant;
+                drawTex((v >= 1 && v <= 4) ? m_waterTextures[v - 1] : m_waterTextures[0], x, y);
+                continue;
+            }
 
-            sf::Sprite sprite(*tex);
-            sprite.setScale(sf::Vector2f(scale, scale));
-            sprite.setPosition(sf::Vector2f(x * ts, y * ts));
-            target.draw(sprite);
+            // ── Everything else (Grass / Resource / Building) ───────────────────
+            // Step 1: check cardinal neighbours for water.
+            const uint8_t cmask = cardinalWaterMask(x, y);
+
+            if (cmask != 0) {
+                // ── Cardinal transition tile ────────────────────────────────────
+                // Look up by index (not raw pointer) so the lookup table
+                // stays valid after Map is move-assigned during initialize().
+                const int8_t idx = m_cardinalLookup[cmask];
+                if (idx >= 0) {
+                    drawTex(m_edgeTransTextures[static_cast<size_t>(idx)], x, y);
+                } else {
+                    // Missing tile – fall back to water so the gap is obvious
+                    drawTex(m_grassTextures[0], x, y);
+                }
+            } else {
+                // ── No cardinal water neighbours ──────────────────────────────
+                // Check diagonal neighbours: if any diagonal is water, use
+                // the corresponding inner-corner tile (complete tile image
+                // with a small water notch at the offending corner).
+                // If several diagonals are water simultaneously, priority:
+                // SW (bit0) > SE (bit1) > NW (bit2) > NE (bit3).
+                // For the uncommon multi-diagonal case draw the plain grass
+                // base first, then overlay the first inner-corner match.
+                uint8_t dmask = diagonalWaterMask(x, y);
+
+                // Always draw the base grass tile first.
+                uint8_t v = tile.variant;
+                drawTex((v >= 1 && v <= 8) ? m_grassTextures[v - 1] : m_grassTextures[0], x, y);
+
+                // Check for paired diagonal water (same-side pairs) first.
+                // These produce a strip tile that covers both corners at once.
+                // dmask bits: bit0=SW, bit1=SE, bit2=NW, bit3=NE
+                if      ((dmask & 0x0C) == 0x0C) drawTex(m_stripTransTextures[0], x, y); // NW+NE → N strip
+                else if ((dmask & 0x03) == 0x03) drawTex(m_stripTransTextures[1], x, y); // SW+SE → S strip
+                else if ((dmask & 0x0A) == 0x0A) drawTex(m_stripTransTextures[2], x, y); // NE+SE → E strip
+                else if ((dmask & 0x05) == 0x05) drawTex(m_stripTransTextures[3], x, y); // NW+SW → W strip
+                // Single diagonal: small water notch at that corner.
+                else if (dmask & 0x01) drawTex(m_innerTransTextures[0], x, y); // SW → water_grass_NE
+                else if (dmask & 0x02) drawTex(m_innerTransTextures[1], x, y); // SE → water_grass_NW
+                else if (dmask & 0x04) drawTex(m_innerTransTextures[2], x, y); // NW → water_grass_SE
+                else if (dmask & 0x08) drawTex(m_innerTransTextures[3], x, y); // NE → water_grass_SW
+            }
         }
     }
 }
@@ -263,28 +308,16 @@ std::vector<sf::Vector2f> Map::findPath(sf::Vector2f start, sf::Vector2f end) {
                 }
             }
 
-            // Clearance penalty: strongly prefer paths away from walls.
-            // The penalty is quadratic in the number of non-walkable orthogonal
-            // neighbours so that tight junctions between two adjacent buildings
-            // become very expensive relative to a longer detour:
-            //   1 wall neighbour  → +1.5
-            //   2 wall neighbours → +6.0
-            //   3 wall neighbours → +13.5
-            // A pinch point (walls on both opposite sides of the tile, i.e. a
-            // corridor exactly 1 tile wide) gets an additional +8.0 penalty,
-            // making A* strongly prefer routing around the cluster instead.
+            // Clearance penalty: prefer tiles away from walls.
+            // Count orthogonal non-walkable neighbours (use 4-connectivity so
+            // the penalty is proportional to "how cornered" the tile is).
             const int odx[] = { 0, 1, 0, -1 };
             const int ody[] = { -1, 0, 1,  0 };
-            int wallNeighbors = 0;
+            float clearancePenalty = 0.0f;
             for (int k = 0; k < 4; ++k) {
                 if (!isWalkable(nx + odx[k], ny + ody[k]))
-                    ++wallNeighbors;
+                    clearancePenalty += 0.5f;
             }
-            float clearancePenalty = static_cast<float>(wallNeighbors * wallNeighbors) * 1.5f;
-            // Extra hit for pinch points: walls on both left+right or top+bottom
-            bool hPinch = !isWalkable(nx - 1, ny) && !isWalkable(nx + 1, ny);
-            bool vPinch = !isWalkable(nx, ny - 1) && !isWalkable(nx, ny + 1);
-            if (hPinch || vPinch) clearancePenalty += 8.0f;
 
             float newG = current.g + costs[i] + clearancePenalty;
             float newH = heuristic(nx, ny, endTile.x, endTile.y);
@@ -409,6 +442,102 @@ void Map::loadTerrainTextures() {
         if (!m_waterTextures[i].loadFromFile(path))
             std::cerr << "Map: cannot load " << path << "\n";
     }
+}
+
+void Map::loadTransitionTextures() {
+    // Initialise all entries to -1 (no texture for this mask).
+    for (int i = 0; i < 16; ++i) m_cardinalLookup[i] = -1;
+
+    // The 14 cardinal/corner transition tiles.
+    // Each entry: { storage index, cardinal mask, filename }
+    struct TransEntry { int idx; uint8_t mask; const char* file; };
+    static const TransEntry edges[] = {
+        // Single edges
+        {  0, 0b0001, "grass_water_N.png"   },  // N
+        {  1, 0b0010, "grass_water_E.png"   },  // E
+        {  2, 0b0100, "grass_water_S.png"   },  // S
+        {  3, 0b1000, "grass_water_W.png"   },  // W
+        // Outer corners (2 adjacent cardinal sides)
+        {  4, 0b0011, "grass_water_NE.png"  },  // N+E
+        {  5, 0b1001, "grass_water_NW.png"  },  // N+W
+        {  6, 0b0110, "grass_water_SE.png"  },  // S+E
+        {  7, 0b1100, "grass_water_SW.png"  },  // S+W
+        // Opposite pairs (thin grass strip)
+        {  8, 0b0101, "grass_water_NS.png"  },  // N+S
+        {  9, 0b1010, "grass_water_EW.png"  },  // E+W
+        // Three-sided (grass strip on one edge only)
+        { 10, 0b0111, "grass_water_NES.png" },  // N+E+S
+        { 11, 0b1110, "grass_water_SEW.png" },  // S+E+W
+        { 12, 0b1101, "grass_water_NSW.png" },  // N+S+W
+        { 13, 0b1011, "grass_water_NEW.png" },  // N+E+W
+    };
+    for (const auto& e : edges) {
+        std::string path = std::string("assets/terrain/") + e.file;
+        if (!m_edgeTransTextures[e.idx].loadFromFile(path))
+            std::cerr << "Map: cannot load " << path << "\n";
+        m_cardinalLookup[e.mask] = static_cast<int8_t>(e.idx);
+    }
+    // All 14 cardinal configurations are now covered; mask 0b1111 (all four
+    // sides water) is handled by the water-tile branch in render() directly.
+
+    // Inner corner tiles: tile images that contain grass + a small water notch.
+    // Index in m_innerTransTextures / diagonal mask bit:
+    //   0 = SW diagonal water  → water_grass_NE.png
+    //   1 = SE diagonal water  → water_grass_NW.png
+    //   2 = NW diagonal water  → water_grass_SE.png
+    //   3 = NE diagonal water  → water_grass_SW.png
+    static const char* inner[4] = {
+        "water_grass_NE.png",
+        "water_grass_NW.png",
+        "water_grass_SE.png",
+        "water_grass_SW.png",
+    };
+    for (int i = 0; i < 4; ++i) {
+        std::string path = std::string("assets/terrain/") + inner[i];
+        if (!m_innerTransTextures[i].loadFromFile(path))
+            std::cerr << "Map: cannot load " << path << "\n";
+    }
+
+    // Strip tiles: two same-side diagonal neighbours are water, leaving a
+    // grass strip pointing in the named direction.
+    // Index 0=N (NW+NE water), 1=S (SW+SE water), 2=E (NE+SE water), 3=W (NW+SW water).
+    static const char* strips[4] = {
+        "grass_water_N_strip.png",
+        "grass_water_S_strip.png",
+        "grass_water_E_strip.png",
+        "grass_water_W_strip.png",
+    };
+    for (int i = 0; i < 4; ++i) {
+        std::string path = std::string("assets/terrain/") + strips[i];
+        if (!m_stripTransTextures[i].loadFromFile(path))
+            std::cerr << "Map: cannot load " << path << "\n";
+    }
+}
+
+uint8_t Map::cardinalWaterMask(int x, int y) const {
+    auto isW = [&](int tx, int ty) -> bool {
+        if (tx < 0 || tx >= m_width || ty < 0 || ty >= m_height) return false;
+        return m_tiles[ty][tx].type == TileType::Water;
+    };
+    uint8_t m = 0;
+    if (isW(x,     y - 1)) m |= 0b0001;  // N
+    if (isW(x + 1, y    )) m |= 0b0010;  // E
+    if (isW(x,     y + 1)) m |= 0b0100;  // S
+    if (isW(x - 1, y    )) m |= 0b1000;  // W
+    return m;
+}
+
+uint8_t Map::diagonalWaterMask(int x, int y) const {
+    auto isW = [&](int tx, int ty) -> bool {
+        if (tx < 0 || tx >= m_width || ty < 0 || ty >= m_height) return false;
+        return m_tiles[ty][tx].type == TileType::Water;
+    };
+    uint8_t m = 0;
+    if (isW(x - 1, y + 1)) m |= 0x01;  // SW
+    if (isW(x + 1, y + 1)) m |= 0x02;  // SE
+    if (isW(x - 1, y - 1)) m |= 0x04;  // NW
+    if (isW(x + 1, y - 1)) m |= 0x08;  // NE
+    return m;
 }
 
 float Map::heuristic(int x1, int y1, int x2, int y2) const {

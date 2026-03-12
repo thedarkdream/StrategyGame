@@ -51,8 +51,42 @@ private:
     // Terrain textures: 8 grass variants + 4 water variants (source images are 64×64)
     std::array<sf::Texture, 8> m_grassTextures;
     std::array<sf::Texture, 4> m_waterTextures;
+
+    // Transition tile textures (autotile system).
+    //
+    // Cardinal edges + outer corners (8 tiles have art; 6 configs fall back to water):
+    //   m_edgeTransTextures[0..7] stores N, E, S, W, NE, NW, SE, SW.
+    // m_cardinalLookup[0..15] maps a 4-bit water-neighbour mask to a texture
+    //   pointer (nullptr = missing tile → fall back to a water tile).
+    //   Mask bit layout: bit0=N, bit1=E, bit2=S, bit3=W.
+    //
+    // Inner corners (detected when cardinal mask == 0 but a diagonal is water):
+    //   m_innerTransTextures[0..3] for SW/SE/NW/NE diagonal water respectively.
+    //   Index 0 = SW diag water → water_grass_NE
+    //   Index 1 = SE diag water → water_grass_NW
+    //   Index 2 = NW diag water → water_grass_SE
+    //   Index 3 = NE diag water → water_grass_SW
+    std::array<sf::Texture, 14> m_edgeTransTextures;
+    std::array<sf::Texture, 4> m_innerTransTextures;
+    // Strip tiles: two opposite-side diagonal neighbours are water.
+    // Index 0=N (NW+NE water), 1=S (SW+SE water), 2=E (NE+SE water), 3=W (NW+SW water).
+    std::array<sf::Texture, 4> m_stripTransTextures;
+    // Maps a 4-bit cardinal-water mask to an index into m_edgeTransTextures.
+    // -1 means no art is available for that configuration.
+    // Using indices (not raw pointers) keeps the Map safe to move/copy-assign.
+    int8_t m_cardinalLookup[16] = {};
+
     std::mt19937 m_rng;
     void loadTerrainTextures();
+    void loadTransitionTextures();
+
+    // Returns a 4-bit mask of which cardinal neighbours are water tiles.
+    // bit0=N, bit1=E, bit2=S, bit3=W.  Out-of-bounds treated as non-water.
+    uint8_t cardinalWaterMask(int x, int y) const;
+    // Returns a 4-bit mask of which diagonal neighbours are water tiles
+    // (only checked when the cardinal mask is zero).
+    // bit0=SW, bit1=SE, bit2=NW, bit3=NE.
+    uint8_t diagonalWaterMask(int x, int y) const;
 
     // Pathfinding helper
     struct PathNode {
