@@ -1,0 +1,11 @@
+Train Worker 3
+Build Barracks
+Train Worker 2
+Build Factory
+Train LightTank 2
+Attack_Add LightTank 2
+Attack
+
+Train LightTank 4
+Attack_Add LightTank 4
+Attack

@@ -4,6 +4,7 @@
 #include <unordered_set>
 #include <algorithm>
 #include <cstdint>
+#include <limits>
 #include <random>
 #include <iostream>
 
@@ -201,27 +202,38 @@ std::vector<sf::Vector2f> Map::findPath(sf::Vector2f start, sf::Vector2f end) {
         return { end };
     }
     
-    // If end is not walkable, find nearest walkable tile
+    // If end is not walkable, find the nearest walkable tile to the *start*
+    // so workers/units approach from whichever side they are already on,
+    // rather than always converging on the topmost-leftmost adjacent tile.
     if (!isWalkable(endTile.x, endTile.y)) {
-        // Search in expanding squares for a walkable tile
+        sf::Vector2i bestTile(-1, -1);
+        float bestDist = std::numeric_limits<float>::max();
         bool found = false;
         for (int radius = 1; radius <= 10 && !found; ++radius) {
-            for (int dx = -radius; dx <= radius && !found; ++dx) {
-                for (int dy = -radius; dy <= radius && !found; ++dy) {
-                    if (std::abs(dx) == radius || std::abs(dy) == radius) {
-                        int nx = endTile.x + dx;
-                        int ny = endTile.y + dy;
-                        if (isWalkable(nx, ny)) {
-                            endTile = sf::Vector2i(nx, ny);
-                            found = true;
-                        }
+            for (int dx = -radius; dx <= radius; ++dx) {
+                for (int dy = -radius; dy <= radius; ++dy) {
+                    if (std::abs(dx) != radius && std::abs(dy) != radius) continue; // border only
+                    int nx = endTile.x + dx;
+                    int ny = endTile.y + dy;
+                    if (!isValidTile(nx, ny) || !isWalkable(nx, ny)) continue;
+                    float d = static_cast<float>((nx - startTile.x) * (nx - startTile.x)
+                                               + (ny - startTile.y) * (ny - startTile.y));
+                    if (d < bestDist) {
+                        bestDist = d;
+                        bestTile = sf::Vector2i(nx, ny);
+                        found = true; // at least one candidate found this ring
                     }
                 }
             }
+            // Once we have scanned a full ring that contained at least one
+            // valid tile, stop — the best tile in this ring is closer to the
+            // building than anything in an outer ring.
+            if (found) break;
         }
         if (!found) {
             return { end };  // No walkable tile found, return direct path
         }
+        endTile = bestTile;
     }
     
     // If start == end, no path needed
@@ -247,7 +259,11 @@ std::vector<sf::Vector2f> Map::findPath(sf::Vector2f start, sf::Vector2f end) {
     Node startNode{ startTile.x, startTile.y, 0.0f, heuristic(startTile.x, startTile.y, endTile.x, endTile.y), -1, -1 };
     openList.push_back(startNode);
     allNodes[hash(startTile.x, startTile.y)] = startNode;
-    
+
+    // Track the closed node closest to the goal for partial-path fallback.
+    Node  bestClosedNode = startNode;
+    float bestClosedH    = startNode.h;
+
     // Direction offsets (8-directional movement)
     const int dx[] = { 0, 1, 1, 1, 0, -1, -1, -1 };
     const int dy[] = { -1, -1, 0, 1, 1, 1, 0, -1 };
@@ -264,7 +280,14 @@ std::vector<sf::Vector2f> Map::findPath(sf::Vector2f start, sf::Vector2f end) {
         int currentHash = hash(current.x, current.y);
         if (closed[currentHash]) continue;
         closed[currentHash] = true;
-        
+
+        // Keep track of the explored tile nearest to the goal (heuristic).
+        // Used below to reconstruct a partial path if the goal is unreachable.
+        if (current.h < bestClosedH) {
+            bestClosedH    = current.h;
+            bestClosedNode = current;
+        }
+
         // Check if we reached the goal
         if (current.x == endTile.x && current.y == endTile.y) {
             // Reconstruct path
@@ -331,8 +354,24 @@ std::vector<sf::Vector2f> Map::findPath(sf::Vector2f start, sf::Vector2f end) {
         }
     }
     
-    // No path found, return direct path
-    return { end };
+    // No path to goal found.  Return a path to the closest reachable tile
+    // instead of a direct line (which would make units walk through water).
+    {
+        std::vector<sf::Vector2f> partial;
+        int cx = bestClosedNode.x;
+        int cy = bestClosedNode.y;
+        while (cx != -1 && cy != -1) {
+            partial.push_back(tileToWorldCenter(cx, cy));
+            Node& n = allNodes[hash(cx, cy)];
+            int px = n.parentX;
+            int py = n.parentY;
+            cx = px;
+            cy = py;
+        }
+        std::reverse(partial.begin(), partial.end());
+        if (!partial.empty()) partial.erase(partial.begin()); // remove start
+        return smoothPath(partial);
+    }
 }
 
 bool Map::hasLineOfSight(int x0, int y0, int x1, int y1) const {

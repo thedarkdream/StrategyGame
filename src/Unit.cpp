@@ -661,15 +661,38 @@ bool Unit::hasGroupArrived(float deltaTime) {
 void Unit::findPath(sf::Vector2f target) {
     m_path.clear();
     m_pathIndex = 0;
-    
+
     if (m_map) {
+        sf::Vector2i goalTile = m_map->worldToTile(target);
+        // Only a goal on a *walkable* tile can be a genuine "unreachable island"
+        // partial-path case.  Non-walkable goals (buildings, water clicked directly)
+        // are intentionally redirected by Map::findPath to the nearest adjacent
+        // walkable tile; clamping m_targetPosition in that case would place it
+        // 1-2 tiles away from the entity, breaking proximity checks like the
+        // worker's 50 px delivery distance.
+        bool goalWasWalkable = m_map->isValidTile(goalTile.x, goalTile.y)
+                            && m_map->isWalkable(goalTile.x, goalTile.y);
+
         m_path = m_map->findPath(m_position, target);
+
+        if (!m_path.empty()) {
+            sf::Vector2i reachedTile = m_map->worldToTile(m_path.back());
+            // Clamp m_targetPosition only for genuine partial paths (disconnected
+            // walkable regions) so followPath doesn't drive the unit into water
+            // after exhausting the waypoints.
+            if (goalWasWalkable && goalTile != reachedTile) {
+                m_targetPosition = m_path.back();
+            }
+        } else {
+            // Empty path = unit is already at the closest reachable tile.
+            // Redirect m_targetPosition so hasReachedTarget() fires immediately.
+            m_targetPosition = m_position;
+        }
+        return;
     }
-    
-    // Fallback to direct path if no path found or no map
-    if (m_path.empty()) {
-        m_path.push_back(target);
-    }
+
+    // No map — fall back to a direct move only as a last resort.
+    m_path.push_back(target);
 }
 
 float Unit::getDistanceTo(sf::Vector2f pos) const {

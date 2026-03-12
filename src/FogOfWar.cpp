@@ -69,11 +69,13 @@ void FogOfWar::update(const UnitList& units, const BuildingList& buildings, cons
 
 // ---------------------------------------------------------------------------
 bool FogOfWar::isVisible(int tx, int ty) const {
+    if (m_revealed) return true;
     if (tx < 0 || tx >= W || ty < 0 || ty >= H) return false;
     return m_visible[ty][tx];
 }
 
 bool FogOfWar::isExplored(int tx, int ty) const {
+    if (m_revealed) return true;
     if (tx < 0 || tx >= W || ty < 0 || ty >= H) return false;
     return m_explored[ty][tx];
 }
@@ -123,18 +125,21 @@ void FogOfWar::rebuildTexture() {
     sf::Image img(sf::Vector2u(static_cast<unsigned>(W), static_cast<unsigned>(H)),
                   sf::Color::Transparent);
 
-    for (int y = 0; y < H; ++y) {
-        for (int x = 0; x < W; ++x) {
-            sf::Color c;
-            if (m_visible[y][x]) {
-                c = sf::Color(0, 0, 0, 0);      // Fully transparent – no fog
-            } else if (m_explored[y][x]) {
-                c = sf::Color(0, 0, 0, 160);    // Shroud – previously seen
-            } else {
-                c = sf::Color(0, 0, 0, 230);    // Unexplored – total darkness
+    // When fully revealed the texture is left all-transparent (no overlay).
+    if (!m_revealed) {
+        for (int y = 0; y < H; ++y) {
+            for (int x = 0; x < W; ++x) {
+                sf::Color c;
+                if (m_visible[y][x]) {
+                    c = sf::Color(0, 0, 0, 0);      // Fully transparent – no fog
+                } else if (m_explored[y][x]) {
+                    c = sf::Color(0, 0, 0, 160);    // Shroud – previously seen
+                } else {
+                    c = sf::Color(0, 0, 0, 230);    // Unexplored – total darkness
+                }
+                img.setPixel(sf::Vector2u(static_cast<unsigned>(x),
+                                          static_cast<unsigned>(y)), c);
             }
-            img.setPixel(sf::Vector2u(static_cast<unsigned>(x),
-                                      static_cast<unsigned>(y)), c);
         }
     }
 

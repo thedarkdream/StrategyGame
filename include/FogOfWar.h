@@ -70,6 +70,11 @@ public:
     bool isTextureDirty() const { return m_textureDirty; }
     void rebuildTexture();
 
+    // When revealed, all visibility / explored queries return true and the
+    // fog texture is fully transparent (cheat / debug mode).
+    void setRevealed(bool r) { m_revealed = r; m_textureDirty = true; }
+    bool isRevealed()  const { return m_revealed; }
+
 private:
     static constexpr int W = Constants::MAP_WIDTH;
     static constexpr int H = Constants::MAP_HEIGHT;
@@ -77,6 +82,8 @@ private:
     // [row y][col x] layout
     bool m_explored[H][W];
     bool m_visible[H][W];
+
+    bool m_revealed = false;  // set by reveal_map console command
 
     // Ghost snapshots: entity ID → last-known entity object.
     std::unordered_map<uint32_t, GhostRecord> m_ghosts;

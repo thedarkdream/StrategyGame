@@ -2,6 +2,7 @@
 #include "FontManager.h"
 #include "Game.h"
 #include "Player.h"
+#include "FogOfWar.h"
 #include "Unit.h"
 #include "Entity.h"
 #include <algorithm>
@@ -113,6 +114,11 @@ void DebugConsole::executeCommand(const std::string& cmd) {
     } else if (verb == "show_ids") {
         m_showIds = !m_showIds;
         log(std::string("ID display: ") + (m_showIds ? "ON" : "OFF"));
+    } else if (verb == "reveal_map") {
+        FogOfWar& fog = m_game.getPlayer().getFog();
+        fog.setRevealed(!fog.isRevealed());
+        fog.rebuildTexture();
+        log(std::string("Fog of War: ") + (fog.isRevealed() ? "DISABLED" : "ENABLED"));
     } else {
         log("Unknown command: " + verb);
     }
