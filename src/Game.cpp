@@ -789,6 +789,17 @@ void Game::issueGatherCommand(EntityPtr resource, bool append) {
     getActions().gather(getPlayer().getSelection(), resource, append);
 }
 
+void Game::issueReturnCargoCommand() {
+    Player& player = getPlayer();
+    for (const auto& entity : player.getSelection()) {
+        if (!entity || !entity->isAlive()) continue;
+        Worker* w = entity->asWorker();
+        if (w && w->getCarriedResources() > 0) {
+            w->returnResources();
+        }
+    }
+}
+
 void Game::issueBuildCommand(EntityType buildingType, sf::Vector2f position, bool append) {
     // Use the first selected worker so the player's chosen unit does the building,
     // rather than auto-picking the nearest idle worker.

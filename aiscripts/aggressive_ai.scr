@@ -14,8 +14,11 @@ Attack_Add Brute 2
 Attack
 Build Factory
 Train Worker 2
+
+Loop 15
 Train LightTank 2
 Train Soldier 3
 Attack_Add LightTank 2
 Attack_Add Soldier 3
 Attack
+EndLoop

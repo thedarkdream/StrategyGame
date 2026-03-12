@@ -89,6 +89,8 @@ public:
     void issueAttackMoveCommand(sf::Vector2f target, bool append = false);
     void issueAttackCommand(EntityPtr target, bool append = false);
     void issueGatherCommand(EntityPtr resource, bool append = false);
+    // For workers carrying minerals: return to base, then auto-gather again.
+    void issueReturnCargoCommand();
     void issueBuildCommand(EntityType buildingType, sf::Vector2f position, bool append = false);
     void issueContinueBuildCommand(EntityPtr building, bool append = false);
     void cancelBuildingConstruction(EntityPtr building);

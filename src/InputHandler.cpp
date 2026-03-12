@@ -298,6 +298,12 @@ void InputHandler::handleMousePress(sf::Vector2i position, sf::Mouse::Button but
                         // Check if incomplete building - send workers to continue building
                         if (!building->isConstructed() && target->getTeam() == player.getTeam()) {
                             m_game.issueContinueBuildCommand(target, shift);
+                        } else if (building->isConstructed() &&
+                                   target->getTeam() == player.getTeam() &&
+                                   target->getType() == EntityType::Base) {
+                            // Right-click own Base: workers carrying minerals return
+                            // their cargo and then auto-gather again.
+                            m_game.issueReturnCargoCommand();
                         } else {
                             // Move to location (right-click on own completed building)
                             m_game.issueMoveCommand(worldPos, shift);
