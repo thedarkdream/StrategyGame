@@ -11,6 +11,7 @@
 #include "InputHandler.h"
 #include "ActionBar.h"
 #include "EffectsManager.h"
+#include "FogOfWar.h"
 #include <sstream>
 #include <iomanip>
 #include <iostream>
@@ -27,28 +28,37 @@ void Renderer::render(Game& game) {
     // Set camera view for world rendering
     m_window.setView(m_camera);
     
-    // Render map
+    // ── World rendering order ───────────────────────────────────────────────
+    // 1. Terrain
     renderMap(game.getMap());
-    
-    // Render all entities
+
+    // 2. Pre-fog layer: resource nodes (always shown) and ghost buildings /
+    //    dead resource nodes in the shroud.  Rendered before the fog overlay so
+    //    the overlay naturally darkens anything not in current vision.
+    renderGhosts(game);
+
+    // 3. Fog-of-war overlay (transparent where visible, dark where in shroud).
+    renderFogOverlay(game);
+
+    // 4. Units and buildings filtered by fog visibility, drawn on top.
     renderEntities(game);
-    
-    // Render visual effects (explosions, etc.) on top of entities
+
+    // 5. Visual effects (explosions, projectile trails …) above all entities.
     EFFECTS.render(m_window);
     
-    // Render rally points for selected buildings
+    // 6. Rally-point lines / flags for selected buildings.
     renderRallyPoints(game);
     
-    // Render selection box if selecting
+    // 7. Selection rubber-band.
     InputHandler& input = game.getInput();
     renderSelectionBox(input);
     
-    // Render build preview
+    // 8. Build-placement preview.
     if (input.isInBuildMode()) {
         renderBuildPreview(input, game.getMap());
     }
     
-    // Switch to pixel-perfect UI view (must match current window size, not initial size)
+    // ── Switch to pixel-perfect UI view ─────────────────────────────────────
     sf::Vector2u windowSize = m_window.getSize();
     sf::View uiView(sf::FloatRect(sf::Vector2f(0.f, 0.f), 
                     sf::Vector2f(static_cast<float>(windowSize.x), static_cast<float>(windowSize.y))));
@@ -62,12 +72,102 @@ void Renderer::renderMap(Map& map) {
     map.render(m_window, m_camera);
 }
 
-void Renderer::renderEntities(Game& game) {
-    // Render all entities (including dying ones playing death animation)
+// ---------------------------------------------------------------------------
+// renderGhosts – pre-fog pass that handles two categories:
+//
+//  1. Alive resource nodes (mineral patches, gas geysers) — always rendered
+//     here regardless of visibility.  The fog overlay darkens those that are
+//     outside current vision.
+//
+//  2. Ghost snapshots of buildings and resource nodes that were spotted at
+//     some point and are now either out of vision OR have been destroyed.
+//     These are rendered using the stored EntityPtr so the correct sprite /
+//     last-known appearance is preserved.  The fog overlay darkens them.
+//
+// Buildings that are currently visible are handled by renderEntities (the
+// post-fog pass) and therefore skipped here to avoid double-drawing.
+// ---------------------------------------------------------------------------
+void Renderer::renderGhosts(Game& game) {
+    const FogOfWar& fog = game.getPlayer().getFog();
+    const Map&      map = game.getMap();
+
+    // Pass A: alive resource nodes (always in pre-fog, fog handles darkening)
     for (const auto& entity : game.getAllEntities()) {
-        if (entity && (entity->isAlive() || entity->isDying())) {
+        if (!entity) continue;
+        if (!entity->asResourceNode()) continue;
+        if (entity->isAlive() || entity->isDying()) {
             entity->render(m_window);
         }
+    }
+
+    // Pass B: ghost snapshots
+    for (const auto& [id, ghost] : fog.getGhosts()) {
+        const EntityPtr& entity = ghost.entity;
+        if (!entity) continue;
+
+        // Alive resource nodes were already drawn above — skip.
+        if (entity->asResourceNode() && (entity->isAlive() || entity->isDying())) continue;
+
+        // If the tile is currently visible, renderEntities (post-fog) handles it.
+        sf::Vector2i tile = map.worldToTile(entity->getPosition());
+        if (fog.isVisible(tile.x, tile.y)) continue;
+
+        // Draw the ghost.  For alive buildings this shows their sprite behind
+        // the shroud; for destroyed buildings the EntityPtr keeps the object
+        // in memory so the last-seen frame of the sprite is preserved.
+        entity->render(m_window);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// renderFogOverlay – draws the local player's fog-of-war texture scaled to
+// cover the entire world map.  Visible tiles are transparent; tiles that have
+// been explored but are not currently seen are rendered with a dark shroud;
+// completely unexplored tiles are drawn fully black.
+// ---------------------------------------------------------------------------
+void Renderer::renderFogOverlay(Game& game) {
+    const FogOfWar& fog = game.getPlayer().getFog();
+
+    const sf::Texture& fogTex = fog.getFogTexture();
+
+    // Scale the W×H texel texture to cover the full world extent.
+    const float worldW = static_cast<float>(game.getMap().getWidth()  * Constants::TILE_SIZE);
+    const float worldH = static_cast<float>(game.getMap().getHeight() * Constants::TILE_SIZE);
+    const float scaleX = worldW / static_cast<float>(fogTex.getSize().x);
+    const float scaleY = worldH / static_cast<float>(fogTex.getSize().y);
+
+    sf::Sprite fogSprite(fogTex);
+    fogSprite.setPosition(sf::Vector2f(0.f, 0.f));
+    fogSprite.setScale(sf::Vector2f(scaleX, scaleY));
+    m_window.draw(fogSprite);
+}
+
+// ---------------------------------------------------------------------------
+// renderEntities – drawn AFTER the fog overlay.
+// Visibility rules:
+//   • Own entities (local player's team) → always visible.
+//   • Enemy units / buildings → only if the tile is currently in vision.
+//   • Resource nodes → handled by renderGhosts (before fog).
+// ---------------------------------------------------------------------------
+void Renderer::renderEntities(Game& game) {
+    const FogOfWar& fog  = game.getPlayer().getFog();
+    const Map&      map  = game.getMap();
+    const Team      myTeam = game.getPlayer().getTeam();
+
+    for (const auto& entity : game.getAllEntities()) {
+        if (!entity) continue;
+        if (!entity->isAlive() && !entity->isDying()) continue;
+
+        // Resource nodes are rendered in the pass BEFORE the fog overlay.
+        if (entity->asResourceNode()) continue;
+
+        const bool isOwn = (entity->getTeam() == myTeam);
+        if (!isOwn) {
+            // Hide enemy entities that are outside current vision.
+            if (!fog.isVisibleAtWorld(entity->getPosition(), map)) continue;
+        }
+
+        entity->render(m_window);
     }
 }
 
@@ -241,13 +341,37 @@ void Renderer::renderMinimap(Game& game) {
     terrainSprite.setScale(sf::Vector2f(tScaleX, tScaleY));
     m_window.draw(terrainSprite);
 
+    // --- Fog-of-war overlay on the minimap ----------------------------------
+    // The fog texture is a W×H RGBA image (one texel per tile):
+    //   • visible tiles      → fully transparent  (terrain shows through)
+    //   • explored+not seen  → dark semi-transparent (terrain looks darker)
+    //   • unexplored         → near-opaque black
+    // We draw it at the same position/scale as the terrain sprite so each
+    // fogged tile on the minimap is correctly darkened.
+    const FogOfWar& fogMM = game.getPlayer().getFog();
+    sf::Sprite fogMMSprite(fogMM.getFogTexture());
+    fogMMSprite.setPosition(sf::Vector2f(mmX, mmY));
+    fogMMSprite.setScale(sf::Vector2f(tScaleX, tScaleY));
+    m_window.draw(fogMMSprite);
+
     // --- Scale factors (world → minimap pixel) ------------------------------
     float scaleX = minimapSize / (map.getWidth()  * Constants::TILE_SIZE);
     float scaleY = minimapSize / (map.getHeight() * Constants::TILE_SIZE);
 
     // --- Entities -----------------------------------------------------------
+    const FogOfWar& fog    = game.getPlayer().getFog();
+    const Team      myTeam = game.getPlayer().getTeam();
+
     for (const auto& entity : game.getAllEntities()) {
         if (!entity || !entity->isAlive()) continue;
+
+        // Hide enemy entities that are outside the local player's current vision.
+        const bool isOwn = (entity->getTeam() == myTeam);
+        if (!isOwn && !fog.isVisible(
+                static_cast<int>(entity->getPosition().x / Constants::TILE_SIZE),
+                static_cast<int>(entity->getPosition().y / Constants::TILE_SIZE))) {
+            continue;
+        }
 
         sf::Vector2f pos = entity->getPosition();
         float x = mmX + pos.x * scaleX;
@@ -258,6 +382,37 @@ void Renderer::renderMinimap(Game& game) {
         dot.setOrigin(sf::Vector2f(dotR, dotR));
         dot.setPosition(sf::Vector2f(x, y));
         dot.setFillColor(teamColor(entity->getTeam()));
+        m_window.draw(dot);
+    }
+
+    // --- Ghost dots ---------------------------------------------------------
+    // Buildings and resource nodes that were spotted but are now outside
+    // vision (or destroyed) are shown as dim dots so the player remembers
+    // their last known position.
+    for (const auto& [id, ghost] : fog.getGhosts()) {
+        const EntityPtr& entity = ghost.entity;
+        if (!entity) continue;
+
+        // Skip ghosts whose tile is currently visible — the live pass above
+        // already drew them at full brightness.
+        const int tx = static_cast<int>(entity->getPosition().x / Constants::TILE_SIZE);
+        const int ty = static_cast<int>(entity->getPosition().y / Constants::TILE_SIZE);
+        if (fog.isVisible(tx, ty)) continue;
+
+        sf::Vector2f pos = entity->getPosition();
+        float x = mmX + pos.x * scaleX;
+        float y = mmY + pos.y * scaleY;
+
+        // Use a dimmed (half-alpha) version of the team colour to visually
+        // distinguish ghosts from live entities.
+        sf::Color base = teamColor(entity->getTeam());
+        base.a = 110;
+
+        float dotR = 2.0f;
+        sf::CircleShape dot(dotR);
+        dot.setOrigin(sf::Vector2f(dotR, dotR));
+        dot.setPosition(sf::Vector2f(x, y));
+        dot.setFillColor(base);
         m_window.draw(dot);
     }
 

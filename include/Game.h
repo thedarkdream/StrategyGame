@@ -133,6 +133,10 @@ private:
     void setupUnit(UnitPtr& unit);
     void setupWorker(Worker* worker, EntityPtr homeBase);
 
+    // Per-frame: gently slide any collidable unit that is overlapping a building
+    // toward the nearest face of that building until it is clear.
+    void pushUnitsOutOfBuildings(float deltaTime);
+
     // Helper: find the Player slot that owns entities of the given Team
     Player* getPlayerByTeam(Team t);
 

@@ -68,6 +68,9 @@ struct EntityDef {
     // Common stats
     int health = 0;
     sf::Vector2f size = {0.0f, 0.0f};   // Visual/collision size in pixels
+
+    // Sight radius in world units (how far this entity can reveal the fog of war)
+    float visionRadius = 200.0f;
     
     // Type-specific data (only one will be populated)
     std::optional<UnitDef> unit;
@@ -105,6 +108,9 @@ public:
     // Unit-specific
     const UnitDef* getUnitDef(EntityType type) const;
     float getTrainingTime(EntityType type) const;
+
+    // Vision / Fog of War
+    float getVisionRadius(EntityType type) const;
     
     // Building-specific  
     const BuildingDef* getBuildingDef(EntityType type) const;

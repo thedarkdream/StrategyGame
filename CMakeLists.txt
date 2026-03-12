@@ -45,6 +45,7 @@ set(SOURCES
     src/GameStatistics.cpp
     src/VictoryScreen.cpp
     src/DebugConsole.cpp
+    src/FogOfWar.cpp
 )
 
 # Header files
@@ -88,6 +89,7 @@ set(HEADERS
     include/Projectile.h
     include/GameStatistics.h
     include/VictoryScreen.h
+    include/FogOfWar.h
 )
 
 # Create executable

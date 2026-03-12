@@ -57,6 +57,11 @@ void Game::update(float deltaTime) {
     }
     flushPendingEntities();  // Safe to add new entities now
 
+    // Slide any unit that is physically inside a building outward each frame.
+    // This handles workers that get trapped when a building is placed on them,
+    // as well as any other overlap that occurs during normal gameplay.
+    pushUnitsOutOfBuildings(deltaTime);
+
     // Update all player controllers (AI ticks, network polling, etc.)
     for (int i = 0; i < MAX_PLAYERS; ++i) {
         if (m_controllers[i])
@@ -68,7 +73,12 @@ void Game::update(float deltaTime) {
     
     // Cleanup dead entities
     cleanupDeadEntities();
-    
+
+    // Update fog of war for the local human player every frame.
+    // This recomputes which tiles are visible based on current unit/building
+    // positions and rebuilds the fog overlay texture used by the Renderer.
+    getPlayer().updateFog(m_map, m_allEntities);
+
     // Check victory/defeat
     checkVictoryConditions();
 }
@@ -800,6 +810,62 @@ void Game::issueContinueBuildCommand(EntityPtr building, bool append) {
 
 void Game::cancelBuildingConstruction(EntityPtr building) {
     getActions().cancelConstruction(building);
+}
+
+void Game::pushUnitsOutOfBuildings(float deltaTime) {
+    // Speed at which trapped units are pushed clear (pixels per second).
+    // Fast enough to escape within a second but slow enough to look physical.
+    constexpr float PUSH_SPEED = 150.0f;
+
+    for (auto& entity : m_allEntities) {
+        if (!entity || !entity->isAlive()) continue;
+        Unit* unit = entity->asUnit();
+        if (!unit || !unit->isCollidable()) continue;
+
+        float     radius = unit->getCollisionRadius();
+        sf::Vector2f pos = unit->getPosition();
+
+        for (auto& other : m_allEntities) {
+            if (!other || !other->isAlive()) continue;
+            if (!other->asBuilding()) continue;
+
+            sf::FloatRect bounds = other->getBounds();
+
+            // Expand bounds by the unit's collision radius so we test whether
+            // the unit's *body* (not just its centre) overlaps the building.
+            sf::FloatRect expanded = bounds;
+            expanded.position.x -= radius;
+            expanded.position.y -= radius;
+            expanded.size.x     += radius * 2.0f;
+            expanded.size.y     += radius * 2.0f;
+
+            if (!expanded.contains(pos)) continue;
+
+            // AABB minimum-penetration depenetration:
+            // compute how far the unit centre is from each of the four expanded
+            // faces, then push along the axis with the smallest penetration.
+            float dLeft   = pos.x - expanded.position.x;
+            float dRight  = (expanded.position.x + expanded.size.x) - pos.x;
+            float dTop    = pos.y - expanded.position.y;
+            float dBottom = (expanded.position.y + expanded.size.y) - pos.y;
+
+            float minH = std::min(dLeft, dRight);
+            float minV = std::min(dTop,  dBottom);
+
+            sf::Vector2f pushDir;
+            if (minH <= minV) {
+                pushDir = (dLeft <= dRight) ? sf::Vector2f(-1.f, 0.f)
+                                            : sf::Vector2f( 1.f, 0.f);
+            } else {
+                pushDir = (dTop  <= dBottom) ? sf::Vector2f(0.f, -1.f)
+                                             : sf::Vector2f(0.f,  1.f);
+            }
+
+            pos += pushDir * (PUSH_SPEED * deltaTime);
+        }
+
+        unit->setPosition(pos);
+    }
 }
 
 void Game::setRallyPoint(sf::Vector2f position, EntityPtr target) {

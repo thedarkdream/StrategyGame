@@ -1,7 +1,10 @@
 #pragma once
 
 #include "Types.h"
+#include "FogOfWar.h"
 #include <vector>
+
+class Map;
 
 class Player {
 public:
@@ -44,6 +47,13 @@ public:
     // Update
     void update(float deltaTime);
     void cleanupDeadEntities();
+
+    // Fog of War
+    FogOfWar& getFog() { return m_fog; }
+    const FogOfWar& getFog() const { return m_fog; }
+    // Recompute fog visibility and update ghost snapshots.
+    // Pass the full entity list so resource nodes and buildings can be tracked.
+    void updateFog(const Map& map, const EntityList& allEntities);
     
 private:
     Team m_team;
@@ -51,4 +61,5 @@ private:
     UnitList m_units;
     BuildingList m_buildings;
     std::vector<EntityPtr> m_selection;
+    FogOfWar m_fog;
 };

@@ -29,6 +29,13 @@ private:
     
     // Render layers
     void renderMap(Map& map);
+    // Pre-fog pass: resource nodes (always) + ghost buildings/dead-resources
+    // in the shroud.  Everything in this pass is naturally darkened by the fog
+    // overlay that follows.
+    void renderGhosts(Game& game);
+    // The fog-of-war overlay texture scaled to cover the entire map.
+    void renderFogOverlay(Game& game);
+    // Pass 2 – all other entities (units / buildings) filtered by fog visibility.
     void renderEntities(Game& game);
     void renderRallyPoints(Game& game);
     void renderUI(Game& game);

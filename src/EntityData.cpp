@@ -84,6 +84,11 @@ float EntityRegistry::getTrainingTime(EntityType type) const {
     return unitDef ? unitDef->trainingTime : 5.0f;
 }
 
+float EntityRegistry::getVisionRadius(EntityType type) const {
+    auto* def = get(type);
+    return def ? def->visionRadius : 0.0f;
+}
+
 void EntityRegistry::initializeDefaults() {
     // ==================== UNITS ====================
     
@@ -97,6 +102,7 @@ void EntityRegistry::initializeDefaults() {
         def.gasCost = 0;
         def.health = Constants::WORKER_HEALTH;
         def.size = {24.0f, 24.0f};
+        def.visionRadius = 224.0f;  // 7 tiles
         
         UnitDef unit;
         unit.speed = Constants::WORKER_SPEED;
@@ -156,6 +162,7 @@ void EntityRegistry::initializeDefaults() {
         def.gasCost = 0;
         def.health = Constants::SOLDIER_HEALTH;
         def.size = {24.0f, 24.0f};
+        def.visionRadius = 256.0f;  // 8 tiles
         
         UnitDef unit;
         unit.speed = Constants::SOLDIER_SPEED;
@@ -189,6 +196,7 @@ void EntityRegistry::initializeDefaults() {
         def.gasCost = 0;
         def.health = 120;
         def.size = {40.0f, 40.0f};  // 40px diameter circle
+        def.visionRadius = 320.0f;  // 10 tiles – elevated line of sight
         
         UnitDef unit;
         unit.speed = 150.0f;
@@ -221,6 +229,7 @@ void EntityRegistry::initializeDefaults() {
         def.gasCost = 0;
         def.health = Constants::BRUTE_HEALTH;
         def.size = {28.0f, 28.0f};
+        def.visionRadius = 224.0f;  // 7 tiles
         
         UnitDef unit;
         unit.speed = Constants::BRUTE_SPEED;
@@ -256,6 +265,7 @@ void EntityRegistry::initializeDefaults() {
         def.gasCost = 0;
         def.health = 1500;
         def.size = {96.0f, 96.0f};
+        def.visionRadius = 320.0f;  // 10 tiles
         
         BuildingDef building;
         building.tileSize = {3, 3};
@@ -293,6 +303,7 @@ void EntityRegistry::initializeDefaults() {
         def.gasCost = 0;
         def.health = 1000;
         def.size = {96.0f, 64.0f};
+        def.visionRadius = 256.0f;  // 8 tiles
         
         BuildingDef building;
         building.tileSize = {3, 2};
@@ -336,6 +347,7 @@ void EntityRegistry::initializeDefaults() {
         def.gasCost = 0;
         def.health = 500;
         def.size = {64.0f, 64.0f};
+        def.visionRadius = 192.0f;  // 6 tiles
         
         BuildingDef building;
         building.tileSize = {2, 2};
@@ -356,6 +368,7 @@ void EntityRegistry::initializeDefaults() {
         def.gasCost = 0;
         def.health = 1200;
         def.size = {96.0f, 64.0f};
+        def.visionRadius = 256.0f;  // 8 tiles
         
         BuildingDef building;
         building.tileSize = {3, 2};
@@ -394,6 +407,7 @@ void EntityRegistry::initializeDefaults() {
         def.mineralCost = 0;
         def.health = 1;  // Immortal until depleted
         def.size = {48.0f, 32.0f};
+        def.visionRadius = 0.0f;    // Resources do not contribute to vision
         
         BuildingDef building;
         building.tileSize = {2, 1};
@@ -414,6 +428,7 @@ void EntityRegistry::initializeDefaults() {
         def.mineralCost = 0;
         def.health = 1;
         def.size = {64.0f, 64.0f};
+        def.visionRadius = 0.0f;    // Resources do not contribute to vision
         
         BuildingDef building;
         building.tileSize = {2, 2};

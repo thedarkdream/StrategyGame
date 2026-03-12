@@ -2,6 +2,7 @@
 #include "Unit.h"
 #include "Building.h"
 #include "Entity.h"
+#include "Map.h"
 #include <algorithm>
 
 Player::Player(Team team, const Resources& startingResources)
@@ -144,4 +145,10 @@ bool Player::hasCompletedBuilding(EntityType type) const {
         }
     }
     return false;
+}
+
+void Player::updateFog(const Map& map, const EntityList& allEntities) {
+    m_fog.update(m_units, m_buildings, map);
+    m_fog.recordGhosts(allEntities, map);
+    m_fog.rebuildTexture();
 }
