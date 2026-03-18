@@ -2,10 +2,24 @@ Train Worker 3
 Build Barracks
 Train Worker 4
 
-Loop
+Train Soldier 2
+Attack_Add Soldier 2
+Attack
+
+Build Turret
+
+Loop 3
 Train Soldier 3
 Train Brute 2
 Attack_Add Soldier 3
 Attack_Add Brute 2
+Attack
+EndLoop
+
+Loop
+Train Soldier 3
+Train LightTank 1
+Attack_Add Soldier 3
+Attack_Add LightTank 1
 Attack
 EndLoop

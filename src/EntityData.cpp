@@ -139,6 +139,14 @@ void EntityRegistry::initializeDefaults() {
         buildFactory.requires = EntityType::Barracks;  // Requires completed Barracks
         buildFactory.row = 1;
         
+        ActionDef buildTurret;
+        buildTurret.label = "Build";
+        buildTurret.hotkey = "T";
+        buildTurret.type = ActionDef::Type::Build;
+        buildTurret.producesType = EntityType::Turret;
+        buildTurret.requires = EntityType::Barracks;  // Requires completed Barracks
+        buildTurret.row = 1;
+
         def.actions = {
             {"Move", "M", ActionDef::Type::TargetMove},
             {"Stop", "S", ActionDef::Type::Instant},
@@ -146,7 +154,8 @@ void EntityRegistry::initializeDefaults() {
             {"Gather", "G", ActionDef::Type::TargetGather},
             buildBarracks,
             buildBase,
-            buildFactory
+            buildFactory,
+            buildTurret
         };
         
         registerEntity(std::move(def));
@@ -396,9 +405,28 @@ void EntityRegistry::initializeDefaults() {
         registerEntity(std::move(def));
     }
     
-    // ==================== RESOURCES ====================
-    
-    // Mineral Patch
+    // Turret
+    {
+        EntityDef def;
+        def.type = EntityType::Turret;
+        def.name = "Turret";
+        def.shortName = "TU";
+        def.mineralCost = 75;
+        def.gasCost = 0;
+        def.health = 400;
+        def.size = {64.0f, 64.0f};
+        def.visionRadius = 224.0f;  // 7 tiles
+
+        BuildingDef building;
+        building.tileSize = {2, 2};
+        building.canProduce = false;
+        building.isResourceNode = false;
+        building.constructionTime = 10.0f;
+        def.building = building;
+
+        registerEntity(std::move(def));
+    }
+
     {
         EntityDef def;
         def.type = EntityType::MineralPatch;

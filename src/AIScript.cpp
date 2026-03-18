@@ -170,6 +170,7 @@ EntityType AIScript::stringToEntityType(const std::string& str) {
     if (lower == "barracks") return EntityType::Barracks;
     if (lower == "refinery") return EntityType::Refinery;
     if (lower == "factory") return EntityType::Factory;
+    if (lower == "turret")  return EntityType::Turret;
     
     return EntityType::None;
 }

@@ -44,6 +44,7 @@ enum class EntityType {
     Barracks,
     Refinery,
     Factory,
+    Turret,
     // Resources
     MineralPatch,
     GasGeyser,

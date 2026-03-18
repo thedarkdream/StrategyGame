@@ -6,6 +6,7 @@
 #include "Brute.h"
 #include "LightTank.h"
 #include "Building.h"
+#include "Turret.h"
 #include "ResourceNode.h"
 
 UnitPtr ResourceManager::createUnit(EntityType type, Team team, sf::Vector2f position) {
@@ -31,6 +32,10 @@ BuildingPtr ResourceManager::createBuilding(EntityType type, Team team, sf::Vect
             return createBarracks(team, position);
         case EntityType::Refinery:
             return createRefinery(team, position);
+        case EntityType::Factory:
+            return std::make_shared<Building>(EntityType::Factory, team, position);
+        case EntityType::Turret:
+            return std::make_shared<Turret>(team, position);
         default:
             return nullptr;
     }

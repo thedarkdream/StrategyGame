@@ -41,6 +41,7 @@ set(SOURCES
     src/FontManager.cpp
     src/PlayerActions.cpp
     src/LightTank.cpp
+    src/Turret.cpp
     src/Projectile.cpp
     src/GameStatistics.cpp
     src/VictoryScreen.cpp
@@ -86,6 +87,7 @@ set(HEADERS
     include/EffectsManager.h
     include/SoundManager.h
     include/LightTank.h
+    include/Turret.h
     include/Projectile.h
     include/GameStatistics.h
     include/VictoryScreen.h

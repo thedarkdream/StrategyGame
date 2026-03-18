@@ -37,8 +37,9 @@ constexpr EntInfo BUILDING_INFOS[] = {
     { EntityType::Barracks, "Barracks" },
     { EntityType::Refinery, "Refinery" },
     { EntityType::Factory,  "Factory"  },
+    { EntityType::Turret,   "Turret"   },
 };
-constexpr int NUM_BUILDINGS = 4;
+constexpr int NUM_BUILDINGS = 5;
 
 constexpr EntInfo UNIT_INFOS[] = {
     { EntityType::Worker,    "Worker"    },

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Entity.h"
+#include "IUnitContext.h"
 #include <deque>
 #include <vector>
 #include <functional>
@@ -54,6 +55,10 @@ public:
     
     Building*       asBuilding()       override { return this; }
     const Building* asBuilding() const override { return this; }
+
+    // Called by Game::spawnBuilding so combat buildings (Turret) can access
+    // spatial queries and projectile spawning.  Base implementation is no-op.
+    virtual void setupGameContext(IUnitContext* /*ctx*/) {}
 
     // Callback when unit is produced (provides building pointer for rally point info)
     std::function<void(EntityType, Building*)> onUnitProduced;

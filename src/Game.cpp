@@ -758,7 +758,10 @@ EntityPtr Game::spawnBuilding(EntityType type, Team team, sf::Vector2f position,
             building = ResourceManager::createRefinery(team, position);
             break;
         case EntityType::Factory:
-            building = ResourceManager::createFactory(team, position);
+            building = ResourceManager::createBuilding(EntityType::Factory, team, position);
+            break;
+        case EntityType::Turret:
+            building = ResourceManager::createBuilding(EntityType::Turret, team, position);
             break;
         default:
             return nullptr;
@@ -776,6 +779,9 @@ EntityPtr Game::spawnBuilding(EntityType type, Team team, sf::Vector2f position,
         building->onProductionCancelled = [this, team](EntityType unitType) {
             if (Player* p = getPlayerByTeam(team)) p->addResources(ResourceManager::getMineralCost(unitType), 0);
         };
+
+        // Give combat buildings (Turret, etc.) access to spatial queries.
+        building->setupGameContext(this);
         
         // Place on map
         sf::Vector2i buildingSize = ResourceManager::getBuildingSize(type);
