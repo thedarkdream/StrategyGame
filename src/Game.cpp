@@ -14,6 +14,7 @@
 #include "MathUtil.h"
 #include "IdGenerator.h"
 #include <algorithm>
+#include <array>
 #include <iostream>
 #include <cmath>
 
@@ -616,15 +617,53 @@ void Game::spawnUnit(EntityType type, Team team, sf::Vector2f position) {
 
 void Game::spawnUnitFromBuilding(EntityType type, Team team, Building* sourceBuilding) {
     if (!sourceBuilding) return;
-    
-    // Get spawn position near the building
-    sf::Vector2f buildingPos = sourceBuilding->getPosition();
-    sf::Vector2f buildingSize = ENTITY_DATA.getSize(sourceBuilding->getType());
-    sf::Vector2f spawnPos = buildingPos + sf::Vector2f(buildingSize.x / 2.0f + 20.0f, 0.0f);
-    
+
     // Use the actual entity pixel size so findSpawnPosition keeps units apart
     sf::Vector2f entitySize = ENTITY_DATA.getSize(type);
     float unitRadius = std::max(entitySize.x, entitySize.y) / 2.0f;
+
+    // Compute a spawn origin just outside the source building.
+    // Try all four cardinal edges (right, bottom, left, top), preferring the one
+    // that best aligns with the rally point direction. Pick the first edge whose
+    // midpoint is not blocked, then hand off to findSpawnPosition for fine placement.
+    sf::FloatRect bounds    = sourceBuilding->getBounds();
+    sf::Vector2f  buildingPos = sourceBuilding->getPosition();
+    const float   pad       = unitRadius + 4.f;
+
+    sf::Vector2f rallyDir = sourceBuilding->getRallyPoint() - buildingPos;
+    {
+        float rLen = std::sqrt(rallyDir.x * rallyDir.x + rallyDir.y * rallyDir.y);
+        if (rLen > 0.f) rallyDir /= rLen;
+    }
+
+    // Four candidate origins: Right, Bottom, Left, Top
+    struct EdgeCandidate {
+        sf::Vector2f pos;
+        sf::Vector2f dir;   // outward normal
+    };
+    std::array<EdgeCandidate, 4> edges = {{
+        { { bounds.position.x + bounds.size.x + pad, buildingPos.y }, {  1.f,  0.f } },
+        { { buildingPos.x, bounds.position.y + bounds.size.y + pad }, {  0.f,  1.f } },
+        { { bounds.position.x - pad,                buildingPos.y }, { -1.f,  0.f } },
+        { { buildingPos.x, bounds.position.y - pad              }, {  0.f, -1.f } },
+    }};
+
+    // Sort edges: most aligned with rally direction first
+    std::sort(edges.begin(), edges.end(), [&](const EdgeCandidate& a, const EdgeCandidate& b) {
+        float da = a.dir.x * rallyDir.x + a.dir.y * rallyDir.y;
+        float db = b.dir.x * rallyDir.x + b.dir.y * rallyDir.y;
+        return da > db;
+    });
+
+    // Pick the first unblocked edge as the search origin; fall back to the best-aligned one
+    sf::Vector2f spawnPos = edges[0].pos;
+    for (const auto& edge : edges) {
+        if (!checkPositionBlocked(edge.pos, unitRadius, nullptr)) {
+            spawnPos = edge.pos;
+            break;
+        }
+    }
+
     spawnPos = findSpawnPosition(spawnPos, unitRadius);
     
     UnitPtr unit;

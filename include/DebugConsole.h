@@ -42,6 +42,7 @@ public:
     bool isActive()           const { return m_active; }
     bool isShowingWaypoints() const { return m_showWaypoints; }
     bool isShowingIds()       const { return m_showIds; }
+    bool isShowingState()     const { return m_showState; }
 
 private:
     sf::RenderWindow& m_window;
@@ -50,6 +51,7 @@ private:
     bool        m_active        = false;
     bool        m_showWaypoints = false;
     bool        m_showIds       = false;
+    bool        m_showState     = false;
 
     std::string m_inputText;
 

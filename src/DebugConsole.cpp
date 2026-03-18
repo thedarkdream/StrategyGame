@@ -69,6 +69,13 @@ void DebugConsole::registerConVars() {
         [this](int val) { m_showIds = (val != 0); },
         "Draw entity IDs above selected entities"
     };
+
+    // show_state — render unit state (IDLE, MOVING, …) above selected units
+    m_convars["show_state"] = {
+        [this]() -> int { return m_showState ? 1 : 0; },
+        [this](int val) { m_showState = (val != 0); },
+        "Draw unit state above selected units (combines with show_ids)"
+    };
 }
 
 // ---------------------------------------------------------------------------
@@ -253,6 +260,7 @@ void DebugConsole::executeCommand(const std::string& cmd) {
         log("Built-in commands:");
         log("  show_ai_info  -  Print the AI script in use by each AI player");
         log("  help          -  Show this list");
+        log("Note: show_ids and show_state combine into one label above each unit");
         return;
     }
 
@@ -277,17 +285,54 @@ void DebugConsole::pushHistory(const std::string& cmd) {
 }
 
 // ---------------------------------------------------------------------------
-// ID rendering  (world-space view active)
+// Helpers
+// ---------------------------------------------------------------------------
+namespace {
+    std::string unitStateString(UnitState state) {
+        switch (state) {
+            case UnitState::Idle:         return "IDLE";
+            case UnitState::Moving:       return "MOVING";
+            case UnitState::AttackMoving: return "ATKMOVE";
+            case UnitState::Attacking:    return "ATTACK";
+            case UnitState::Following:    return "FOLLOW";
+            case UnitState::Gathering:    return "GATHER";
+            case UnitState::Returning:    return "RETURN";
+            case UnitState::Building:     return "BUILD";
+        }
+        return "?";
+    }
+}
+
+// ---------------------------------------------------------------------------
+// ID / state rendering  (world-space view active)
+// Renders a single combined label per selected unit:
+//   show_ids only  →  "#133"
+//   show_state only →  "IDLE"
+//   both active    →  "#133 IDLE"
 // ---------------------------------------------------------------------------
 void DebugConsole::renderIds(sf::RenderWindow& window) {
-    if (!m_showIds || !m_font) return;
+    if ((!m_showIds && !m_showState) || !m_font) return;
 
     for (const auto& entity : m_game.getAllEntities()) {
         if (!entity || !entity->isAlive()) continue;
         if (!entity->isSelected()) continue;
 
+        // Build label text
+        std::string text;
+        if (m_showIds)
+            text = "#" + std::to_string(entity->getId());
+
+        if (m_showState) {
+            if (const Unit* unit = entity->asUnit()) {
+                if (!text.empty()) text += ' ';
+                text += unitStateString(unit->getState());
+            }
+        }
+
+        if (text.empty()) continue;
+
         constexpr unsigned CHAR_SIZE = 12;
-        sf::Text label(*m_font, "#" + std::to_string(entity->getId()), CHAR_SIZE);
+        sf::Text label(*m_font, text, CHAR_SIZE);
         label.setFillColor(sf::Color(255, 255, 80));
         label.setOutlineColor(sf::Color(0, 0, 0, 200));
         label.setOutlineThickness(1.0f);
