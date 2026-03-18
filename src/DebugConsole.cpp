@@ -6,6 +6,7 @@
 #include "Unit.h"
 #include "Entity.h"
 #include "PlayerController.h"
+#include "MathUtil.h"
 #include <algorithm>
 #include <sstream>
 
@@ -396,6 +397,32 @@ void DebugConsole::renderWaypoints(sf::RenderWindow& window) {
                 sf::Vertex{path[pathIdx],         leadColor}
             };
             window.draw(leadLine, 2, sf::PrimitiveType::Lines);
+        }
+
+        // When the path is exhausted the unit moves directly toward
+        // m_targetPosition; draw a final segment + marker so the real
+        // destination is always visible.
+        sf::Vector2f dest = unit->getTargetPosition();
+        sf::Vector2f unitPos = entity->getPosition();
+        bool pathDone = (pathIdx >= path.size());
+        bool destDiffersFromLast = path.empty() ||
+            (MathUtil::distance(path.back(), dest) > 2.0f);
+        if (pathDone && destDiffersFromLast) {
+            sf::Color segColor(255, 100, 100, 180);
+            sf::Vertex seg[] = {
+                sf::Vertex{unitPos, segColor},
+                sf::Vertex{dest,    segColor}
+            };
+            window.draw(seg, 2, sf::PrimitiveType::Lines);
+
+            constexpr float DEST_RADIUS = 6.0f;
+            sf::CircleShape destDot(DEST_RADIUS);
+            destDot.setOrigin(sf::Vector2f(DEST_RADIUS, DEST_RADIUS));
+            destDot.setPosition(dest);
+            destDot.setFillColor(sf::Color(255, 80, 80, 200));
+            destDot.setOutlineColor(sf::Color(180, 40, 40));
+            destDot.setOutlineThickness(1.5f);
+            window.draw(destDot);
         }
     }
 }

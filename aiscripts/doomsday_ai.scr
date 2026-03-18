@@ -1,0 +1,19 @@
+Train Worker 3
+Build Barracks
+Train Worker 4
+
+Train Soldier 12
+Attack_Add Soldier 12
+Attack
+
+Build Factory
+Train LightTank 12
+Attack_Add LightTank 12
+Attack
+
+Loop
+Train Soldier 12
+Train LightTank 12
+Attack_Add Soldier 12
+Attack_Add LightTank 12
+Attack

@@ -51,7 +51,10 @@ public:
     IUnitContext* getContext() const   { return m_context; }
 
     // Collision
-    float getCollisionRadius() const { return std::max(m_size.x, m_size.y) / 2.0f; }
+    // m_collisionRadius is the physics/pathfinding radius; it may differ from
+    // the visual m_size radius (e.g. LightTank is drawn at 40px but collides at
+    // one tile = 32px).  Set via the protected member in subclass constructors.
+    float getCollisionRadius() const { return m_collisionRadius; }
     virtual bool isCollidable() const { return true; }  // Override in subclasses if needed
     Unit*       asUnit()       override { return this; }
     const Unit* asUnit() const override { return this; }
@@ -62,6 +65,7 @@ public:
     // Debug / inspection: read-only access to the current A* path
     const std::vector<sf::Vector2f>& getPath() const { return m_path; }
     size_t getPathIndex() const { return m_pathIndex; }
+    sf::Vector2f getTargetPosition() const { return m_targetPosition; }
 
 protected:
     // Pops and executes the next queued action; returns true if something was dispatched.
@@ -107,6 +111,10 @@ protected:
     float m_autoAttackRangeBonus = 0.0f;  // Extra range for auto-attack detection
     bool m_isCombatUnit = false;          // Has auto-attack behavior
     
+    // Collision radius (physics/pathfinding) — may differ from visual m_size.
+    // Initialized in Unit::Unit() from m_size; subclasses may override.
+    float m_collisionRadius = 0.0f;
+
     // Movement
     sf::Vector2f m_targetPosition;
     sf::Vector2f m_velocity;  // Current velocity for RVO

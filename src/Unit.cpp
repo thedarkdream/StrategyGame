@@ -17,6 +17,8 @@ Unit::Unit(EntityType type, Team team, sf::Vector2f position)
 {
     // Load all stats from ENTITY_DATA
     m_size = ENTITY_DATA.getSize(type);
+    // Default collision radius = visual half-size; subclasses may override.
+    m_collisionRadius = std::max(m_size.x, m_size.y) / 2.0f;
     m_maxHealth = ENTITY_DATA.getHealth(type);
     m_health = m_maxHealth;
     m_targetPosition = position;
@@ -551,8 +553,13 @@ void Unit::moveTowardsTarget(float deltaTime) {
     // Update sprite facing direction (use preferred direction, not RVO-adjusted)
     updateSpriteDirection(direction);
     
-    // Compute RVO-adjusted velocity to avoid collisions with other units
-    sf::Vector2f newVelocity = computeRVOVelocity(preferredVelocity, deltaTime);
+    // Compute RVO-adjusted velocity to avoid collisions with other units.
+    // Skip RVO in the final approach so the unit walks straight to its exact
+    // destination without being deflected by neighbours clustering nearby.
+    const float arrivalCutoff = getCollisionRadius() * 3.0f;
+    sf::Vector2f newVelocity = (distance < arrivalCutoff)
+        ? preferredVelocity
+        : computeRVOVelocity(preferredVelocity, deltaTime);
     
     // Apply velocity
     sf::Vector2f newPosition = m_position + newVelocity * deltaTime;
@@ -647,9 +654,10 @@ bool Unit::hasGroupArrived(float deltaTime) {
     }
 
     // Within GROUP_ARRIVAL_RADIUS_FAR: measure progress toward destination.
-    // Require at least 2px closer per frame to count as meaningful progress.
+    // Threshold is speed-proportional so slow units aren't mistakenly flagged
+    // as stuck when they are still closing in on the target.
     const bool makingProgress = (m_lastDistanceToTarget > 0.0f &&
-                                 m_lastDistanceToTarget - distance > 2.0f);
+                                 m_lastDistanceToTarget - distance > 0.5f);
     if (makingProgress)
         m_stuckTimer = 0.0f;
     else

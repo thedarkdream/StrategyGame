@@ -6,8 +6,12 @@
 LightTank::LightTank(Team team, sf::Vector2f position)
     : Unit(EntityType::LightTank, team, position)
 {
+    // Display size stays at 40×40 (m_size set by base class from EntityData).
+    // Collision radius is exactly one tile so navigation mesh aligns correctly.
+    m_collisionRadius = Constants::TILE_SIZE / 2.0f;  // 16 px
+
     // Set up circle (40px diameter = 20px radius)
-    float radius = m_size.x / 2.0f;  // m_size loaded from EntityData (40x40)
+    float radius = m_size.x / 2.0f;  // visual radius — kept as 20 px
     m_circle.setRadius(radius);
     m_circle.setOrigin({radius, radius});
     m_circle.setPosition(m_position);

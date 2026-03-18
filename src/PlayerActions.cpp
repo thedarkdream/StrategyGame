@@ -13,18 +13,17 @@
 #include <cmath>
 
 namespace {
-    // Spacing between adjacent formation slots (pixels).
-    static constexpr float FORMATION_SPACING = 48.f;
-
     // Build concentric-ring offsets for `count` units around (0,0).
     // Ring 0: 1 slot (center). Ring k: k*6 slots at radius k*spacing.
-    std::vector<sf::Vector2f> buildFormationOffsets(int count) {
+    // `spacing` should be 2*maxCollisionRadius + a small gap so units don't
+    // overlap in their destination slots.
+    std::vector<sf::Vector2f> buildFormationOffsets(int count, float spacing) {
         std::vector<sf::Vector2f> out;
         out.reserve(count);
         out.push_back({0.f, 0.f});
         for (int ring = 1; static_cast<int>(out.size()) < count; ++ring) {
             int slots = ring * 6;
-            float radius = ring * FORMATION_SPACING;
+            float radius = ring * spacing;
             for (int i = 0; i < slots && static_cast<int>(out.size()) < count; ++i) {
                 float angle = static_cast<float>(i) / static_cast<float>(slots)
                               * 2.f * 3.14159265f;
@@ -32,6 +31,18 @@ namespace {
             }
         }
         return out;
+    }
+
+    // Compute formation slot spacing for a group of units:
+    // diameter of the largest unit + a small gap so slots don't overlap.
+    float formationSpacing(const std::vector<EntityPtr>& units) {
+        float maxRadius = 12.0f;  // sensible minimum (one soldier)
+        for (const auto& e : units) {
+            if (const Unit* u = e->asUnit())
+                maxRadius = std::max(maxRadius, u->getCollisionRadius());
+        }
+        constexpr float GAP = 8.0f;
+        return 2.0f * maxRadius + GAP;
     }
 }
 
@@ -153,7 +164,8 @@ void PlayerActions::move(const std::vector<EntityPtr>& units, sf::Vector2f targe
 
     // Build formation offsets and sort units so the closest one gets the
     // center slot — this minimises path-crossing inside the group.
-    auto offsets = buildFormationOffsets(static_cast<int>(units.size()));
+    auto offsets = buildFormationOffsets(static_cast<int>(units.size()),
+                                         formationSpacing(units));
 
     std::vector<size_t> order(units.size());
     std::iota(order.begin(), order.end(), 0);
@@ -212,7 +224,8 @@ void PlayerActions::attackMove(const std::vector<EntityPtr>& units, sf::Vector2f
         return;
     }
 
-    auto offsets = buildFormationOffsets(static_cast<int>(units.size()));
+    auto offsets = buildFormationOffsets(static_cast<int>(units.size()),
+                                         formationSpacing(units));
 
     std::vector<size_t> order(units.size());
     std::iota(order.begin(), order.end(), 0);

@@ -202,10 +202,16 @@ std::vector<sf::Vector2f> Map::findPath(sf::Vector2f start, sf::Vector2f end) {
         return { end };
     }
     
+    // Remember whether the destination itself was set on a walkable tile so we
+    // can later replace the last tile-centre waypoint with the exact world
+    // position the caller specified.  Non-walkable ends (buildings, etc.) are
+    // redirected to an adjacent tile; in that case we keep tile centres.
+    bool endOnWalkable = isWalkable(endTile.x, endTile.y);
+
     // If end is not walkable, find the nearest walkable tile to the *start*
     // so workers/units approach from whichever side they are already on,
     // rather than always converging on the topmost-leftmost adjacent tile.
-    if (!isWalkable(endTile.x, endTile.y)) {
+    if (!endOnWalkable) {
         sf::Vector2i bestTile(-1, -1);
         float bestDist = std::numeric_limits<float>::max();
         bool found = false;
@@ -236,9 +242,10 @@ std::vector<sf::Vector2f> Map::findPath(sf::Vector2f start, sf::Vector2f end) {
         endTile = bestTile;
     }
     
-    // If start == end, no path needed
+    // If start == end, no path needed.  Return the exact destination so the
+    // unit doesn't inch toward a tile centre that may be a few pixels away.
     if (startTile == endTile) {
-        return { tileToWorldCenter(endTile.x, endTile.y) };
+        return { endOnWalkable ? end : tileToWorldCenter(endTile.x, endTile.y) };
     }
     
     // A* data structures
@@ -304,10 +311,19 @@ std::vector<sf::Vector2f> Map::findPath(sf::Vector2f start, sf::Vector2f end) {
                 cy = py;
             }
             
-            // Reverse to get start-to-end order, then remove start position
+            // Reverse to get start-to-end order.
             std::reverse(path.begin(), path.end());
+
+            // Replace the tile-centre placeholders at both ends with the real
+            // world positions: start position for the first node (so smoothing
+            // can shoot a straight line from the unit's actual pixel position)
+            // and end position for the last node (so the unit walks directly to
+            // the click point rather than stopping at the nearest tile centre).
             if (!path.empty()) {
-                path.erase(path.begin());  // Remove start position
+                path.front() = start;
+            }
+            if (endOnWalkable && !path.empty()) {
+                path.back() = end;
             }
 
             return smoothPath(path);
@@ -369,7 +385,8 @@ std::vector<sf::Vector2f> Map::findPath(sf::Vector2f start, sf::Vector2f end) {
             cy = py;
         }
         std::reverse(partial.begin(), partial.end());
-        if (!partial.empty()) partial.erase(partial.begin()); // remove start
+        // Replace start tile-centre with real unit position (same as full path).
+        if (!partial.empty()) partial.front() = start;
         return smoothPath(partial);
     }
 }
