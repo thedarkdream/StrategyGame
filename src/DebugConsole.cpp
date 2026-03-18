@@ -5,6 +5,7 @@
 #include "FogOfWar.h"
 #include "Unit.h"
 #include "Entity.h"
+#include "PlayerController.h"
 #include <algorithm>
 #include <sstream>
 
@@ -12,12 +13,16 @@
 // Helpers
 // ---------------------------------------------------------------------------
 namespace {
-    // Trim leading/trailing whitespace from a string
     std::string trim(const std::string& s) {
         size_t start = s.find_first_not_of(" \t");
         if (start == std::string::npos) return {};
         size_t end = s.find_last_not_of(" \t");
         return s.substr(start, end - start + 1);
+    }
+
+    std::string toLower(std::string s) {
+        std::transform(s.begin(), s.end(), s.begin(), ::tolower);
+        return s;
     }
 }
 
@@ -27,6 +32,60 @@ DebugConsole::DebugConsole(sf::RenderWindow& window, Game& game)
     , m_game(game)
 {
     m_font = FontManager::instance().defaultFont();
+    registerConVars();
+    log("Debug console ready.  Type a convar name to query its value.");
+    log("Usage:  <convar>         - show value");
+    log("        <convar> <value> - set value  (1=true, 0=false)");
+    log("-------------------------------------------------------");
+}
+
+// ---------------------------------------------------------------------------
+// ConVar registration
+// ---------------------------------------------------------------------------
+void DebugConsole::registerConVars() {
+    // reveal_map — disable/enable FogOfWar for the local player
+    m_convars["reveal_map"] = {
+        [this]() -> int {
+            return m_game.getPlayer().getFog().isRevealed() ? 1 : 0;
+        },
+        [this](int val) {
+            FogOfWar& fog = m_game.getPlayer().getFog();
+            fog.setRevealed(val != 0);
+            fog.rebuildTexture();
+        },
+        "Reveal entire map for local player (disable fog of war)"
+    };
+
+    // show_waypoints — render A* path lines for selected units
+    m_convars["show_waypoints"] = {
+        [this]() -> int { return m_showWaypoints ? 1 : 0; },
+        [this](int val) { m_showWaypoints = (val != 0); },
+        "Draw A* path waypoints above selected units"
+    };
+
+    // show_ids — render entity IDs above selected entities
+    m_convars["show_ids"] = {
+        [this]() -> int { return m_showIds ? 1 : 0; },
+        [this](int val) { m_showIds = (val != 0); },
+        "Draw entity IDs above selected entities"
+    };
+}
+
+// ---------------------------------------------------------------------------
+// Built-in commands (non-convar)
+// ---------------------------------------------------------------------------
+void DebugConsole::cmdShowAIInfo() {
+    bool anyAI = false;
+    for (int slot = 0; slot < Game::MAX_PLAYERS; ++slot) {
+        PlayerController* ctrl = m_game.getController(slot);
+        if (!ctrl || ctrl->isLocalHuman()) continue;
+        auto* aiCtrl = dynamic_cast<AIPlayerController*>(ctrl);
+        if (!aiCtrl) continue;
+        anyAI = true;
+        log("  Player " + std::to_string(slot + 1) + ": " + aiCtrl->getCurrentScriptName());
+    }
+    if (!anyAI)
+        log("  No AI players found.");
 }
 
 // ---------------------------------------------------------------------------
@@ -35,39 +94,83 @@ DebugConsole::DebugConsole(sf::RenderWindow& window, Game& game)
 bool DebugConsole::handleEvent(const sf::Event& event) {
     // --- Key pressed ---
     if (const auto* kp = event.getIf<sf::Event::KeyPressed>()) {
-        if (!m_active) {
-            // Open console on Enter
-            if (kp->code == sf::Keyboard::Key::Enter) {
-                m_active    = true;
+
+        // ~ (Grave) toggles the console regardless of state
+        if (kp->code == sf::Keyboard::Key::Grave) {
+            m_active = !m_active;
+            if (m_active) {
                 m_inputText.clear();
-                return true;   // consumed
+                m_historyIndex = -1;
+                m_scrollOffset = 0;
             }
-            return false;      // not our event
+            return true;
         }
 
-        // Console is active — handle navigation keys
+        if (!m_active) return false;
+
+        // --- Console is open ---
+
         if (kp->code == sf::Keyboard::Key::Escape) {
             m_active = false;
             m_inputText.clear();
+            m_historyIndex = -1;
             return true;
         }
+
         if (kp->code == sf::Keyboard::Key::Enter) {
             std::string cmd = trim(m_inputText);
             if (!cmd.empty()) {
+                log("> " + cmd);
+                pushHistory(cmd);
                 executeCommand(cmd);
             }
-            m_active = false;
             m_inputText.clear();
+            m_historyIndex = -1;
+            m_scrollOffset = 0;    // jump to newest after executing
             return true;
         }
+
         if (kp->code == sf::Keyboard::Key::Backspace) {
-            if (!m_inputText.empty()) {
+            if (!m_inputText.empty())
                 m_inputText.pop_back();
+            return true;
+        }
+
+        // History navigation
+        if (kp->code == sf::Keyboard::Key::Up) {
+            if (!m_history.empty()) {
+                if (m_historyIndex == -1)
+                    m_historyIndex = static_cast<int>(m_history.size()) - 1;
+                else if (m_historyIndex > 0)
+                    --m_historyIndex;
+                m_inputText = m_history[static_cast<size_t>(m_historyIndex)];
             }
             return true;
         }
-        // Consume all other key presses while console is active so they
-        // don't trigger hotkeys / unit commands.
+        if (kp->code == sf::Keyboard::Key::Down) {
+            if (m_historyIndex != -1) {
+                ++m_historyIndex;
+                if (m_historyIndex >= static_cast<int>(m_history.size())) {
+                    m_historyIndex = -1;
+                    m_inputText.clear();
+                } else {
+                    m_inputText = m_history[static_cast<size_t>(m_historyIndex)];
+                }
+            }
+            return true;
+        }
+
+        // Log scrolling
+        if (kp->code == sf::Keyboard::Key::PageUp) {
+            m_scrollOffset += 3;
+            return true;
+        }
+        if (kp->code == sf::Keyboard::Key::PageDown) {
+            m_scrollOffset = std::max(0, m_scrollOffset - 3);
+            return true;
+        }
+
+        // Consume all other key presses (don't let hotkeys fire while typing)
         return true;
     }
 
@@ -76,16 +179,23 @@ bool DebugConsole::handleEvent(const sf::Event& event) {
         if (!m_active) return false;
 
         uint32_t ch = te->unicode;
-        // Accept printable ASCII only; skip backspace (handled above) and
-        // enter (handled above).
-        if (ch >= 32 && ch < 127) {
+        // Skip control chars, backspace, enter, and the ~ that opened the console
+        if (ch >= 32 && ch < 127 && ch != '`' && ch != '~') {
             m_inputText += static_cast<char>(ch);
         }
         return true;
     }
 
-    // If console active, swallow mouse events too so clicks don't issue
-    // unit commands while typing.
+    // --- Mouse wheel scroll (log) ---
+    if (const auto* mw = event.getIf<sf::Event::MouseWheelScrolled>()) {
+        if (!m_active) return false;
+        m_scrollOffset -= static_cast<int>(mw->delta);
+        if (m_scrollOffset < 0) m_scrollOffset = 0;
+        return true;
+    }
+
+    // Swallow mouse button / move events while the console is open so they
+    // don't trigger unit commands.
     if (m_active) {
         if (event.is<sf::Event::MouseButtonPressed>() ||
             event.is<sf::Event::MouseButtonReleased>() ||
@@ -101,37 +211,73 @@ bool DebugConsole::handleEvent(const sf::Event& event) {
 // Command execution
 // ---------------------------------------------------------------------------
 void DebugConsole::executeCommand(const std::string& cmd) {
-    // Tokenise
     std::istringstream ss(cmd);
-    std::string verb;
-    ss >> verb;
-    // Normalise to lowercase
-    std::transform(verb.begin(), verb.end(), verb.begin(), ::tolower);
+    std::string name;
+    ss >> name;
+    name = toLower(name);
 
-    if (verb == "show_waypoints") {
-        m_showWaypoints = !m_showWaypoints;
-        log(std::string("Waypoints display: ") + (m_showWaypoints ? "ON" : "OFF"));
-    } else if (verb == "show_ids") {
-        m_showIds = !m_showIds;
-        log(std::string("ID display: ") + (m_showIds ? "ON" : "OFF"));
-    } else if (verb == "reveal_map") {
-        FogOfWar& fog = m_game.getPlayer().getFog();
-        fog.setRevealed(!fog.isRevealed());
-        fog.rebuildTexture();
-        log(std::string("Fog of War: ") + (fog.isRevealed() ? "DISABLED" : "ENABLED"));
-    } else {
-        log("Unknown command: " + verb);
+    // Check convar registry first
+    auto it = m_convars.find(name);
+    if (it != m_convars.end()) {
+        ConVar& cv = it->second;
+        std::string valueStr;
+        if (ss >> valueStr) {
+            // Set value
+            try {
+                int val = std::stoi(valueStr);
+                cv.setter(val);
+                log(name + " = " + std::to_string(cv.getter()));
+            } catch (...) {
+                log("Error: value must be an integer (e.g. 0 or 1)");
+            }
+        } else {
+            // Query value
+            log(name + " = " + std::to_string(cv.getter()));
+        }
+        return;
     }
+
+    // Built-in: show_ai_info
+    if (name == "show_ai_info") {
+        log("AI script assignments:");
+        cmdShowAIInfo();
+        return;
+    }
+
+    // Built-in: help
+    if (name == "help") {
+        log("Registered convars:");
+        for (auto& [cname, cv] : m_convars) {
+            log("  " + cname + "  -  " + cv.description);
+        }
+        log("Built-in commands:");
+        log("  show_ai_info  -  Print the AI script in use by each AI player");
+        log("  help          -  Show this list");
+        return;
+    }
+
+    log("Unknown command: \"" + name + "\"  (type 'help' for a list)");
 }
 
+// ---------------------------------------------------------------------------
+// Log helpers
+// ---------------------------------------------------------------------------
 void DebugConsole::log(const std::string& msg) {
     m_log.push_back(msg);
-    if (static_cast<int>(m_log.size()) > MAX_LOG_LINES) {
+    if (static_cast<int>(m_log.size()) > MAX_LOG_LINES)
         m_log.erase(m_log.begin());
-    }
 }
 
-// ID rendering  (call with WORLD-SPACE view active on the window)
+void DebugConsole::pushHistory(const std::string& cmd) {
+    // Don't push duplicates of the last entry
+    if (!m_history.empty() && m_history.back() == cmd) return;
+    m_history.push_back(cmd);
+    if (static_cast<int>(m_history.size()) > MAX_HISTORY)
+        m_history.erase(m_history.begin());
+}
+
+// ---------------------------------------------------------------------------
+// ID rendering  (world-space view active)
 // ---------------------------------------------------------------------------
 void DebugConsole::renderIds(sf::RenderWindow& window) {
     if (!m_showIds || !m_font) return;
@@ -140,37 +286,28 @@ void DebugConsole::renderIds(sf::RenderWindow& window) {
         if (!entity || !entity->isAlive()) continue;
         if (!entity->isSelected()) continue;
 
-        // Place the label just above the health bar offset used by Entity
-        // (health bar is at -size.y/2 - 8; we go a bit further up)
-        sf::Vector2f pos = entity->getPosition();
-        // Use a readable size relative to tile dimensions (TILE_SIZE = 32 world units)
         constexpr unsigned CHAR_SIZE = 12;
-
         sf::Text label(*m_font, "#" + std::to_string(entity->getId()), CHAR_SIZE);
-        label.setFillColor(sf::Color(255, 255, 80));   // bright yellow
+        label.setFillColor(sf::Color(255, 255, 80));
         label.setOutlineColor(sf::Color(0, 0, 0, 200));
         label.setOutlineThickness(1.0f);
 
-        // Centre the text horizontally above the entity
         sf::FloatRect bounds = label.getLocalBounds();
         label.setOrigin(sf::Vector2f(bounds.position.x + bounds.size.x / 2.0f,
                                      bounds.position.y + bounds.size.y));
-        // Position above health bar
-        label.setPosition(sf::Vector2f(pos.x, pos.y - 24.0f));
-
+        label.setPosition(sf::Vector2f(entity->getPosition().x,
+                                       entity->getPosition().y - 24.0f));
         window.draw(label);
     }
 }
 
 // ---------------------------------------------------------------------------
-// Waypoint rendering  (call with WORLD-SPACE view active on the window)
+// Waypoint rendering  (world-space view active)
 // ---------------------------------------------------------------------------
 void DebugConsole::renderWaypoints(sf::RenderWindow& window) {
     if (!m_showWaypoints) return;
 
-    // Collect all selected entities (own units + inspected enemy units)
-    const EntityList& all = m_game.getAllEntities();
-    for (const auto& entity : all) {
+    for (const auto& entity : m_game.getAllEntities()) {
         if (!entity || !entity->isAlive()) continue;
         if (!entity->isSelected()) continue;
 
@@ -182,9 +319,8 @@ void DebugConsole::renderWaypoints(sf::RenderWindow& window) {
 
         size_t pathIdx = unit->getPathIndex();
 
-        // Draw lines between consecutive remaining waypoints
         for (size_t i = pathIdx; i + 1 < path.size(); ++i) {
-            sf::Color lineColor(255, 200, 0, 180);  // orange-yellow
+            sf::Color lineColor(255, 200, 0, 180);
             sf::Vertex line[] = {
                 sf::Vertex{path[i],     lineColor},
                 sf::Vertex{path[i + 1], lineColor}
@@ -192,19 +328,15 @@ void DebugConsole::renderWaypoints(sf::RenderWindow& window) {
             window.draw(line, 2, sf::PrimitiveType::Lines);
         }
 
-        // Draw a circle at each remaining waypoint
         for (size_t i = pathIdx; i < path.size(); ++i) {
             constexpr float DOT_RADIUS = 5.0f;
             sf::CircleShape dot(DOT_RADIUS);
             dot.setOrigin(sf::Vector2f(DOT_RADIUS, DOT_RADIUS));
             dot.setPosition(path[i]);
-
             if (i == pathIdx) {
-                // Current/next waypoint: bright green
                 dot.setFillColor(sf::Color(0, 255, 100, 220));
                 dot.setOutlineColor(sf::Color(0, 180, 60));
             } else {
-                // Future waypoints: yellow
                 dot.setFillColor(sf::Color(255, 220, 0, 180));
                 dot.setOutlineColor(sf::Color(200, 160, 0));
             }
@@ -212,7 +344,6 @@ void DebugConsole::renderWaypoints(sf::RenderWindow& window) {
             window.draw(dot);
         }
 
-        // Draw a line from unit position to the first waypoint
         if (pathIdx < path.size()) {
             sf::Color leadColor(100, 200, 255, 160);
             sf::Vertex leadLine[] = {
@@ -225,51 +356,99 @@ void DebugConsole::renderWaypoints(sf::RenderWindow& window) {
 }
 
 // ---------------------------------------------------------------------------
-// Console UI rendering  (call in SCREEN-SPACE / UI view)
+// Console overlay rendering  (screen-space / UI view)
 // ---------------------------------------------------------------------------
 void DebugConsole::render(sf::RenderWindow& window) {
-    // Always show log lines (even when console is closed) until cleared
-    if (!m_active && m_log.empty()) return;
-    if (!m_font) return;
+    if (!m_active) return;
+    if (!m_font)   return;
 
-    sf::Vector2u winSize = window.getSize();
+    const sf::Vector2u winSize = window.getSize();
+    const float winW = static_cast<float>(winSize.x);
+    const float winH = static_cast<float>(winSize.y);
 
-    constexpr float LINE_HEIGHT  = 22.0f;
+    // Console panel occupies the top half of the screen
+    constexpr float PANEL_HEIGHT_RATIO = 0.5f;
+    constexpr float LINE_HEIGHT  = 20.0f;
     constexpr float PADDING      = 8.0f;
-    constexpr unsigned FONT_SIZE = 16;
+    constexpr float INPUT_HEIGHT = 28.0f;
+    constexpr unsigned FONT_SIZE = 15;
 
-    // Number of lines to show
-    int logCount  = static_cast<int>(m_log.size());
-    int lineCount = logCount + (m_active ? 1 : 0);
-    if (lineCount == 0) return;
+    const float panelH = winH * PANEL_HEIGHT_RATIO;
+    const float inputY = panelH - INPUT_HEIGHT;
 
-    float panelHeight = static_cast<float>(lineCount) * LINE_HEIGHT + PADDING * 2.0f;
-    float panelY      = static_cast<float>(winSize.y) - panelHeight;
-
-    // Semi-transparent background
-    sf::RectangleShape bg(sf::Vector2f(static_cast<float>(winSize.x), panelHeight));
-    bg.setPosition(sf::Vector2f(0.0f, panelY));
-    bg.setFillColor(sf::Color(10, 10, 20, 200));
-    bg.setOutlineThickness(1.0f);
-    bg.setOutlineColor(sf::Color(80, 80, 120, 200));
+    // Background
+    sf::RectangleShape bg(sf::Vector2f(winW, panelH));
+    bg.setPosition(sf::Vector2f(0.f, 0.f));
+    bg.setFillColor(sf::Color(8, 12, 20, 220));
     window.draw(bg);
 
-    // Log lines
-    for (int i = 0; i < logCount; ++i) {
-        float y = panelY + PADDING + static_cast<float>(i) * LINE_HEIGHT;
+    // Bottom border / separator above input
+    sf::RectangleShape bottomBorder(sf::Vector2f(winW, 1.f));
+    bottomBorder.setPosition(sf::Vector2f(0.f, panelH));
+    bottomBorder.setFillColor(sf::Color(80, 160, 80, 200));
+    window.draw(bottomBorder);
+
+    // Input separator line
+    sf::RectangleShape inputSep(sf::Vector2f(winW, 1.f));
+    inputSep.setPosition(sf::Vector2f(0.f, inputY));
+    inputSep.setFillColor(sf::Color(60, 100, 60, 180));
+    window.draw(inputSep);
+
+    // Input bar
+    sf::RectangleShape inputBg(sf::Vector2f(winW, INPUT_HEIGHT));
+    inputBg.setPosition(sf::Vector2f(0.f, inputY));
+    inputBg.setFillColor(sf::Color(15, 25, 15, 230));
+    window.draw(inputBg);
+
+    {
+        // Blinking cursor – show underscore based on time
+        bool showCursor = (static_cast<int>(m_window.hasFocus() ? 1 : 0) == 1);
+        std::string display = "] " + m_inputText + "_";
+        sf::Text inputText(*m_font, display, FONT_SIZE);
+        inputText.setFillColor(sf::Color(200, 255, 200));
+        inputText.setPosition(sf::Vector2f(PADDING, inputY + (INPUT_HEIGHT - FONT_SIZE) * 0.3f));
+        window.draw(inputText);
+    }
+
+    // Log area — how many lines fit above the input bar
+    const float logAreaH = inputY - PADDING;
+    const int maxVisible = std::max(1, static_cast<int>(logAreaH / LINE_HEIGHT));
+
+    const int logSize = static_cast<int>(m_log.size());
+
+    // Clamp scroll offset
+    int maxScroll = std::max(0, logSize - maxVisible);
+    m_scrollOffset = std::clamp(m_scrollOffset, 0, maxScroll);
+
+    // Draw lines from the bottom of the log area upward (newest at bottom)
+    // The visible window in the log is [startIdx, endIdx)
+    int endIdx   = logSize - m_scrollOffset;           // exclusive
+    int startIdx = std::max(0, endIdx - maxVisible);   // inclusive
+
+    for (int i = startIdx; i < endIdx; ++i) {
+        int row = i - startIdx;   // 0 = topmost visible
+        float y = PADDING + static_cast<float>(row) * LINE_HEIGHT;
+
+        sf::Color col(180, 200, 180);
+        // Commands (lines starting with "> ") in a brighter tone
+        if (m_log[i].size() >= 2 && m_log[i][0] == '>' && m_log[i][1] == ' ')
+            col = sf::Color(255, 255, 120);
+
         sf::Text line(*m_font, m_log[i], FONT_SIZE);
-        line.setFillColor(sf::Color(180, 180, 180));
+        line.setFillColor(col);
         line.setPosition(sf::Vector2f(PADDING, y));
         window.draw(line);
     }
 
-    // Input bar (only when active)
-    if (m_active) {
-        float y = panelY + PADDING + static_cast<float>(logCount) * LINE_HEIGHT;
-        std::string display = "> " + m_inputText + "_";
-        sf::Text inputText(*m_font, display, FONT_SIZE);
-        inputText.setFillColor(sf::Color::White);
-        inputText.setPosition(sf::Vector2f(PADDING, y));
-        window.draw(inputText);
+    // Scroll indicator (if not at bottom)
+    if (m_scrollOffset > 0) {
+        sf::Text scrollHint(*m_font,
+            "-- scroll: " + std::to_string(m_scrollOffset) + " lines up (PgDn to descend) --",
+            FONT_SIZE - 2);
+        scrollHint.setFillColor(sf::Color(150, 150, 100, 200));
+        // Place just above the input separator
+        scrollHint.setPosition(sf::Vector2f(PADDING, inputY - LINE_HEIGHT));
+        window.draw(scrollHint);
     }
 }
+

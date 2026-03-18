@@ -20,6 +20,9 @@ public:
     void update(float deltaTime);
     void loadScripts(const std::string& directory);
 
+    // Returns the name of the currently active script, or "(none)" if not set.
+    std::string getCurrentScriptName() const;
+
 private:
     // ----- Core references ------------------------------------------------
     Player&        m_player;

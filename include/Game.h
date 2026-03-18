@@ -83,6 +83,9 @@ public:
     PlayerActions& getActions()           { return *m_actions[m_localSlot]; }
     PlayerActions& getActions(int slot)   { return *m_actions[slot]; }
 
+    // Raw controller access (may be nullptr for unused slots)
+    PlayerController* getController(int slot) const { return m_controllers[slot].get(); }
+
     // Commands (thin wrappers that apply to the local human's selection)
     void issueMoveCommand(sf::Vector2f target, bool append = false);
     void issueFollowCommand(EntityPtr target, bool append = false);

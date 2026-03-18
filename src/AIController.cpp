@@ -13,6 +13,7 @@
 #include "MathUtil.h"
 #include <algorithm>
 #include <limits>
+#include <chrono>
 
 AIController::AIController(Player& player, Game& game)
     : m_player(player)
@@ -20,8 +21,20 @@ AIController::AIController(Player& player, Game& game)
     , m_map(&game.getMap())
     , m_actions(&game.getActions(teamToIndex(player.getTeam())))
 {
-    std::random_device rd;
-    m_rng = std::mt19937(rd());
+    // std::random_device is broken on MinGW/Windows (always returns the same
+    // value), so we combine a high-resolution timestamp with the object address
+    // to guarantee a unique seed for every AIController instance.
+    auto timeSeed  = static_cast<uint64_t>(
+        std::chrono::steady_clock::now().time_since_epoch().count());
+    auto addrSeed  = reinterpret_cast<uintptr_t>(this);
+    std::seed_seq seq{ static_cast<uint32_t>(timeSeed),
+                       static_cast<uint32_t>(timeSeed >> 32),
+                       static_cast<uint32_t>(addrSeed) };
+    m_rng = std::mt19937(seq);
+}
+
+std::string AIController::getCurrentScriptName() const {
+    return m_currentScript ? m_currentScript->getName() : "(none)";
 }
 
 void AIController::loadScripts(const std::string& directory) {
@@ -106,14 +119,10 @@ bool AIController::isCurrentCommandComplete() {
         }
         
         case AICommand::Type::Build: {
-            // Check if building exists (complete or under construction)
-            for (const auto& pb : m_pendingBuilds) {
-                if (pb.buildingType == cmd.entityType && !pb.started) {
-                    return false;  // Haven't started yet
-                }
-            }
-            // Check if any building of this type exists
-            return countBuildingsOfType(cmd.entityType, true) > 0;
+            // Not complete until the building is fully constructed.
+            // This ensures prerequisites (e.g. Barracks before Factory) are
+            // satisfied before the script tries to issue the next Build.
+            return countBuildingsOfType(cmd.entityType, false) > 0;
         }
         
         case AICommand::Type::AttackAdd: {
@@ -331,11 +340,13 @@ void AIController::processBuildQueue() {
                 sf::Vector2f buildPos = findBuildLocation(pb.buildingType);
                 Worker* worker = findIdleWorker();
                 if (buildPos.x >= 0.f && worker) {
-                    m_actions->constructBuilding(pb.buildingType, buildPos, worker);
-                    pb.started = true;
-                    // Find the shared_ptr so we can store it as a weak_ptr.
-                    for (auto& unit : m_player.getUnits()) {
-                        if (unit.get() == worker) { pb.assignedWorker = unit; break; }
+                    bool ok = m_actions->constructBuilding(pb.buildingType, buildPos, worker);
+                    if (ok) {
+                        pb.started = true;
+                        // Find the shared_ptr so we can store it as a weak_ptr.
+                        for (auto& unit : m_player.getUnits()) {
+                            if (unit.get() == worker) { pb.assignedWorker = unit; break; }
+                        }
                     }
                 }
             }

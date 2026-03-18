@@ -53,6 +53,9 @@ public:
     // Load AI scripts from a directory
     void loadScripts(const std::string& directory) { m_ai.loadScripts(directory); }
 
+    // Returns the name of the active AI script, or "(none)".
+    std::string getCurrentScriptName() const { return m_ai.getCurrentScriptName(); }
+
 private:
     AIController m_ai;
 };
