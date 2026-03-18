@@ -56,6 +56,7 @@ void AIController::selectRandomScript() {
     m_pendingBuilds.clear();
     m_attackGroupNeeded.clear();
     m_attackGroupUnits.clear();
+    m_deployedUnits.clear();
     m_loopCounters.clear();
     
     // Execute the first command
@@ -73,6 +74,7 @@ void AIController::update(float deltaTime) {
     processTrainQueue();
     processBuildQueue();
     manageIdleWorkers();
+    releaseFinishedDeployments();
     
     // Check for command progression periodically
     if (m_decisionTimer >= m_decisionInterval) {
@@ -108,14 +110,14 @@ bool AIController::isCurrentCommandComplete() {
     
     switch (cmd.type) {
         case AICommand::Type::Train: {
-            // Check if we have enough of this unit type
-            // Find the pending train for this command
+            // Complete once we have at least cmd.count free (uncommitted) units
+            // of the requested type.  This lets idle survivors from previous
+            // attacks satisfy the quota without training new units.
             for (const auto& pt : m_pendingTrains) {
-                if (pt.unitType == cmd.entityType && pt.remaining > 0) {
-                    return false;  // Still training
-                }
+                if (pt.unitType == cmd.entityType && pt.remaining > 0)
+                    return false;  // Still waiting for queued production to finish
             }
-            return true;
+            return countFreeUnits(cmd.entityType) >= cmd.count;
         }
         
         case AICommand::Type::Build: {
@@ -129,28 +131,13 @@ bool AIController::isCurrentCommandComplete() {
             // Check if we have enough units reserved
             auto it = m_attackGroupNeeded.find(cmd.entityType);
             if (it != m_attackGroupNeeded.end() && it->second > 0) {
-                // Count how many we have reserved
-                int reserved = 0;
-                for (const auto& unit : m_attackGroupUnits) {
-                    if (unit && unit->isAlive() && unit->getType() == cmd.entityType) {
-                        reserved++;
-                    }
-                }
-                // Count total available (not in attack group)
-                int available = 0;
-                for (const auto& unit : m_player.getUnits()) {
-                    if (unit->getType() == cmd.entityType && unit->isAlive()) {
-                        if (m_attackGroupUnits.find(unit) == m_attackGroupUnits.end()) {
-                            available++;
-                        }
-                    }
-                }
-                // Try to reserve more units
+                // Try to reserve more units — skip deployed waves and already-staged units
                 int needed = it->second;
                 for (const auto& unit : m_player.getUnits()) {
                     if (needed <= 0) break;
                     if (unit->getType() == cmd.entityType && unit->isAlive()) {
-                        if (m_attackGroupUnits.find(unit) == m_attackGroupUnits.end()) {
+                        if (m_attackGroupUnits.find(unit) == m_attackGroupUnits.end() &&
+                            m_deployedUnits.find(unit)    == m_deployedUnits.end()) {
                             m_attackGroupUnits.insert(unit);
                             needed--;
                         }
@@ -224,8 +211,11 @@ void AIController::processCommand(const AICommand& cmd) {
 }
 
 void AIController::handleTrain(const AICommand& cmd) {
-    // Add to pending trains
-    m_pendingTrains.push_back({cmd.entityType, cmd.count});
+    // Only queue the deficit — units already free (not committed to an attack)
+    // count toward the goal, so we never over-produce.
+    int deficit = cmd.count - countFreeUnits(cmd.entityType);
+    if (deficit > 0)
+        m_pendingTrains.push_back({cmd.entityType, deficit});
 }
 
 void AIController::handleBuild(const AICommand& cmd) {
@@ -254,9 +244,26 @@ void AIController::handleAttack() {
         m_actions->attackMove(attackers, targetPos);
     }
     
-    // Clear attack group for next attack
+    // Move staged units into the deployed set so they cannot be re-recruited
+    // by the next AttackAdd before they finish this wave.
+    for (const auto& unit : m_attackGroupUnits) {
+        if (unit && unit->isAlive())
+            m_deployedUnits.insert(unit);
+    }
     m_attackGroupUnits.clear();
     m_attackGroupNeeded.clear();
+}
+
+void AIController::releaseFinishedDeployments() {
+    // A deployed unit is considered "done" once it is no longer actively
+    // attacking or moving toward the enemy — i.e. it is Idle (returned to
+    // base or wandering after combat) or has died.  Remove it from the
+    // deployed set so future AttackAdd commands can recruit it again.
+    for (auto it = m_deployedUnits.begin(); it != m_deployedUnits.end(); ) {
+        const UnitPtr& unit = *it;
+        bool finished = !unit || !unit->isAlive() || unit->isIdle();
+        it = finished ? m_deployedUnits.erase(it) : std::next(it);
+    }
 }
 
 void AIController::manageIdleWorkers() {
@@ -409,6 +416,19 @@ int AIController::countUnitsOfType(EntityType type) {
     const auto& units = m_player.getUnits();
     return static_cast<int>(std::count_if(units.begin(), units.end(),
         [type](const UnitPtr& u) { return u->getType() == type && u->isAlive(); }));
+}
+
+int AIController::countFreeUnits(EntityType type) const {
+    // A "free" unit is alive, of the right type, and not committed to any
+    // attack wave (neither staged in m_attackGroupUnits nor already deployed).
+    int count = 0;
+    for (const auto& unit : m_player.getUnits()) {
+        if (!unit->isAlive() || unit->getType() != type) continue;
+        if (m_attackGroupUnits.find(unit) != m_attackGroupUnits.end()) continue;
+        if (m_deployedUnits.find(unit)    != m_deployedUnits.end())    continue;
+        ++count;
+    }
+    return count;
 }
 
 int AIController::countBuildingsOfType(EntityType type, bool includeIncomplete) {

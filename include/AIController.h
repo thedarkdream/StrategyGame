@@ -60,6 +60,7 @@ private:
     std::vector<PendingBuild>             m_pendingBuilds;
     std::unordered_map<EntityType, int>   m_attackGroupNeeded;  // unitType -> count still needed
     std::set<UnitPtr>                     m_attackGroupUnits;   // units reserved for the attack
+    std::set<UnitPtr>                     m_deployedUnits;      // units currently executing an attack wave
 
     // ----- Script lifecycle -----------------------------------------------
     void selectRandomScript();
@@ -79,10 +80,14 @@ private:
     void manageIdleWorkers();
     void processTrainQueue();
     void processBuildQueue();
+    // Release deployed units that have gone idle or died back into the pool.
+    void releaseFinishedDeployments();
 
     // ----- Helpers --------------------------------------------------------
     BuildingPtr  findBuildingForUnit(EntityType unitType);
     int          countUnitsOfType(EntityType type);
+    // Count units of a type that are not committed to an attack wave.
+    int          countFreeUnits(EntityType type) const;
     int          countBuildingsOfType(EntityType type, bool includeIncomplete = true);
     sf::Vector2f findBuildLocation(EntityType buildingType);
     Worker*      findIdleWorker();
