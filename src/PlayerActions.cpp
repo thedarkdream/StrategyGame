@@ -8,6 +8,32 @@
 #include "Constants.h"
 #include "MathUtil.h"
 #include <limits>
+#include <algorithm>
+#include <numeric>
+#include <cmath>
+
+namespace {
+    // Spacing between adjacent formation slots (pixels).
+    static constexpr float FORMATION_SPACING = 48.f;
+
+    // Build concentric-ring offsets for `count` units around (0,0).
+    // Ring 0: 1 slot (center). Ring k: k*6 slots at radius k*spacing.
+    std::vector<sf::Vector2f> buildFormationOffsets(int count) {
+        std::vector<sf::Vector2f> out;
+        out.reserve(count);
+        out.push_back({0.f, 0.f});
+        for (int ring = 1; static_cast<int>(out.size()) < count; ++ring) {
+            int slots = ring * 6;
+            float radius = ring * FORMATION_SPACING;
+            for (int i = 0; i < slots && static_cast<int>(out.size()) < count; ++i) {
+                float angle = static_cast<float>(i) / static_cast<float>(slots)
+                              * 2.f * 3.14159265f;
+                out.push_back({radius * std::cos(angle), radius * std::sin(angle)});
+            }
+        }
+        return out;
+    }
+}
 
 PlayerActions::PlayerActions(Player& player, Game& game)
     : m_player(player)
@@ -116,15 +142,31 @@ void PlayerActions::cancelConstruction(EntityPtr entity) {
 // ---------------------------------------------------------------------------
 
 void PlayerActions::move(const std::vector<EntityPtr>& units, sf::Vector2f target, bool append) {
-    for (const auto& e : units) {
-        if (auto* u = e->asUnit()) {
-            if (append) {
+    // For queued (shift-click) commands we don't know the future positions of
+    // units, so we cannot assign meaningful formation slots.
+    if (append) {
+        for (const auto& e : units)
+            if (auto* u = e->asUnit())
                 u->appendToQueue([u, target]{ u->moveTo(target); });
-            } else {
-                u->clearActionQueue();
-                u->moveTo(target);
-            }
-        }
+        return;
+    }
+
+    // Build formation offsets and sort units so the closest one gets the
+    // center slot — this minimises path-crossing inside the group.
+    auto offsets = buildFormationOffsets(static_cast<int>(units.size()));
+
+    std::vector<size_t> order(units.size());
+    std::iota(order.begin(), order.end(), 0);
+    std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
+        return MathUtil::distance(units[a]->getPosition(), target)
+             < MathUtil::distance(units[b]->getPosition(), target);
+    });
+
+    for (size_t i = 0; i < order.size(); ++i) {
+        auto* u = units[order[i]]->asUnit();
+        if (!u) continue;
+        u->clearActionQueue();
+        u->moveTo(target + offsets[i]);
     }
 }
 
@@ -163,15 +205,27 @@ void PlayerActions::attack(const std::vector<EntityPtr>& units, EntityPtr target
 }
 
 void PlayerActions::attackMove(const std::vector<EntityPtr>& units, sf::Vector2f target, bool append) {
-    for (const auto& e : units) {
-        if (auto* u = e->asUnit()) {
-            if (append) {
+    if (append) {
+        for (const auto& e : units)
+            if (auto* u = e->asUnit())
                 u->appendToQueue([u, target]{ u->attackMoveTo(target); });
-            } else {
-                u->clearActionQueue();
-                u->attackMoveTo(target);
-            }
-        }
+        return;
+    }
+
+    auto offsets = buildFormationOffsets(static_cast<int>(units.size()));
+
+    std::vector<size_t> order(units.size());
+    std::iota(order.begin(), order.end(), 0);
+    std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
+        return MathUtil::distance(units[a]->getPosition(), target)
+             < MathUtil::distance(units[b]->getPosition(), target);
+    });
+
+    for (size_t i = 0; i < order.size(); ++i) {
+        auto* u = units[order[i]]->asUnit();
+        if (!u) continue;
+        u->clearActionQueue();
+        u->attackMoveTo(target + offsets[i]);
     }
 }
 

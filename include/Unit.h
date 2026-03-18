@@ -136,9 +136,13 @@ protected:
     sf::Vector2f m_navSamplePos        = {};
     float        m_navSampleTimer      = 0.0f;
     float        m_navStuckTimer       = 0.0f;
-    static constexpr float NAV_SAMPLE_INTERVAL  = 0.5f;
-    static constexpr float NAV_MIN_PROGRESS     = 8.0f;
-    static constexpr float NAV_STUCK_THRESHOLD  = 1.5f;
+    // Cumulative no-progress time — never reset by replanning, only by a new order.
+    // When it exceeds PERSISTENT_STUCK_IDLE the unit gives up and goes idle.
+    float        m_persistentStuckTime = 0.0f;
+    static constexpr float NAV_SAMPLE_INTERVAL   = 0.5f;
+    static constexpr float NAV_MIN_PROGRESS      = 8.0f;
+    static constexpr float NAV_STUCK_THRESHOLD   = 1.5f;
+    static constexpr float PERSISTENT_STUCK_IDLE = 3.0f;
     
     // RVO parameters
     static constexpr float RVO_NEIGHBOR_DIST = 80.0f;    // Look for neighbors within this distance

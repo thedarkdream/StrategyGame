@@ -125,9 +125,10 @@ void Unit::moveTo(sf::Vector2f target) {
     m_state = UnitState::Moving;
     m_stuckTimer = 0.0f;
     m_lastDistanceToTarget = 0.0f;
-    m_navSamplePos   = m_position;
-    m_navSampleTimer = 0.0f;
-    m_navStuckTimer  = 0.0f;
+    m_navSamplePos        = m_position;
+    m_navSampleTimer      = 0.0f;
+    m_navStuckTimer       = 0.0f;
+    m_persistentStuckTime = 0.0f;
     playAnimation(AnimationState::Walk);
     findPath(target);
 }
@@ -138,9 +139,10 @@ void Unit::attackMoveTo(sf::Vector2f target) {
     m_state = UnitState::AttackMoving;
     m_stuckTimer = 0.0f;
     m_lastDistanceToTarget = 0.0f;
-    m_navSamplePos   = m_position;
-    m_navSampleTimer = 0.0f;
-    m_navStuckTimer  = 0.0f;
+    m_navSamplePos        = m_position;
+    m_navSampleTimer      = 0.0f;
+    m_navStuckTimer       = 0.0f;
+    m_persistentStuckTime = 0.0f;
     playAnimation(AnimationState::Walk);
     findPath(target);
 }
@@ -512,10 +514,12 @@ void Unit::followPath(float deltaTime) {
         m_navSampleTimer += deltaTime;
         if (m_navSampleTimer >= NAV_SAMPLE_INTERVAL) {
             float moved = MathUtil::distance(m_position, m_navSamplePos);
-            if (moved < NAV_MIN_PROGRESS)
-                m_navStuckTimer += m_navSampleTimer;
-            else
+            if (moved < NAV_MIN_PROGRESS) {
+                m_navStuckTimer       += m_navSampleTimer;
+                m_persistentStuckTime += m_navSampleTimer;  // never reset by replan
+            } else {
                 m_navStuckTimer = 0.0f;
+            }
             m_navSamplePos   = m_position;
             m_navSampleTimer = 0.0f;
             if (m_navStuckTimer >= NAV_STUCK_THRESHOLD) {
@@ -627,6 +631,12 @@ bool Unit::hasGroupArrived(float deltaTime) {
         m_stuckTimer = 0.0f;
         return true;
     }
+
+    // D: persistent stuck — unit has been making no net progress for too long
+    // across multiple replan cycles and is clearly jammed behind allies.
+    // Go idle regardless of distance so it stops trembling.
+    if (m_persistentStuckTime >= PERSISTENT_STUCK_IDLE)
+        return true;
 
     // If still far away there is no point tracking stuck time yet; the unit is
     // legitimately navigating toward the destination.
