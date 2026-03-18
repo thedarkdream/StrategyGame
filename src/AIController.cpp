@@ -76,6 +76,7 @@ void AIController::update(float deltaTime) {
     processBuildQueue();
     manageIdleWorkers();
     releaseFinishedDeployments();
+    checkAndRespondToAttack(deltaTime);
     
     // Check for command progression periodically
     if (m_decisionTimer >= m_decisionInterval) {
@@ -267,6 +268,70 @@ void AIController::releaseFinishedDeployments() {
         bool finished = !unit || !unit->isAlive() || unit->isIdle();
         it = finished ? m_deployedUnits.erase(it) : std::next(it);
     }
+}
+
+void AIController::checkAndRespondToAttack(float deltaTime) {
+    // Tick cooldown.
+    if (m_defenseCooldown > 0.f) {
+        m_defenseCooldown -= deltaTime;
+        return;
+    }
+
+    const Team myTeam = m_player.getTeam();
+
+    // --- Detect if anything is under attack --------------------------------
+    // Only non-deployed units that are NOT already in combat count as triggers.
+    bool triggered = false;
+    sf::Vector2f triggerPos(-1.f, -1.f);  // position of a triggered entity
+
+    for (const auto& unit : m_player.getUnits()) {
+        if (!unit->isAlive()) continue;
+        if (m_deployedUnits.find(unit) != m_deployedUnits.end()) continue;
+        if (unit->getState() == UnitState::Attacking) continue;  // already fighting
+        if (unit->isUnderAttack()) {
+            triggered = true;
+            triggerPos = unit->getPosition();
+            break;
+        }
+    }
+
+    if (!triggered) {
+        for (const auto& building : m_player.getBuildings()) {
+            if (!building->isAlive()) continue;
+            if (building->isUnderAttack()) {
+                triggered = true;
+                triggerPos = building->getPosition();
+                break;
+            }
+        }
+    }
+
+    if (!triggered) return;
+
+    // --- Find the nearest enemy unit to the triggered position -------------
+    sf::Vector2f attackerPos = triggerPos;
+    float bestDist = std::numeric_limits<float>::max();
+    for (const auto& entity : m_game.getAllEntities()) {
+        if (!entity || !entity->isAlive()) continue;
+        if (entity->getTeam() == myTeam || entity->getTeam() == Team::Neutral) continue;
+        if (!entity->asUnit()) continue;
+        float d = MathUtil::distance(entity->getPosition(), triggerPos);
+        if (d < bestDist) { bestDist = d; attackerPos = entity->getPosition(); }
+    }
+
+    // --- Collect all idle, non-deployed responders -------------------------
+    std::vector<EntityPtr> defenders;
+    for (const auto& unit : m_player.getUnits()) {
+        if (!unit->isAlive()) continue;
+        if (m_deployedUnits.find(unit) != m_deployedUnits.end()) continue;
+        if (!unit->isIdle()) continue;
+        defenders.push_back(std::static_pointer_cast<Entity>(unit));
+    }
+
+    if (defenders.empty()) return;
+
+    m_actions->attackMove(defenders, attackerPos);
+    m_defenseCooldown = DEFENSE_COOLDOWN;
 }
 
 void AIController::manageIdleWorkers() {

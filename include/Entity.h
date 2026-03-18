@@ -58,6 +58,13 @@ public:
     
     // Track last attacker (for statistics)
     Team getLastAttackerTeam() const { return m_lastAttackerTeam; }
+
+    // Under-attack detection: true within UNDER_ATTACK_WINDOW seconds of last hit.
+    bool isUnderAttack() const { return m_underAttackTimer > 0.f; }
+
+protected:
+    void markUnderAttack()   { m_underAttackTimer = UNDER_ATTACK_WINDOW; }
+    void tickUnderAttack(float dt) { m_underAttackTimer = std::max(0.f, m_underAttackTimer - dt); }
     
 protected:
     uint32_t     m_id;
@@ -71,6 +78,9 @@ protected:
     bool m_isLocalTeam = false;  // True if this entity belongs to the local human player
     bool m_isDying = false;  // True while death animation is playing
     Team m_lastAttackerTeam = Team::Neutral;  // Track who dealt the killing blow
+
+    float m_underAttackTimer = 0.f;
+    static constexpr float UNDER_ATTACK_WINDOW = 4.0f;  // seconds
     
     // Target highlight (blinking indicator)
     float m_highlightTimeRemaining = 0.0f;

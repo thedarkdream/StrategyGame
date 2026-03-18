@@ -65,6 +65,9 @@ private:
     std::set<UnitPtr>                     m_attackGroupUnits;   // units reserved for the attack
     std::set<UnitPtr>                     m_deployedUnits;      // units currently executing an attack wave
 
+    float m_defenseCooldown = 0.f;  // counts down; defense trigger blocked while > 0
+    static constexpr float DEFENSE_COOLDOWN = 12.f;  // minimum seconds between defense responses
+
     // ----- Script lifecycle -----------------------------------------------
     void selectRandomScript();
     void executeNextCommand();
@@ -85,6 +88,8 @@ private:
     void processBuildQueue();
     // Release deployed units that have gone idle or died back into the pool.
     void releaseFinishedDeployments();
+    // Scan for attacks on own units/buildings and dispatch idle defenders.
+    void checkAndRespondToAttack(float deltaTime);
 
     // ----- Helpers --------------------------------------------------------
     BuildingPtr  findBuildingForUnit(EntityType unitType);

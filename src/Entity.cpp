@@ -27,7 +27,8 @@ sf::FloatRect Entity::getBounds() const {
 
 void Entity::takeDamage(int damage) {
     if (m_isDying) return;  // Already dying, don't process more damage
-    
+
+    markUnderAttack();
     m_health -= damage;
     if (m_health <= 0) {
         m_health = 0;

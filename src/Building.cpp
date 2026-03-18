@@ -36,7 +36,8 @@ Building::Building(EntityType type, Team team, sf::Vector2f position)
 
 void Building::takeDamage(int damage) {
     if (m_isDying) return;  // Already dying
-    
+
+    markUnderAttack();
     bool wasAlive = m_health > 0;
     m_health -= damage;
     
@@ -61,8 +62,10 @@ void Building::update(float deltaTime) {
         updateDeathAnimation(deltaTime);
         return;
     }
-    
+
     if (!isAlive()) return;
+
+    tickUnderAttack(deltaTime);
     
     if (m_isConstructing) {
         // Construction progress handled externally by workers

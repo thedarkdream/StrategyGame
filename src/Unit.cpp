@@ -46,6 +46,8 @@ void Unit::update(float deltaTime) {
     
     m_attackTimer -= deltaTime;
     if (m_attackTimer < 0.0f) m_attackTimer = 0.0f;
+
+    tickUnderAttack(deltaTime);
     
     UnitState prevState = m_state;
     
