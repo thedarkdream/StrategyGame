@@ -58,6 +58,9 @@ private:
 
     std::vector<PendingTrain>             m_pendingTrains;
     std::vector<PendingBuild>             m_pendingBuilds;
+    // How many of each building type the script has ordered in total.
+    // Persists across the lifetime of the script so destroyed buildings are rebuilt.
+    std::unordered_map<EntityType, int>   m_buildTargets;
     std::unordered_map<EntityType, int>   m_attackGroupNeeded;  // unitType -> count still needed
     std::set<UnitPtr>                     m_attackGroupUnits;   // units reserved for the attack
     std::set<UnitPtr>                     m_deployedUnits;      // units currently executing an attack wave

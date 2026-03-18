@@ -54,6 +54,7 @@ void AIController::selectRandomScript() {
     // Clear state
     m_pendingTrains.clear();
     m_pendingBuilds.clear();
+    m_buildTargets.clear();
     m_attackGroupNeeded.clear();
     m_attackGroupUnits.clear();
     m_deployedUnits.clear();
@@ -219,7 +220,9 @@ void AIController::handleTrain(const AICommand& cmd) {
 }
 
 void AIController::handleBuild(const AICommand& cmd) {
-    // Add to pending builds
+    // Track total required count for this building type across all Build commands
+    // executed so far — this is the value the repair pass will maintain forever.
+    m_buildTargets[cmd.entityType]++;
     m_pendingBuilds.push_back({cmd.entityType, false});
 }
 
@@ -334,14 +337,23 @@ void AIController::reassignBuildWorker(PendingBuild& pb) {
 }
 
 void AIController::processBuildQueue() {
+    // --- Repair pass ---------------------------------------------------
+    // For each building type in the script, ensure the world (including
+    // incomplete foundations) plus unplaced pending entries together meet
+    // the target count.  If a completed building or a foundation was
+    // destroyed, this will re-add the missing entries automatically.
+    for (auto& [type, targetCount] : m_buildTargets) {
+        int inWorld  = countBuildingsOfType(type, true);
+        int unplaced = static_cast<int>(std::count_if(
+            m_pendingBuilds.begin(), m_pendingBuilds.end(),
+            [type](const PendingBuild& pb){ return pb.buildingType == type && !pb.started; }));
+        int deficit = targetCount - inWorld - unplaced;
+        for (int i = 0; i < deficit; ++i)
+            m_pendingBuilds.push_back({type, false});
+    }
+
     for (auto& pb : m_pendingBuilds) {
         if (!pb.started) {
-            // Already built through another path — mark done.
-            if (countBuildingsOfType(pb.buildingType, true) > 0) {
-                pb.started = true;
-                continue;
-            }
-
             if (m_player.canAfford(ENTITY_DATA.getMineralCost(pb.buildingType),
                                    ENTITY_DATA.getGasCost(pb.buildingType))) {
                 sf::Vector2f buildPos = findBuildLocation(pb.buildingType);
@@ -350,7 +362,6 @@ void AIController::processBuildQueue() {
                     bool ok = m_actions->constructBuilding(pb.buildingType, buildPos, worker);
                     if (ok) {
                         pb.started = true;
-                        // Find the shared_ptr so we can store it as a weak_ptr.
                         for (auto& unit : m_player.getUnits()) {
                             if (unit.get() == worker) { pb.assignedWorker = unit; break; }
                         }
@@ -358,6 +369,17 @@ void AIController::processBuildQueue() {
                 }
             }
         } else {
+            // If ALL buildings of this type are gone (foundations included),
+            // this entry is an orphan (its foundation was destroyed).  Reset
+            // it so placement can be re-attempted on the next tick.  The
+            // repair pass won't double-add because this entry now counts as
+            // an unplaced entry when recalculating the deficit.
+            if (countBuildingsOfType(pb.buildingType, true) == 0) {
+                pb.started = false;
+                pb.assignedWorker.reset();
+                continue;
+            }
+
             // Build was issued — check if the worker abandoned the job.
             auto assigned = pb.assignedWorker.lock();
             if (assigned && assigned->isAlive()) {
@@ -371,15 +393,41 @@ void AIController::processBuildQueue() {
         }
     }
 
-    // Remove entries only once the building is fully constructed.
-    // Using includeIncomplete=false ensures the entry stays alive (and worker
-    // is monitored/re-assigned) while the foundation is still under construction.
+    // --- Erase pass ----------------------------------------------------
+    // Remove one started=true entry per completed building of each type
+    // so multi-building scripts are handled correctly.
+    std::unordered_map<EntityType, int> completedCount;
+    for (const auto& b : m_player.getBuildings())
+        if (b->isAlive() && b->isConstructed())
+            completedCount[b->getType()]++;
+
     m_pendingBuilds.erase(
         std::remove_if(m_pendingBuilds.begin(), m_pendingBuilds.end(),
-            [this](const PendingBuild& pb) {
-                return pb.started && countBuildingsOfType(pb.buildingType, false) > 0;
+            [&](const PendingBuild& pb) {
+                if (!pb.started) return false;
+                auto it = completedCount.find(pb.buildingType);
+                if (it != completedCount.end() && it->second > 0) {
+                    --it->second;
+                    return true;
+                }
+                return false;
             }),
         m_pendingBuilds.end());
+
+    // Prune excess unstarted entries: if the world already satisfies the
+    // target (e.g. a building was placed earlier this tick), don't leave
+    // spare unstarted orders that would over-build.
+    for (auto& [type, targetCount] : m_buildTargets) {
+        int inWorld = countBuildingsOfType(type, true);
+        if (inWorld >= targetCount) {
+            m_pendingBuilds.erase(
+                std::remove_if(m_pendingBuilds.begin(), m_pendingBuilds.end(),
+                    [type](const PendingBuild& pb){
+                        return pb.buildingType == type && !pb.started;
+                    }),
+                m_pendingBuilds.end());
+        }
+    }
 }
 
 BuildingPtr AIController::findBuildingForUnit(EntityType unitType) {
