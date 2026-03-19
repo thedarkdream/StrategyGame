@@ -89,12 +89,6 @@ public:
     // Raw controller access (may be nullptr for unused slots)
     PlayerController* getController(int slot) const { return m_controllers[slot].get(); }
 
-    // Commands (thin wrappers that apply to the local human's selection)
-    void issueMoveCommand(sf::Vector2f target, bool append = false);
-    void issueFollowCommand(EntityPtr target, bool append = false);
-    void issueAttackMoveCommand(sf::Vector2f target, bool append = false);
-    void issueAttackCommand(EntityPtr target, bool append = false);
-    void issueGatherCommand(EntityPtr resource, bool append = false);
     // For workers carrying minerals: return to base, then auto-gather again.
     void issueReturnCargoCommand();
     void issueBuildCommand(EntityType buildingType, sf::Vector2f position, bool append = false);

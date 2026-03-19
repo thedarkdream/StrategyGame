@@ -766,26 +766,6 @@ void Game::depositResources(Team team, int amount) {
     if (Player* p = getPlayerByTeam(team)) p->addResources(amount, 0);
 }
 
-void Game::issueMoveCommand(sf::Vector2f target, bool append) {
-    getActions().move(getPlayer().getSelection(), target, append);
-}
-
-void Game::issueFollowCommand(EntityPtr target, bool append) {
-    getActions().follow(getPlayer().getSelection(), target, append);
-}
-
-void Game::issueAttackMoveCommand(sf::Vector2f target, bool append) {
-    getActions().attackMove(getPlayer().getSelection(), target, append);
-}
-
-void Game::issueAttackCommand(EntityPtr target, bool append) {
-    getActions().attack(getPlayer().getSelection(), target, append);
-}
-
-void Game::issueGatherCommand(EntityPtr resource, bool append) {
-    getActions().gather(getPlayer().getSelection(), resource, append);
-}
-
 void Game::issueReturnCargoCommand() {
     Player& player = getPlayer();
     for (const auto& entity : player.getSelection()) {
