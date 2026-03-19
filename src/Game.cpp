@@ -177,16 +177,20 @@ void Game::preloadAssets() {
 }
 
 void Game::cleanupDeadEntities() {
-    for (auto& p : m_players) if (p) p->cleanupDeadEntities();
-    
-    // Record statistics and free map tiles for dying entities before removal.
+    // Single pass: record statistics, free map tiles, and unlink each dying
+    // entity from its owning Player's typed lists — all before the shared_ptr
+    // is released by the erase below.  This keeps Player::m_units / m_buildings
+    // in sync with m_allEntities without a separate cleanup call on Player.
     for (const auto& entity : m_allEntities) {
         if (!entity || !entity->isReadyForRemoval()) continue;
-        
+
         Team killerTeam = entity->getLastAttackerTeam();
-        
+        Player* owner   = getPlayerByTeam(entity->getTeam());
+
         if (entity->asUnit()) {
             m_statistics.recordUnitDestroyed(entity->getTeam(), killerTeam);
+            if (owner)
+                owner->removeUnit(std::static_pointer_cast<Unit>(entity));
         } else if (entity->asBuilding()) {
             m_statistics.recordBuildingDestroyed(entity->getTeam(), killerTeam);
             // Free the map tiles so pathfinding and canPlaceBuilding see open land.
@@ -194,10 +198,19 @@ void Game::cleanupDeadEntities() {
             sf::Vector2i tile  = MathUtil::buildingTileOrigin(
                 entity->getPosition(), bSize, Constants::TILE_SIZE);
             m_map.removeBuilding(tile.x, tile.y, bSize.x, bSize.y);
+            if (owner)
+                owner->removeBuilding(std::static_pointer_cast<Building>(entity));
         }
     }
-    
-    // Remove entities that are ready for removal (dead and death animation finished)
+
+    // Prune dead/dying units from each player's selection every frame so the
+    // HUD reacts immediately when a unit's health hits zero (before the death
+    // animation finishes and isReadyForRemoval becomes true).
+    for (auto& p : m_players)
+        if (p) p->cleanupSelection();
+
+    // Erase from the master list (shared_ptr refcount drops to zero here for
+    // entities with no other owners).
     m_allEntities.erase(
         std::remove_if(m_allEntities.begin(), m_allEntities.end(),
             [](const EntityPtr& entity) { return !entity || entity->isReadyForRemoval(); }),
@@ -707,15 +720,10 @@ EntityPtr Game::spawnBuilding(EntityType type, Team team, sf::Vector2f position,
             building->startConstruction();
         }
         
-        building->onUnitProduced = [this, team](EntityType unitType, Building* sourceBuilding) {
-            spawnUnitFromBuilding(unitType, team, sourceBuilding);
-        };
-        building->onProductionCancelled = [this, team](EntityType unitType) {
-            if (Player* p = getPlayerByTeam(team)) p->addResources(ResourceManager::getMineralCost(unitType), 0);
-        };
-
-        // Give combat buildings (Turret, etc.) access to spatial queries.
-        building->setupGameContext(this);
+        // Inject context so every building can perform spatial queries,
+        // spawn projectiles, and notify the game of produced/cancelled units
+        // through the same IUnitContext interface that Unit uses.
+        building->setContext(this);
         
         // Place on map
         sf::Vector2i buildingSize = ResourceManager::getBuildingSize(type);
@@ -736,6 +744,15 @@ EntityPtr Game::spawnBuilding(EntityType type, Team team, sf::Vector2f position,
         return building;
     }
     return nullptr;
+}
+
+void Game::notifyUnitProduced(EntityType unitType, Building* sourceBuilding) {
+    spawnUnitFromBuilding(unitType, sourceBuilding->getTeam(), sourceBuilding);
+}
+
+void Game::refundProductionCost(EntityType unitType, Team team) {
+    if (Player* p = getPlayerByTeam(team))
+        p->addResources(ResourceManager::getMineralCost(unitType), 0);
 }
 
 void Game::spawnProjectile(EntityPtr source, EntityPtr target, int damage, float speed) {

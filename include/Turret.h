@@ -16,8 +16,6 @@ public:
 
     static void preload();  // Preload all 16 direction textures
 
-    void setupGameContext(IUnitContext* ctx) override { m_context = ctx; }
-
     void update(float deltaTime) override;
     void render(sf::RenderTarget& target) override;
 
@@ -28,8 +26,6 @@ private:
 
     // Returns the index (0-7) that best matches the delta vector.
     static int directionIndex(sf::Vector2f delta);
-
-    IUnitContext* m_context = nullptr;
 
     // Per-direction textures: idle + fire
     std::array<sf::Texture*, DIR_COUNT> m_idleTextures{};

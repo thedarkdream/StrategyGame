@@ -79,6 +79,8 @@ public:
     EntityPtr spawnBuilding(EntityType type, Team team, sf::Vector2f position, bool startComplete = true);
     void spawnProjectile(EntityPtr source, EntityPtr target, int damage, float speed) override;
     void depositResources(Team team, int amount) override;
+    void notifyUnitProduced(EntityType unitType, Building* sourceBuilding) override;
+    void refundProductionCost(EntityType unitType, Team team) override;
     
     // Per-player action dispatcher (one per occupied slot)
     PlayerActions& getActions()           { return *m_actions[m_localSlot]; }

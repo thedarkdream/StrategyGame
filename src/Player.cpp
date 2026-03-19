@@ -101,22 +101,9 @@ void Player::update(float deltaTime) {
     (void)deltaTime;
 }
 
-void Player::cleanupDeadEntities() {
-    // Remove units that are ready for removal (dead and death animation finished)
-    m_units.erase(
-        std::remove_if(m_units.begin(), m_units.end(),
-            [](const UnitPtr& unit) { return unit->isReadyForRemoval(); }),
-        m_units.end()
-    );
-    
-    // Remove destroyed buildings
-    m_buildings.erase(
-        std::remove_if(m_buildings.begin(), m_buildings.end(),
-            [](const BuildingPtr& building) { return building->isReadyForRemoval(); }),
-        m_buildings.end()
-    );
-    
-    // Clean up selection (dying units should be deselected immediately)
+void Player::cleanupSelection() {
+    // Deselect any entity whose health has reached zero (includes m_isDying units
+    // that haven't been fully removed yet — we want the HUD to react immediately).
     m_selection.erase(
         std::remove_if(m_selection.begin(), m_selection.end(),
             [](const EntityPtr& entity) { return !entity || !entity->isAlive(); }),

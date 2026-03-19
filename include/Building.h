@@ -4,7 +4,6 @@
 #include "IUnitContext.h"
 #include <deque>
 #include <vector>
-#include <functional>
 
 class Building : public Entity {
 public:
@@ -56,16 +55,12 @@ public:
     Building*       asBuilding()       override { return this; }
     const Building* asBuilding() const override { return this; }
 
-    // Called by Game::spawnBuilding so combat buildings (Turret) can access
-    // spatial queries and projectile spawning.  Base implementation is no-op.
-    virtual void setupGameContext(IUnitContext* /*ctx*/) {}
+    // Inject the game-world context (spatial queries, projectile spawning, etc.).
+    // Called unconditionally by Game::spawnBuilding for every building type so
+    // that subclasses (e.g. Turret) can rely on m_context without needing to
+    // override a separate virtual hook.
+    void setContext(IUnitContext* ctx) { m_context = ctx; }
 
-    // Callback when unit is produced (provides building pointer for rally point info)
-    std::function<void(EntityType, Building*)> onUnitProduced;
-    
-    // Callback when production is cancelled (for refunding resources)
-    std::function<void(EntityType)> onProductionCancelled;
-    
 private:
     // Construction
     float m_constructionProgress = 1.0f;  // 1.0 = fully built, 0.0 = just placed
@@ -88,4 +83,7 @@ private:
     void updateProduction(float deltaTime);
     float getTrainingTime(EntityType unitType) const;
     sf::Vector2f getSpawnPoint() const;
+
+protected:
+    IUnitContext* m_context = nullptr;
 };

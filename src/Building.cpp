@@ -186,11 +186,9 @@ void Building::cancelProduction() {
         EntityType cancelledType = m_productionQueue.front().unitType;
         m_productionQueue.pop_front();
         m_isProducing = !m_productionQueue.empty();
-        
-        // Refund resources via callback
-        if (onProductionCancelled) {
-            onProductionCancelled(cancelledType);
-        }
+
+        if (m_context)
+            m_context->refundProductionCost(cancelledType, getTeam());
     }
 }
 
@@ -198,15 +196,13 @@ void Building::cancelProductionAtIndex(int index) {
     if (index < 0 || index >= static_cast<int>(m_productionQueue.size())) {
         return;
     }
-    
+
     EntityType cancelledType = m_productionQueue[index].unitType;
     m_productionQueue.erase(m_productionQueue.begin() + index);
     m_isProducing = !m_productionQueue.empty();
-    
-    // Refund resources via callback
-    if (onProductionCancelled) {
-        onProductionCancelled(cancelledType);
-    }
+
+    if (m_context)
+        m_context->refundProductionCost(cancelledType, getTeam());
 }
 
 std::vector<EntityType> Building::getProductionQueue() const {
@@ -277,11 +273,10 @@ void Building::updateProduction(float deltaTime) {
     current.timeElapsed += deltaTime;
     
     if (current.timeElapsed >= current.timeRequired) {
-        // Unit produced!
-        if (onUnitProduced) {
-            onUnitProduced(current.unitType, this);
-        }
-        
+        // Unit produced — notify the game world through the context interface.
+        if (m_context)
+            m_context->notifyUnitProduced(current.unitType, this);
+
         m_productionQueue.pop_front();
         m_isProducing = !m_productionQueue.empty();
     }

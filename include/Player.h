@@ -46,7 +46,9 @@ public:
     
     // Update
     void update(float deltaTime);
-    void cleanupDeadEntities();
+    // Prune dead/dying entities from the selection list.
+    // Called every frame by Game so the HUD reacts immediately when health hits zero.
+    void cleanupSelection();
 
     // Fog of War
     FogOfWar& getFog() { return m_fog; }

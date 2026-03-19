@@ -5,6 +5,7 @@
 // Forward declarations — avoid pulling in full headers
 class Entity;
 class Unit;
+class Building;
 
 // ---------------------------------------------------------------------------
 // IUnitContext
@@ -59,4 +60,14 @@ public:
     // Called by a Worker when it deposits harvested resources.
     // The Game credits the amount to the player that owns [team].
     virtual void depositResources(Team team, int amount) = 0;
+
+    // ----- Building production ---------------------------------------------
+
+    // Called by a Building when it finishes training a unit.
+    // The Game spawns the unit at the correct exit position.
+    virtual void notifyUnitProduced(EntityType unitType, Building* sourceBuilding) = 0;
+
+    // Called by a Building when training of [unitType] is cancelled.
+    // The Game refunds the mineral cost to the player that owns [team].
+    virtual void refundProductionCost(EntityType unitType, Team team) = 0;
 };
