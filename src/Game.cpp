@@ -695,13 +695,13 @@ EntityPtr Game::spawnBuilding(EntityType type, Team team, sf::Vector2f position,
     
     switch (type) {
         case EntityType::Base:
-            building = ResourceManager::createBase(team, position);
+            building = ResourceManager::createBuilding(EntityType::Base, team, position);
             break;
         case EntityType::Barracks:
-            building = ResourceManager::createBarracks(team, position);
+            building = ResourceManager::createBuilding(EntityType::Barracks, team, position);
             break;
         case EntityType::Refinery:
-            building = ResourceManager::createRefinery(team, position);
+            building = ResourceManager::createBuilding(EntityType::Refinery, team, position);
             break;
         case EntityType::Factory:
             building = ResourceManager::createBuilding(EntityType::Factory, team, position);

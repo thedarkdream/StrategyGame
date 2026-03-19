@@ -11,85 +11,30 @@
 
 UnitPtr ResourceManager::createUnit(EntityType type, Team team, sf::Vector2f position) {
     switch (type) {
-        case EntityType::Worker:
-            return createWorker(team, position);
-        case EntityType::Soldier:
-            return createSoldier(team, position);
-        case EntityType::Brute:
-            return createBrute(team, position);
-        case EntityType::LightTank:
-            return createLightTank(team, position);
-        default:
-            return nullptr;
+        case EntityType::Worker:    return std::make_shared<Worker>(team, position);
+        case EntityType::Soldier:   return std::make_shared<Soldier>(team, position);
+        case EntityType::Brute:     return std::make_shared<Brute>(team, position);
+        case EntityType::LightTank: return std::make_shared<LightTank>(team, position);
+        default: return nullptr;
     }
 }
 
 BuildingPtr ResourceManager::createBuilding(EntityType type, Team team, sf::Vector2f position) {
     switch (type) {
-        case EntityType::Base:
-            return createBase(team, position);
-        case EntityType::Barracks:
-            return createBarracks(team, position);
-        case EntityType::Refinery:
-            return createRefinery(team, position);
-        case EntityType::Factory:
-            return std::make_shared<Building>(EntityType::Factory, team, position);
-        case EntityType::Turret:
-            return std::make_shared<Turret>(team, position);
-        default:
-            return nullptr;
+        case EntityType::Base:      return std::make_shared<Building>(EntityType::Base, team, position);
+        case EntityType::Barracks:  return std::make_shared<Building>(EntityType::Barracks, team, position);
+        case EntityType::Refinery:  return std::make_shared<Building>(EntityType::Refinery, team, position);
+        case EntityType::Factory:   return std::make_shared<Building>(EntityType::Factory, team, position);
+        case EntityType::Turret:    return std::make_shared<Turret>(team, position);
+        default: return nullptr;
     }
 }
 
 ResourceNodePtr ResourceManager::createResourceNode(EntityType type, sf::Vector2f position) {
-    switch (type) {
-        case EntityType::MineralPatch:
-            return createMineralPatch(position);
-        case EntityType::GasGeyser:
-            return createGasGeyser(position);
-        default:
-            return nullptr;
-    }
-}
-
-UnitPtr ResourceManager::createWorker(Team team, sf::Vector2f position) {
-    return std::make_shared<Worker>(team, position);
-}
-
-UnitPtr ResourceManager::createSoldier(Team team, sf::Vector2f position) {
-    return std::make_shared<Soldier>(team, position);
-}
-
-UnitPtr ResourceManager::createBrute(Team team, sf::Vector2f position) {
-    return std::make_shared<Brute>(team, position);
-}
-
-UnitPtr ResourceManager::createLightTank(Team team, sf::Vector2f position) {
-    return std::make_shared<LightTank>(team, position);
-}
-
-BuildingPtr ResourceManager::createBase(Team team, sf::Vector2f position) {
-    return std::make_shared<Building>(EntityType::Base, team, position);
-}
-
-BuildingPtr ResourceManager::createBarracks(Team team, sf::Vector2f position) {
-    return std::make_shared<Building>(EntityType::Barracks, team, position);
-}
-
-BuildingPtr ResourceManager::createRefinery(Team team, sf::Vector2f position) {
-    return std::make_shared<Building>(EntityType::Refinery, team, position);
-}
-
-BuildingPtr ResourceManager::createFactory(Team team, sf::Vector2f position) {
-    return std::make_shared<Building>(EntityType::Factory, team, position);
-}
-
-ResourceNodePtr ResourceManager::createMineralPatch(sf::Vector2f position, int amount, int visualVariant) {
-    return std::make_shared<ResourceNode>(EntityType::MineralPatch, position, amount, visualVariant);
-}
-
-ResourceNodePtr ResourceManager::createGasGeyser(sf::Vector2f position, int amount) {
-    return std::make_shared<ResourceNode>(EntityType::GasGeyser, position, amount);
+    const EntityDef* def = ENTITY_DATA.get(type);
+    if (!def || !def->building) return nullptr;
+    int amount = def->building->resourceAmount;
+    return std::make_shared<ResourceNode>(type, position, amount);
 }
 
 int ResourceManager::getMineralCost(EntityType type) {
