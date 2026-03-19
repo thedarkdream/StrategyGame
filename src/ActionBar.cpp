@@ -35,7 +35,7 @@ void ActionBar::ensureTexturesLoaded() {
     // The stems that have images — generic actions first, then per-building build buttons
     static constexpr const char* STEMS[] = {
         "move", "attack", "stop", "gather",
-        "build_barracks", "build_cc", "build_factory"
+        "build_barracks", "build_cc", "build_factory", "build_turret"
     };
     for (const char* stem : STEMS) {
         ActionTexturePair pair;
@@ -62,6 +62,7 @@ ActionBar::getActionTextures(const ActionDef& action) const {
             case EntityType::Barracks: key = "build_barracks"; break;
             case EntityType::Base:     key = "build_cc";       break;
             case EntityType::Factory:  key = "build_factory";  break;
+            case EntityType::Turret:   key = "build_turret";   break;
             default: break;
         }
     }

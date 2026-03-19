@@ -242,7 +242,11 @@ void AIController::handleAttackAdd(const AICommand& cmd) {
 }
 
 void AIController::handleAttack() {
-    sf::Vector2f targetPos = findEnemyBase();
+    // Choose which enemy to attack this wave and remember the team so that
+    // releaseFinishedDeployments can keep redirecting units to that same
+    // enemy's remaining buildings rather than jumping to a different player.
+    m_attackTargetTeam = pickEnemyTeam();
+    sf::Vector2f targetPos = findEnemyBuildingOfTeam(m_attackTargetTeam);
     if (targetPos.x < 0) return;
     
     // Send all reserved attack units
@@ -268,19 +272,40 @@ void AIController::handleAttack() {
 }
 
 void AIController::releaseFinishedDeployments() {
-    // A deployed unit is considered "done" once it is no longer actively
-    // attacking or moving toward the enemy — i.e. it is Idle (returned to
-    // base or wandering after combat) or has died.  Remove it from the
-    // deployed set so future AttackAdd commands can recruit it again.
+    // A deployed unit is considered "done" in one of two ways:
+    //   a) It died — release it immediately.
+    //   b) It went idle (finished its current attack order):
+    //        • If the enemy still has buildings, redirect it to the next
+    //          target and keep it deployed (so it chains through all remaining
+    //          structures without waiting for the next script Attack command).
+    //        • If the enemy has been eliminated, release it back into the pool.
     for (auto it = m_deployedUnits.begin(); it != m_deployedUnits.end(); ) {
         const UnitPtr& unit = *it;
-        bool finished = !unit || !unit->isAlive() || unit->isIdle();
-        if (finished) {
-            // Allow the unit to be re-rallied to the defense line.
+
+        // Dead — always release.
+        if (!unit || !unit->isAlive()) {
             m_ralliedUnits.erase(unit);
             it = m_deployedUnits.erase(it);
-        } else {
+            continue;
+        }
+
+        // Still actively fighting or moving — leave it alone.
+        if (!unit->isIdle()) {
             ++it;
+            continue;
+        }
+
+        // Unit is idle.  Keep attacking the same enemy team until it is
+        // fully eliminated, then release back into the free pool.
+        sf::Vector2f nextTarget = findEnemyBuildingOfTeam(m_attackTargetTeam);
+        if (nextTarget.x >= 0.f) {
+            // That team still has buildings — redirect to the next one.
+            unit->attackMoveTo(nextTarget);
+            ++it;
+        } else {
+            // Target team eliminated — release back into the free pool.
+            m_ralliedUnits.erase(unit);
+            it = m_deployedUnits.erase(it);
         }
     }
 }
@@ -659,6 +684,64 @@ sf::Vector2f AIController::findEnemyBase() {
         const bool isBase = (entity->getType() == EntityType::Base);
         if (isBase && !foundBase) {
             targets.clear();   // discard any fallback buildings collected so far
+            foundBase = true;
+        }
+        if (isBase || !foundBase)
+            targets.push_back(entity->getPosition());
+    }
+
+    if (targets.empty()) return sf::Vector2f(-1, -1);
+
+    std::uniform_int_distribution<int> pick(0, static_cast<int>(targets.size()) - 1);
+    return targets[pick(m_rng)];
+}
+
+Team AIController::pickEnemyTeam() {
+    const Team myTeam = m_player.getTeam();
+
+    // Collect enemy teams that have a Base (preferred) or any building (fallback).
+    std::vector<Team> withBase;
+    std::vector<Team> withBuilding;
+
+    auto addUnique = [](std::vector<Team>& v, Team t) {
+        if (std::find(v.begin(), v.end(), t) == v.end()) v.push_back(t);
+    };
+
+    for (const auto& entity : m_game.getAllEntities()) {
+        if (!entity || !entity->isAlive()) continue;
+        if (entity->getTeam() == myTeam || entity->getTeam() == Team::Neutral) continue;
+        if (!entity->asBuilding()) continue;
+        Team t = entity->getTeam();
+        if (entity->getType() == EntityType::Base)
+            addUnique(withBase, t);
+        else
+            addUnique(withBuilding, t);
+    }
+
+    // Prefer teams that still have a main Base.
+    auto& pool = withBase.empty() ? withBuilding : withBase;
+    if (pool.empty()) return Team::Neutral;
+
+    std::uniform_int_distribution<int> pick(0, static_cast<int>(pool.size()) - 1);
+    return pool[pick(m_rng)];
+}
+
+sf::Vector2f AIController::findEnemyBuildingOfTeam(Team team) {
+    // If no specific team is known, fall back to the generic search.
+    if (team == Team::Neutral) return findEnemyBase();
+
+    // Prefer the team's Base; fall back to any of their buildings.
+    std::vector<sf::Vector2f> targets;
+    bool foundBase = false;
+
+    for (const auto& entity : m_game.getAllEntities()) {
+        if (!entity || !entity->isAlive()) continue;
+        if (entity->getTeam() != team) continue;
+        if (!entity->asBuilding()) continue;
+
+        const bool isBase = (entity->getType() == EntityType::Base);
+        if (isBase && !foundBase) {
+            targets.clear();
             foundBase = true;
         }
         if (isBase || !foundBase)

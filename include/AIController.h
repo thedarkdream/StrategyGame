@@ -86,6 +86,11 @@ private:
     int               m_nextRallySlot = 0;
     std::set<UnitPtr> m_ralliedUnits;
 
+    // The enemy team targeted by the current (or most recent) attack wave.
+    // Deployed units will keep attacking this team's buildings until it is
+    // fully eliminated before they are released back into the free pool.
+    Team m_attackTargetTeam = Team::Neutral;
+
     // ----- Script lifecycle -----------------------------------------------
     void selectRandomScript();
     void executeNextCommand();
@@ -126,6 +131,10 @@ private:
     sf::Vector2f findTurretLocation(int turretIndex);
     Worker*      findIdleWorker();
     sf::Vector2f findEnemyBase();
+    // Pick which enemy team to attack this wave (prefers teams with a live Base).
+    Team         pickEnemyTeam();
+    // Like findEnemyBase but scoped to a specific team (Base first, then any building).
+    sf::Vector2f findEnemyBuildingOfTeam(Team team);
 
     // Re-find a worker for a started build whose original worker abandoned the job.
     void reassignBuildWorker(PendingBuild& pb);
