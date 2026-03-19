@@ -498,13 +498,11 @@ void Worker::releaseBuildClaim() {
 }
 
 void Worker::onDeath() {
-    SoundManager& snd = m_context ? m_context->soundManager() : SOUNDS;
-    snd.playSound("units/worker/worker_death.wav", m_position);
+    SOUNDS.playSound("units/worker/worker_death.wav", m_position);
 }
 
 void Worker::onSpawned(IGameContext* ctx) {
-    SoundManager& snd = ctx ? ctx->soundManager() : SOUNDS;
-    if (m_isLocalTeam) snd.playSound("units/worker/worker_spawn_1.wav", m_position);
+    if (m_isLocalTeam) SOUNDS.playSound("units/worker/worker_spawn_1.wav", m_position);
     if (ctx) {
         EntityPtr base = ctx->findHomeBase(m_team);
         if (base) setHomeBase(base);

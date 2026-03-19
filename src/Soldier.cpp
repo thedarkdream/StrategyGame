@@ -8,8 +8,7 @@ Soldier::Soldier(Team team, sf::Vector2f position)
 }
 
 void Soldier::onDeath() {
-    SoundManager& snd = m_context ? m_context->soundManager() : SOUNDS;
-    snd.playSound("effects/soldier_death.wav", m_position);
+    SOUNDS.playSound("effects/soldier_death.wav", m_position);
 }
 
 void Soldier::preload() {

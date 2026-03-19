@@ -246,8 +246,7 @@ void Unit::takeDamage(int damage, EntityPtr attacker) {
     // Spawn explosion effect when unit dies (scaled to unit size)
     if (willDie) {
         float explosionScale = std::max(m_size.x, m_size.y) / 64.0f;
-        if (m_context) m_context->effectsManager().spawnExplosion(m_position, explosionScale);
-        else EFFECTS.spawnExplosion(m_position, explosionScale);  // fallback (no context)
+        EFFECTS.spawnExplosion(m_position, explosionScale);
     }
     
     // Auto-retaliate if idle and only if this is a combat unit

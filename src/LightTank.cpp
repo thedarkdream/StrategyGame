@@ -53,7 +53,7 @@ void LightTank::fireAttack(EntityPtr target) {
     if (!target || !target->isAlive()) return;
     
     if (m_context) {
-        m_context->soundManager().playSound("units/lighttank/fire.wav", m_position);
+        SOUNDS.playSound("units/lighttank/fire.wav", m_position);
         // Launch a homing rocket
         m_context->spawnProjectile(shared_from_this(), target, m_damage, ROCKET_SPEED);
     } else {
