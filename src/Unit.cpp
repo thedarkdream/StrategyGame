@@ -566,21 +566,27 @@ void Unit::moveTowardsTarget(float deltaTime) {
     // Apply velocity
     sf::Vector2f newPosition = m_position + newVelocity * deltaTime;
 
-    // Helper: returns true if a world position is on a non-walkable tile (water).
-    // This is checked independently of checkPositionBlocked which only tests
-    // solid entities (buildings, units) — previously water was never checked,
-    // letting units slide onto water when probing around building corners.
-    auto onNonWalkableTile = [&](sf::Vector2f pos) -> bool {
+    // Helper: returns true if a world position is on a water tile.
+    // Intentionally only checks for TileType::Water, NOT TileType::Building.
+    // Building tiles are non-walkable in the tile map, but their collision is
+    // already enforced by the bounds.contains() check in checkPositionBlocked.
+    // Checking building tiles here as well makes it geometrically impossible
+    // for small units to squeeze diagonally between two corner-touching
+    // buildings, because the unit center briefly enters the corner tile
+    // (which belongs to one of the buildings) during the traverse.
+    auto onWaterTile = [&](sf::Vector2f pos) -> bool {
         if (!m_map) return false;
         sf::Vector2i t = m_map->worldToTile(pos);
-        return !m_map->isWalkable(t.x, t.y);
+        if (!m_map->isValidTile(t.x, t.y)) return true; // out of bounds = blocked
+        return m_map->getTile(t.x, t.y).type == TileType::Water;
     };
 
     // Still check for static obstacles (buildings, resources) AND water tiles.
     if (m_context && isCollidable()) {
         float radius = getCollisionRadius();
-        if (m_context->checkPositionBlocked(newPosition, radius, this)
-                || onNonWalkableTile(newPosition)) {
+        bool cpb   = m_context->checkPositionBlocked(newPosition, radius, this);
+        bool water = onWaterTile(newPosition);
+        if (cpb || water) {
             // Probe 7 alternate directions (every 45°, skipping the already-blocked
             // forward direction) and choose the non-blocked one that makes the most
             // angular progress toward the actual destination. This cleanly handles
@@ -604,10 +610,9 @@ void Unit::moveTowardsTarget(float deltaTime) {
                 sf::Vector2f probeDir(std::cos(angle), std::sin(angle));
                 sf::Vector2f probePos = m_position + probeDir * moveDist;
 
-                // Reject probes that land on water just as we reject probes
-                // that overlap a building or resource.
-                if (!m_context->checkPositionBlocked(probePos, radius, this)
-                        && !onNonWalkableTile(probePos)) {
+                bool pb = m_context->checkPositionBlocked(probePos, radius, this);
+                bool pw = onWaterTile(probePos);
+                if (!pb && !pw) {
                     float dot = probeDir.x * targetDir.x + probeDir.y * targetDir.y;
                     if (dot > bestDot) {
                         bestDot = dot;
@@ -622,7 +627,8 @@ void Unit::moveTowardsTarget(float deltaTime) {
                 m_position = bestPos;
                 // Not fully blocked; leave m_blockedByStaticObstacle as-is (false).
             } else {
-                // All 8 directions blocked — mark completely stuck.
+                // All probe directions blocked — mark so the replan timer
+                // requests a fresh A* path from the current position.
                 m_velocity = sf::Vector2f(0.0f, 0.0f);
                 m_blockedByStaticObstacle = true;
             }
@@ -707,7 +713,7 @@ void Unit::findPath(sf::Vector2f target) {
         bool goalWasWalkable = m_map->isValidTile(goalTile.x, goalTile.y)
                             && m_map->isWalkable(goalTile.x, goalTile.y);
 
-        m_path = m_map->findPath(m_position, target);
+        m_path = m_map->findPath(m_position, target, m_collisionRadius);
 
         if (!m_path.empty()) {
             sf::Vector2i reachedTile = m_map->worldToTile(m_path.back());

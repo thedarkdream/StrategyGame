@@ -31,8 +31,13 @@ public:
     void placeBuilding(int tileX, int tileY, int width, int height, EntityPtr building);
     void removeBuilding(int tileX, int tileY, int width, int height);
     
-    // Pathfinding (simple A*)
-    std::vector<sf::Vector2f> findPath(sf::Vector2f start, sf::Vector2f end);
+    // Pathfinding (A* with optional unit-radius clearance)
+    // unitRadius: the unit's collision radius in pixels.  Non-zero values
+    // activate clearance-aware neighbour pruning in A* and a fat-tube line-
+    // of-sight check in smoothPath so the produced path is safe to physically
+    // traverse without clipping building corners.
+    std::vector<sf::Vector2f> findPath(sf::Vector2f start, sf::Vector2f end,
+                                       float unitRadius = 0.0f);
     
     // Editor
     void initEmpty();   // Reset all tiles to Grass with random variants
@@ -97,10 +102,11 @@ private:
     };
     float heuristic(int x1, int y1, int x2, int y2) const;
     // Returns true if there is a clear tile-based line of sight between two tiles.
-    // Uses a fat Bresenham check (samples both floor and round at each step) to
-    // ensure a unit with non-zero radius won't clip a corner.
-    bool hasLineOfSight(int x0, int y0, int x1, int y1) const;
+    // unitRadius (pixels): when > 0 the check uses a fat tube of that width so
+    // a unit of that radius won't clip building corners along the path.
+    bool hasLineOfSight(int x0, int y0, int x1, int y1, float unitRadius = 0.0f) const;
     // Remove redundant waypoints: skip any waypoint that can be reached directly
     // in a straight line from the previous kept waypoint (string-pulling).
-    std::vector<sf::Vector2f> smoothPath(const std::vector<sf::Vector2f>& path) const;
+    std::vector<sf::Vector2f> smoothPath(const std::vector<sf::Vector2f>& path,
+                                         float unitRadius = 0.0f) const;
 };

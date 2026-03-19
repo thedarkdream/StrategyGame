@@ -333,54 +333,50 @@ void Game::setupWorker(Worker* worker, EntityPtr homeBase) {
 }
 
 bool Game::checkPositionBlocked(sf::Vector2f pos, float radius, Entity* excludeSelf) {
-    // Check both live entities AND entities pending flush so units spawned on the
-    // same frame (e.g. two factories completing on the same tick) don't overlap.
+    // For building/resource collision we use a slightly inset version of the
+    // building's pixel bounds.  The ideal diagonal path between two
+    // corner-touching buildings passes through the shared corner point exactly;
+    // in practice RVO and discrete time-steps push the unit centre a fraction
+    // of a pixel off the ideal line so it briefly enters one building's bounds.
+    // Insetting by CORNER_INSET px on every side gives enough tolerance for
+    // that sub-pixel deviation without being visually noticeable (2px on a
+    // 32px tile is 6%).
+    constexpr float CORNER_INSET = 2.0f;
+
     for (const EntityList* list : {&m_allEntities, &m_pendingEntities}) {
     for (auto& entity : *list) {
         if (!entity || !entity->isAlive()) continue;
         if (entity.get() == excludeSelf) continue;
-        
-        // Check if it's a unit and collidable
+
         if (auto* unit = entity->asUnit()) {
             if (!unit->isCollidable()) continue;
-            
+
             float otherRadius = unit->getCollisionRadius();
             float dist = MathUtil::distance(entity->getPosition(), pos);
-            float minDist = radius + otherRadius;
-            
-            if (dist < minDist) {
+            if (dist < radius + otherRadius)
                 return true;
-            }
         }
-        // Check buildings
         else if (entity->asBuilding()) {
-            sf::FloatRect bounds = entity->getBounds();
-            // Expand bounds by radius
-            bounds.position.x -= radius;
-            bounds.position.y -= radius;
-            bounds.size.x += radius * 2;
-            bounds.size.y += radius * 2;
-            
-            if (bounds.contains(pos)) {
+            sf::FloatRect b = entity->getBounds();
+            b.position.x += CORNER_INSET;
+            b.position.y += CORNER_INSET;
+            b.size.x     -= CORNER_INSET * 2.0f;
+            b.size.y     -= CORNER_INSET * 2.0f;
+            if (b.contains(pos))
                 return true;
-            }
         }
-        // Check resource nodes (mineral patches, gas geysers)
         else if (entity->getType() == EntityType::MineralPatch ||
                  entity->getType() == EntityType::GasGeyser) {
-            sf::FloatRect bounds = entity->getBounds();
-            // Expand bounds by radius
-            bounds.position.x -= radius;
-            bounds.position.y -= radius;
-            bounds.size.x += radius * 2;
-            bounds.size.y += radius * 2;
-            
-            if (bounds.contains(pos)) {
+            sf::FloatRect b = entity->getBounds();
+            b.position.x += CORNER_INSET;
+            b.position.y += CORNER_INSET;
+            b.size.x     -= CORNER_INSET * 2.0f;
+            b.size.y     -= CORNER_INSET * 2.0f;
+            if (b.contains(pos))
                 return true;
-            }
         }
-    } // end entity loop
-    } // end list loop
+    }
+    }
 
     return false;
 }
@@ -877,15 +873,17 @@ void Game::cancelBuildingConstruction(EntityPtr building) {
 
 void Game::pushUnitsOutOfBuildings(float deltaTime) {
     // Speed at which trapped units are pushed clear (pixels per second).
-    // Fast enough to escape within a second but slow enough to look physical.
     constexpr float PUSH_SPEED = 150.0f;
+    // How far inside the building bounds the centre must be before we push.
+    // Match the inset used in checkPositionBlocked so the two systems agree
+    // on what counts as "inside" a building.
+    constexpr float INSET = 2.0f;
 
     for (auto& entity : m_allEntities) {
         if (!entity || !entity->isAlive()) continue;
         Unit* unit = entity->asUnit();
         if (!unit || !unit->isCollidable()) continue;
 
-        float     radius = unit->getCollisionRadius();
         sf::Vector2f pos = unit->getPosition();
 
         for (auto& other : m_allEntities) {
@@ -894,23 +892,22 @@ void Game::pushUnitsOutOfBuildings(float deltaTime) {
 
             sf::FloatRect bounds = other->getBounds();
 
-            // Expand bounds by the unit's collision radius so we test whether
-            // the unit's *body* (not just its centre) overlaps the building.
-            sf::FloatRect expanded = bounds;
-            expanded.position.x -= radius;
-            expanded.position.y -= radius;
-            expanded.size.x     += radius * 2.0f;
-            expanded.size.y     += radius * 2.0f;
+            // Inset the bounds slightly so corner-squeezers are not falsely
+            // ejected while their centre is just grazing the building edge.
+            sf::FloatRect inner = bounds;
+            inner.position.x += INSET;
+            inner.position.y += INSET;
+            inner.size.x     -= INSET * 2.0f;
+            inner.size.y     -= INSET * 2.0f;
 
-            if (!expanded.contains(pos)) continue;
+            if (!inner.contains(pos)) continue;
 
-            // AABB minimum-penetration depenetration:
-            // compute how far the unit centre is from each of the four expanded
-            // faces, then push along the axis with the smallest penetration.
-            float dLeft   = pos.x - expanded.position.x;
-            float dRight  = (expanded.position.x + expanded.size.x) - pos.x;
-            float dTop    = pos.y - expanded.position.y;
-            float dBottom = (expanded.position.y + expanded.size.y) - pos.y;
+            // Minimum-penetration depenetration against the full (non-inset)
+            // bounds so the push distance is measured from the real wall face.
+            float dLeft   = pos.x - bounds.position.x;
+            float dRight  = (bounds.position.x + bounds.size.x) - pos.x;
+            float dTop    = pos.y - bounds.position.y;
+            float dBottom = (bounds.position.y + bounds.size.y) - pos.y;
 
             float minH = std::min(dLeft, dRight);
             float minV = std::min(dTop,  dBottom);

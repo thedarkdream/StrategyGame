@@ -192,7 +192,8 @@ void Map::removeBuilding(int tileX, int tileY, int width, int height) {
     }
 }
 
-std::vector<sf::Vector2f> Map::findPath(sf::Vector2f start, sf::Vector2f end) {
+std::vector<sf::Vector2f> Map::findPath(sf::Vector2f start, sf::Vector2f end,
+                                         float unitRadius) {
     // A* pathfinding
     sf::Vector2i startTile = worldToTile(start);
     sf::Vector2i endTile = worldToTile(end);
@@ -353,7 +354,7 @@ std::vector<sf::Vector2f> Map::findPath(sf::Vector2f start, sf::Vector2f end) {
                 path.back() = end;
             }
 
-            return smoothPath(path);
+            return smoothPath(path, unitRadius);
         }
         
         // Explore neighbors
@@ -366,23 +367,43 @@ std::vector<sf::Vector2f> Map::findPath(sf::Vector2f start, sf::Vector2f end) {
             int neighborHash = hash(nx, ny);
             if (closed[neighborHash]) continue;
             
-            // For diagonal movement, check that we're not cutting corners
+            // Diagonal corner-cut guard.
+            // Standard rule: block the diagonal if EITHER orthogonal neighbour
+            // is non-walkable (prevents squeezing through a single-tile gap).
+            // Exception: when BOTH orthogonal neighbours are non-walkable (two
+            // buildings sharing a corner) AND the unit's diameter fits inside
+            // one tile, allow the diagonal with an extra cost penalty so A*
+            // only picks it when going around would cost significantly more.
             if (costs[i] > 1.0f) {
-                if (!isWalkable(current.x + dx[i], current.y) || 
-                    !isWalkable(current.x, current.y + dy[i])) {
-                    continue;  // Can't cut corners
+                bool blockedA = !isWalkable(current.x + dx[i], current.y);
+                bool blockedB = !isWalkable(current.x, current.y + dy[i]);
+                if (blockedA || blockedB) {
+                    const float TS_F = static_cast<float>(Constants::TILE_SIZE);
+                    bool canSqueeze = blockedA && blockedB
+                                   && unitRadius > 0.0f
+                                   && (unitRadius * 2.0f) < TS_F;
+                    if (!canSqueeze) continue;
                 }
             }
 
-            // Clearance penalty: prefer tiles away from walls.
-            // Count orthogonal non-walkable neighbours (use 4-connectivity so
-            // the penalty is proportional to "how cornered" the tile is).
+            // Soft clearance penalty: add +0.5 per blocked orthogonal neighbour
+            // so A* mildly prefers open tiles over wall-hugging ones.  This is
+            // intentionally small — wall-adjacent tiles are fully traversable
+            // for any unit whose diameter fits in a tile.
             const int odx[] = { 0, 1, 0, -1 };
             const int ody[] = { -1, 0, 1,  0 };
             float clearancePenalty = 0.0f;
             for (int k = 0; k < 4; ++k) {
                 if (!isWalkable(nx + odx[k], ny + ody[k]))
                     clearancePenalty += 0.5f;
+            }
+            // Extra cost for the corner-squeeze diagonal so it is used only
+            // as a last resort when the long-way-around costs more.
+            if (costs[i] > 1.0f
+                && !isWalkable(current.x + dx[i], current.y)
+                && !isWalkable(current.x, current.y + dy[i]))
+            {
+                clearancePenalty += 2.0f;
             }
 
             float newG = current.g + costs[i] + clearancePenalty;
@@ -414,17 +435,15 @@ std::vector<sf::Vector2f> Map::findPath(sf::Vector2f start, sf::Vector2f end) {
         std::reverse(partial.begin(), partial.end());
         // Replace start tile-centre with real unit position (same as full path).
         if (!partial.empty()) partial.front() = start;
-        return smoothPath(partial);
+        return smoothPath(partial, unitRadius);
     }
 }
 
-bool Map::hasLineOfSight(int x0, int y0, int x1, int y1) const {
-    // Walk along the line from (x0,y0) to (x1,y1) using a true supercover:
-    // at each sample point we check ALL FOUR floor/ceil corner combinations.
-    // This avoids the previous bug where the mixed (floor(fx),ceil(fy)) and
-    // (ceil(fx),floor(fy)) tiles were never examined, letting diagonal lines
-    // slip through water-tile corners and causing units to walk over water.
-    int steps = std::max(std::abs(x1 - x0), std::abs(y1 - y0));
+bool Map::hasLineOfSight(int x0, int y0, int x1, int y1, float /*unitRadius*/) const {
+    // Supercover DDA: use |dx|+|dy| steps so every tile boundary crossed by
+    // the line is sampled.  The four floor/ceil combinations at each step
+    // cover the two tiles that share that boundary.
+    int steps = std::abs(x1 - x0) + std::abs(y1 - y0);
     if (steps == 0) return true;
 
     for (int i = 1; i <= steps; ++i) {
@@ -436,9 +455,6 @@ bool Map::hasLineOfSight(int x0, int y0, int x1, int y1) const {
         int tyf = static_cast<int>(std::floor(fy));
         int txc = static_cast<int>(std::ceil(fx));
         int tyc = static_cast<int>(std::ceil(fy));
-
-        // Check all four corner tiles — deduplicate automatically via isWalkable
-        // returning true for out-of-bounds (already handled inside isWalkable).
         if (!isWalkable(txf, tyf)) return false;
         if (!isWalkable(txf, tyc)) return false;
         if (!isWalkable(txc, tyf)) return false;
@@ -447,7 +463,8 @@ bool Map::hasLineOfSight(int x0, int y0, int x1, int y1) const {
     return true;
 }
 
-std::vector<sf::Vector2f> Map::smoothPath(const std::vector<sf::Vector2f>& path) const {
+std::vector<sf::Vector2f> Map::smoothPath(const std::vector<sf::Vector2f>& path,
+                                           float unitRadius) const {
     if (path.size() <= 2) return path;
 
     std::vector<sf::Vector2f> result;
@@ -461,7 +478,7 @@ std::vector<sf::Vector2f> Map::smoothPath(const std::vector<sf::Vector2f>& path)
         for (size_t j = path.size() - 1; j > anchor + 1; --j) {
             sf::Vector2i ta = worldToTile(path[anchor]);
             sf::Vector2i tb = worldToTile(path[j]);
-            if (hasLineOfSight(ta.x, ta.y, tb.x, tb.y)) {
+            if (hasLineOfSight(ta.x, ta.y, tb.x, tb.y, unitRadius)) {
                 farthest = j;
                 break;
             }
