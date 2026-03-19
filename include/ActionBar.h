@@ -61,8 +61,8 @@ private:
     void renderButtons(sf::RenderWindow& window, EntityPtr entity, Player& player);
     void renderProductionQueue(sf::RenderWindow& window, Building* building);
     void renderConstructionUI(sf::RenderWindow& window, Building* building);
-    void renderTooltip(sf::RenderWindow& window, EntityPtr entity);
-    std::string buildTooltipText(const ActionDef& action) const;
+    void renderTooltip(sf::RenderWindow& window, EntityPtr entity, Player& player);
+    std::string buildTooltipText(const ActionDef& action, const Player& player) const;
 
     // Splits an action list into row-0 and row-1 index vectors (avoids duplicating
     // the same loop in getButtonAtPosition, renderTooltip, and renderButtons).

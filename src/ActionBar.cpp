@@ -314,13 +314,13 @@ void ActionBar::render(sf::RenderWindow& window, Player& player) {
         renderProductionQueue(window, building);
     }
 
-    renderTooltip(window, entity);
+    renderTooltip(window, entity, player);
 }
 
 // ---------------------------------------------------------------------------
 // Tooltip
 // ---------------------------------------------------------------------------
-std::string ActionBar::buildTooltipText(const ActionDef& action) const {
+std::string ActionBar::buildTooltipText(const ActionDef& action, const Player& player) const {
     if (action.type == ActionDef::Type::Build || action.type == ActionDef::Type::Train) {
         std::string entityName = ENTITY_DATA.getName(action.producesType);
         int mineralCost = ENTITY_DATA.getMineralCost(action.producesType);
@@ -336,6 +336,13 @@ std::string ActionBar::buildTooltipText(const ActionDef& action) const {
             costStr += std::to_string(gasCost) + " gas";
         }
         if (!costStr.empty()) text += " (" + costStr + ")";
+
+        // Append requirement notice when the prerequisite building is missing.
+        if (action.requires != EntityType::None &&
+            !player.hasCompletedBuilding(action.requires)) {
+            text += "\nRequires: " + ENTITY_DATA.getName(action.requires);
+        }
+
         return text;
     } else {
         // e.g. "Move (M)"
@@ -345,7 +352,7 @@ std::string ActionBar::buildTooltipText(const ActionDef& action) const {
     }
 }
 
-void ActionBar::renderTooltip(sf::RenderWindow& window, EntityPtr entity) {
+void ActionBar::renderTooltip(sf::RenderWindow& window, EntityPtr entity, Player& player) {
     if (!m_font || !entity) return;
 
     sf::Vector2i mousePos = sf::Mouse::getPosition(window);
@@ -355,7 +362,7 @@ void ActionBar::renderTooltip(sf::RenderWindow& window, EntityPtr entity) {
     const auto& actions = ENTITY_DATA.getActions(entity->getType());
     if (hoveredIdx >= static_cast<int>(actions.size())) return;
 
-    std::string tipText = buildTooltipText(actions[hoveredIdx]);
+    std::string tipText = buildTooltipText(actions[hoveredIdx], player);
 
     // Measure text
     sf::Text tooltip(*m_font, tipText, 12);
