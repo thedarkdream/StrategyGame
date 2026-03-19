@@ -30,6 +30,8 @@ public:
     bool isGathering() const { return m_state == UnitState::Gathering || m_state == UnitState::Returning; }
     EntityPtr getBuildTarget() const { return m_buildTarget.lock(); }
     
+    void onDeath() override;
+
     // Workers are not collidable when gathering (to allow stacking at resources)
     bool isCollidable() const override;
     Worker*       asWorker()       override { return this; }

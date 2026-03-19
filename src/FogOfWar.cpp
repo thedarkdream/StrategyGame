@@ -7,9 +7,9 @@
 #include <cmath>
 
 FogOfWar::FogOfWar() {
-    // Arrays are sized dynamically on the first update() call; nothing to
-    // initialise here.  rebuildTexture() produces a minimal valid texture so
-    // the Renderer always has something to draw before the first update().
+    // Arrays are sized dynamically on the first update() call.
+    // Produce a minimal valid texture so the Renderer always has something
+    // to draw before the first update().
     rebuildTexture();
 }
 
@@ -133,7 +133,6 @@ void FogOfWar::rebuildTexture() {
     const int texW = (m_W > 0) ? m_W : 1;
     const int texH = (m_H > 0) ? m_H : 1;
 
-    // Build a texW×texH RGBA image: one pixel per tile.
     sf::Image img(sf::Vector2u(static_cast<unsigned>(texW), static_cast<unsigned>(texH)),
                   sf::Color::Transparent);
 

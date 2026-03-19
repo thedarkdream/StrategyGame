@@ -485,7 +485,11 @@ void Worker::releaseBuildClaim() {
     }
 }
 
+void Worker::onDeath() {
+    SOUNDS.playSound("units/worker/worker_death.wav", m_position);
+}
+
 void Worker::preload() {
     TEXTURES.loadAnimationSet("units/worker");
-    SOUNDS.loadBuffer("effects/worker_death.wav");
+    SOUNDS.loadBuffer("units/worker/worker_death.wav");
 }
