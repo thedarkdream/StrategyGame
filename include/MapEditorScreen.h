@@ -112,6 +112,7 @@ private:
     PanelButton m_btnLoad;
     PanelButton m_btnSave;
     PanelButton m_btnBack;
+    PanelButton m_btnErase;
 
     std::vector<PanelButton> m_bldTeamButtons;
     std::vector<PanelButton> m_unitTeamButtons;
@@ -154,6 +155,7 @@ private:
     float                    m_statusTimer = 0.f;
 
     // ---- State --------------------------------------------------------------
+    bool         m_eraseMode     = false;
     std::string  m_mapName       = "untitled";
     bool         m_nameActive    = false;
     int          m_mapW          = Constants::MAP_WIDTH;
@@ -197,6 +199,7 @@ private:
 
     void selectPendingEntity(EntityType type, Team team);
     void clearPendingEntity();
+    void tryEraseAt(sf::Vector2i pixel);
 
     sf::Vector2i screenToTile(sf::Vector2i pixel) const;
     bool         inMapArea(sf::Vector2i pixel) const;

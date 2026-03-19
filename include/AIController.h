@@ -68,6 +68,24 @@ private:
     float m_defenseCooldown = 0.f;  // counts down; defense trigger blocked while > 0
     static constexpr float DEFENSE_COOLDOWN = 12.f;  // minimum seconds between defense responses
 
+    // ----- Base defense (computed once at game start) ----------------------
+    // m_chokePoint  : world position of the narrowest corridor exit from base.
+    // m_defenseDir  : normalised direction base → choke (or enemy if open map).
+    // m_defensePerp : perpendicular to m_defenseDir (used for slot spreading).
+    // m_hasRealChoke: false = open map, use semicircle fallback.
+    sf::Vector2f m_basePos       = {-1.f, -1.f};
+    sf::Vector2f m_chokePoint    = {-1.f, -1.f};
+    sf::Vector2f m_defenseDir    = { 1.f,  0.f};
+    sf::Vector2f m_defensePerp   = { 0.f,  1.f};
+    bool         m_defenseReady  = false;
+    bool         m_hasRealChoke  = false;
+
+    // Rally tracking: each newly trained combat unit is sent to a slot on
+    // the defense line. m_nextRallySlot wraps around MAX_RALLY_SLOTS.
+    static constexpr int MAX_RALLY_SLOTS = 20;
+    int               m_nextRallySlot = 0;
+    std::set<UnitPtr> m_ralliedUnits;
+
     // ----- Script lifecycle -----------------------------------------------
     void selectRandomScript();
     void executeNextCommand();
@@ -90,6 +108,8 @@ private:
     void releaseFinishedDeployments();
     // Scan for attacks on own units/buildings and dispatch idle defenders.
     void checkAndRespondToAttack(float deltaTime);
+    // Send newly trained combat units to the defense rally line.
+    void rallyNewCombatUnits();
 
     // ----- Helpers --------------------------------------------------------
     BuildingPtr  findBuildingForUnit(EntityType unitType);
@@ -98,6 +118,12 @@ private:
     int          countFreeUnits(EntityType type) const;
     int          countBuildingsOfType(EntityType type, bool includeIncomplete = true);
     sf::Vector2f findBuildLocation(EntityType buildingType);
+    // Compute choke point from terrain (called once on first update).
+    void         computeBaseDefense();
+    // World position of defense rally slot `slotIndex`.
+    sf::Vector2f getDefenseRallySlot(int slotIndex) const;
+    // Build position for the `turretIndex`-th turret at the choke.
+    sf::Vector2f findTurretLocation(int turretIndex);
     Worker*      findIdleWorker();
     sf::Vector2f findEnemyBase();
 

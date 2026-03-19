@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <limits>
 #include <chrono>
+#include <cmath>
 
 AIController::AIController(Player& player, Game& game)
     : m_player(player)
@@ -59,6 +60,10 @@ void AIController::selectRandomScript() {
     m_attackGroupUnits.clear();
     m_deployedUnits.clear();
     m_loopCounters.clear();
+    // Reset defense state so it is recomputed for the new script/match.
+    m_ralliedUnits.clear();
+    m_nextRallySlot = 0;
+    m_defenseReady  = false;
     
     // Execute the first command
     if (!m_currentScript->getCommands().empty()) {
@@ -77,6 +82,10 @@ void AIController::update(float deltaTime) {
     manageIdleWorkers();
     releaseFinishedDeployments();
     checkAndRespondToAttack(deltaTime);
+
+    // Compute choke point once — deferred to first update so buildings exist.
+    if (!m_defenseReady) computeBaseDefense();
+    rallyNewCombatUnits();
     
     // Check for command progression periodically
     if (m_decisionTimer >= m_decisionInterval) {
@@ -266,7 +275,13 @@ void AIController::releaseFinishedDeployments() {
     for (auto it = m_deployedUnits.begin(); it != m_deployedUnits.end(); ) {
         const UnitPtr& unit = *it;
         bool finished = !unit || !unit->isAlive() || unit->isIdle();
-        it = finished ? m_deployedUnits.erase(it) : std::next(it);
+        if (finished) {
+            // Allow the unit to be re-rallied to the defense line.
+            m_ralliedUnits.erase(unit);
+            it = m_deployedUnits.erase(it);
+        } else {
+            ++it;
+        }
     }
 }
 
@@ -421,7 +436,9 @@ void AIController::processBuildQueue() {
         if (!pb.started) {
             if (m_player.canAfford(ENTITY_DATA.getMineralCost(pb.buildingType),
                                    ENTITY_DATA.getGasCost(pb.buildingType))) {
-                sf::Vector2f buildPos = findBuildLocation(pb.buildingType);
+                sf::Vector2f buildPos = (pb.buildingType == EntityType::Turret)
+                    ? findTurretLocation(countBuildingsOfType(EntityType::Turret, true))
+                    : findBuildLocation(pb.buildingType);
                 Worker* worker = findIdleWorker();
                 if (buildPos.x >= 0.f && worker) {
                     bool ok = m_actions->constructBuilding(pb.buildingType, buildPos, worker);
@@ -654,3 +671,229 @@ sf::Vector2f AIController::findEnemyBase() {
     return targets[pick(m_rng)];
 }
 
+// ---------------------------------------------------------------------------
+// computeBaseDefense
+// Scans radial rings of tiles outward from the AI base to find the FIRST
+// (closest) narrow corridor the enemy must pass through.  This becomes the
+// turret anchor and unit rally anchor.  If no narrow ring is found the map
+// is considered open and a semicircle fallback is used instead.
+// ---------------------------------------------------------------------------
+void AIController::computeBaseDefense() {
+    // Need at least one building to anchor the base position.
+    m_basePos = {-1.f, -1.f};
+    for (const auto& b : m_player.getBuildings()) {
+        if (b->isAlive()) { m_basePos = b->getPosition(); break; }
+    }
+    if (m_basePos.x < 0.f) return;
+
+    sf::Vector2i baseTile = m_map->worldToTile(m_basePos);
+
+    // Use the nearest enemy base as a directional hint so the weighted
+    // centroid of the choke ring faces the correct side.
+    sf::Vector2f enemyPos = findEnemyBase();
+    sf::Vector2f enemyDir = {1.f, 0.f};
+    if (enemyPos.x >= 0.f) {
+        sf::Vector2f d = enemyPos - m_basePos;
+        float len = std::sqrt(d.x * d.x + d.y * d.y);
+        if (len > 1.f) enemyDir = d / len;
+    }
+
+    // Ring scan parameters.
+    constexpr int   MIN_R           = 5;    // start outside the base footprint
+    constexpr int   MAX_R           = 28;   // ~28 tiles max search radius
+    constexpr float CHOKE_THRESHOLD = 0.40f;
+
+    float        bestPass     = 1.f;
+    sf::Vector2f bestCentroid = m_basePos + enemyDir * float(MIN_R * Constants::TILE_SIZE);
+
+    for (int R = MIN_R; R <= MAX_R; ++R) {
+        int   total    = 0;
+        int   walkable = 0;
+        float cwx = 0.f, cwy = 0.f, wsum = 0.f;
+
+        for (int dx = -(R + 1); dx <= (R + 1); ++dx) {
+            for (int dy = -(R + 1); dy <= (R + 1); ++dy) {
+                float dist = std::sqrt(float(dx * dx + dy * dy));
+                // Only process tiles on this annular ring.
+                if (dist < float(R) - 0.5f || dist >= float(R) + 0.5f) continue;
+
+                int tx = baseTile.x + dx;
+                int ty = baseTile.y + dy;
+
+                ++total;
+                // Out-of-bounds and non-walkable both count as walls.
+                if (!m_map->isValidTile(tx, ty) || !m_map->isWalkable(tx, ty))
+                    continue;
+
+                ++walkable;
+                // Weight toward enemy direction so the centroid lands on
+                // the gap that faces the enemy, not a random side gap.
+                sf::Vector2f dir{float(dx), float(dy)};
+                if (dist > 0.f) dir /= dist;
+                float w = std::max(0.01f, dir.x * enemyDir.x + dir.y * enemyDir.y + 0.5f);
+                cwx  += float(tx) * w;
+                cwy  += float(ty) * w;
+                wsum += w;
+            }
+        }
+
+        if (total == 0) continue;
+        float pass = float(walkable) / float(total);
+
+        // Track the minimum passability seen so far.
+        if (pass < bestPass) {
+            bestPass = pass;
+            if (wsum > 0.f)
+                bestCentroid = {
+                    (cwx / wsum) * Constants::TILE_SIZE,
+                    (cwy / wsum) * Constants::TILE_SIZE
+                };
+        }
+
+        // Stop as soon as we find a ring below the choke threshold—this is
+        // the CLOSEST exit from the base, which is what we want to defend.
+        if (pass < CHOKE_THRESHOLD) break;
+    }
+
+    m_hasRealChoke = (bestPass < CHOKE_THRESHOLD);
+
+    if (m_hasRealChoke) {
+        m_chokePoint = bestCentroid;
+        sf::Vector2f dir = m_chokePoint - m_basePos;
+        float len = std::sqrt(dir.x * dir.x + dir.y * dir.y);
+        m_defenseDir = (len > 1.f) ? (dir / len) : enemyDir;
+    } else {
+        // Open map: place the defense anchor in the enemy direction.
+        m_defenseDir = enemyDir;
+        m_chokePoint = m_basePos + m_defenseDir * float(14 * Constants::TILE_SIZE);
+    }
+
+    m_defensePerp  = {-m_defenseDir.y, m_defenseDir.x};
+    m_defenseReady = true;
+}
+
+// ---------------------------------------------------------------------------
+// getDefenseRallySlot
+// Slot 0 = centre of the defense line. Slots 1,2,3,4,… alternate outward
+// (−1, +1, −2, +2 …) in tile-spacing units perpendicular to defenseDir.
+// Real choke: straight perpendicular line behind the choke.
+// Open map:   semicircle arc in front of the base, ±80° around defenseDir.
+// ---------------------------------------------------------------------------
+sf::Vector2f AIController::getDefenseRallySlot(int slotIndex) const {
+    if (!m_defenseReady) {
+        if (!m_player.getBuildings().empty())
+            return m_player.getBuildings()[0]->getPosition();
+        return {-1.f, -1.f};
+    }
+
+    // Map slot index to signed spread: 0→0, 1→−1, 2→+1, 3→−2, 4→+2, …
+    int spread = (slotIndex == 0) ? 0
+               : (slotIndex % 2 == 1) ? -((slotIndex + 1) / 2)
+               :  (slotIndex / 2);
+
+    if (m_hasRealChoke) {
+        const float spacing = Constants::TILE_SIZE * 2.f;
+        // Anchor 2 tiles behind the choke (toward own base).
+        sf::Vector2f anchor = m_chokePoint - m_defenseDir * (Constants::TILE_SIZE * 2.f);
+        return anchor + m_defensePerp * (float(spread) * spacing);
+    } else {
+        // Semicircle: spread slots as angles around defensedir.
+        constexpr float PI       = 3.14159265f;
+        constexpr float HALF_ARC = 80.f * PI / 180.f;  // ±80° in radians
+        const float stepRad = HALF_ARC / 8.f;           // 8 slots per side
+        const float radius  = 8.f * Constants::TILE_SIZE;
+        float angle = std::atan2(m_defenseDir.y, m_defenseDir.x)
+                    + float(spread) * stepRad;
+        return m_basePos + sf::Vector2f{
+            std::cos(angle) * radius,
+            std::sin(angle) * radius
+        };
+    }
+}
+
+// ---------------------------------------------------------------------------
+// findTurretLocation
+// Returns a valid build tile for the turretIndex-th turret near the choke.
+// Real choke: perpendicular spread at the choke tile.
+// Open map:   angular spread along the semicircle arc.
+// ---------------------------------------------------------------------------
+sf::Vector2f AIController::findTurretLocation(int turretIndex) {
+    if (!m_defenseReady) computeBaseDefense();
+    if (!m_defenseReady) return findBuildLocation(EntityType::Turret);
+
+    sf::Vector2i tileSize = ResourceManager::getBuildingSize(EntityType::Turret);
+
+    // Map index to signed spread (same pattern as rally slots).
+    auto spreadOf = [](int idx) -> int {
+        if (idx == 0) return 0;
+        return (idx % 2 == 1) ? -((idx + 1) / 2) : (idx / 2);
+    };
+
+    auto tryPlace = [&](sf::Vector2f worldPos) -> sf::Vector2f {
+        sf::Vector2i tile = m_map->worldToTile(worldPos);
+        if (m_map->canPlaceBuilding(tile.x, tile.y, tileSize.x, tileSize.y))
+            return {float(tile.x) * Constants::TILE_SIZE,
+                    float(tile.y) * Constants::TILE_SIZE};
+        return {-1.f, -1.f};
+    };
+
+    if (m_hasRealChoke) {
+        const float spacing = float(tileSize.x) * Constants::TILE_SIZE;
+        for (int attempt = 0; attempt < 24; ++attempt) {
+            int offset = spreadOf(turretIndex + attempt);
+            sf::Vector2f pos = m_chokePoint + m_defensePerp * (float(offset) * spacing);
+            sf::Vector2f result = tryPlace(pos);
+            if (result.x >= 0.f) return result;
+        }
+    } else {
+        constexpr float PI       = 3.14159265f;
+        constexpr float HALF_ARC = 80.f * PI / 180.f;
+        const float stepRad = HALF_ARC / 8.f;
+        const float radius  = 10.f * Constants::TILE_SIZE;
+        float baseAngle = std::atan2(m_defenseDir.y, m_defenseDir.x);
+        for (int attempt = 0; attempt < 24; ++attempt) {
+            int offset = spreadOf(turretIndex + attempt);
+            float angle = baseAngle + float(offset) * stepRad;
+            sf::Vector2f pos = m_basePos + sf::Vector2f{
+                std::cos(angle) * radius,
+                std::sin(angle) * radius
+            };
+            sf::Vector2f result = tryPlace(pos);
+            if (result.x >= 0.f) return result;
+        }
+    }
+
+    return findBuildLocation(EntityType::Turret);
+}
+
+// ---------------------------------------------------------------------------
+// rallyNewCombatUnits
+// Each tick, any non-worker, non-deployed, non-attack-group unit that hasn't
+// been given a rally order yet is moved to the next slot on the defense line.
+// ---------------------------------------------------------------------------
+void AIController::rallyNewCombatUnits() {
+    if (!m_defenseReady) return;
+
+    for (const auto& unit : m_player.getUnits()) {
+        if (!unit->isAlive()) continue;
+        if (unit->getType() == EntityType::Worker) continue;
+        if (m_deployedUnits.find(unit)    != m_deployedUnits.end())    continue;
+        if (m_attackGroupUnits.find(unit) != m_attackGroupUnits.end()) continue;
+        if (m_ralliedUnits.find(unit)     != m_ralliedUnits.end())     continue;
+
+        int slotIndex = m_nextRallySlot % MAX_RALLY_SLOTS;
+        ++m_nextRallySlot;
+
+        sf::Vector2f dest = getDefenseRallySlot(slotIndex);
+        if (dest.x >= 0.f)
+            m_actions->move({std::static_pointer_cast<Entity>(unit)}, dest);
+
+        m_ralliedUnits.insert(unit);
+    }
+
+    // Prune dead units so they don't linger in the set.
+    for (auto it = m_ralliedUnits.begin(); it != m_ralliedUnits.end(); ) {
+        if (!(*it) || !(*it)->isAlive()) it = m_ralliedUnits.erase(it);
+        else ++it;
+    }
+}

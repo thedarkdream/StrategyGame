@@ -484,9 +484,16 @@ void Game::flushPendingEntities() {
 }
 
 void Game::removeEntity(EntityPtr entity) {
+    // Remove from the live list (normal case: entity has already been flushed).
     auto it = std::find(m_allEntities.begin(), m_allEntities.end(), entity);
     if (it != m_allEntities.end()) {
         m_allEntities.erase(it);
+    }
+    // Also purge from the pending buffer in case removal is requested on the
+    // same frame the entity was spawned (before the next flush).
+    auto pit = std::find(m_pendingEntities.begin(), m_pendingEntities.end(), entity);
+    if (pit != m_pendingEntities.end()) {
+        m_pendingEntities.erase(pit);
     }
 }
 

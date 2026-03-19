@@ -145,6 +145,9 @@ void PlayerActions::cancelConstruction(EntityPtr entity) {
         ENTITY_DATA.getMineralCost(building->getType()),
         ENTITY_DATA.getGasCost(building->getType()));
     m_player.clearSelection();
+    // Remove from the player's own building list so countBuildingsOfType and
+    // isDefeated() no longer see this ghost after it leaves the world.
+    m_player.removeBuilding(std::static_pointer_cast<Building>(entity));
     m_game.removeEntity(entity);
 }
 

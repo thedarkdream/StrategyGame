@@ -231,6 +231,12 @@ void MapEditorScreen::buildLayout(sf::Vector2u winSize) {
     y += 32.f;
     m_btnBack = makePanelButton("Back to Menu", { PAD, y }, { IW, 26.f }); y += 34.f;
 
+    m_btnErase = makePanelButton(m_eraseMode ? "[Eraser ON]" : "Eraser",
+                                  { PAD, y }, { IW, 26.f });
+    m_btnErase.selected = m_eraseMode;
+    m_btnErase.shape.setFillColor(m_eraseMode ? sf::Color(160, 50, 50) : COL_BTN_NORMAL);
+    y += 34.f;
+
     makeDivider(m_dividerPalette, y); y += 9.f;
 
     // ---- Tile Palette ------------------------------------------------------
@@ -540,6 +546,7 @@ sf::Vector2i MapEditorScreen::screenToTile(sf::Vector2i pixel) const
 // Entity placement
 // ===========================================================================
 void MapEditorScreen::selectPendingEntity(EntityType type, Team team) {
+    m_eraseMode         = false;
     m_pendingEntityType = type;
     m_pendingTeam       = team;
 
@@ -558,6 +565,33 @@ void MapEditorScreen::selectPendingEntity(EntityType type, Team team) {
 
 void MapEditorScreen::clearPendingEntity() {
     m_pendingEntityType = EntityType::None;
+}
+
+void MapEditorScreen::tryEraseAt(sf::Vector2i pixel) {
+    sf::Vector2i t = screenToTile(pixel);
+    if (t.x < 0) return;
+
+    // Find the first (topmost) entity whose footprint covers tile t
+    auto it = std::find_if(m_placedEntities.begin(), m_placedEntities.end(),
+        [&](const PlacedEntity& pe) {
+            sf::Vector2i ps = ENTITY_DATA.getBuildingTileSize(pe.type);
+            bool inX = (t.x >= pe.tileX && t.x < pe.tileX + ps.x);
+            bool inY = (t.y >= pe.tileY && t.y < pe.tileY + ps.y);
+            return inX && inY;
+        });
+
+    if (it == m_placedEntities.end()) return;
+
+    // Restore underlying tiles to Grass for building/resource footprints
+    const EntityDef* def = ENTITY_DATA.get(it->type);
+    if (def && def->isBuilding() && it->type != EntityType::StartPosition) {
+        sf::Vector2i ps = ENTITY_DATA.getBuildingTileSize(it->type);
+        for (int dy = 0; dy < ps.y; ++dy)
+            for (int dx = 0; dx < ps.x; ++dx)
+                m_map.setTileType(it->tileX + dx, it->tileY + dy, TileType::Grass);
+    }
+
+    m_placedEntities.erase(it);
 }
 
 void MapEditorScreen::tryPlaceEntity(sf::Vector2i pixel) {
@@ -653,6 +687,7 @@ ScreenResult MapEditorScreen::handleEvent(const sf::Event& event) {
         updateButtonHover(m_btnLoad, pm);
         updateButtonHover(m_btnSave, pm);
         updateButtonHover(m_btnBack, pm);
+        updateButtonHover(m_btnErase, pm);
         for (auto& btn : m_bldTeamButtons)  updateButtonHover(btn, pm);
         for (auto& btn : m_unitTeamButtons) updateButtonHover(btn, pm);
 
@@ -775,6 +810,14 @@ ScreenResult MapEditorScreen::handleEvent(const sf::Event& event) {
                 return {};
             }
 
+            // ---- Erase toggle button ---------------------------------------
+            if (btnHit(m_btnErase, pm)) {
+                m_eraseMode = !m_eraseMode;
+                if (m_eraseMode) clearPendingEntity();
+                buildLayout(m_lastWinSize);
+                return {};
+            }
+
             // ---- Building team selector ------------------------------------
             {
                 bool hit = false;
@@ -817,6 +860,7 @@ ScreenResult MapEditorScreen::handleEvent(const sf::Event& event) {
             for (auto& sw : m_swatches) {
                 if (sf::FloatRect(sw.shape.getPosition(), sw.shape.getSize()).contains(pm)) {
                     m_selectedTile = sw.type;
+                    m_eraseMode    = false;
                     clearPendingEntity();
                     for (auto& s : m_swatches)
                         s.shape.setOutlineColor(s.type == m_selectedTile ? COL_SWATCH_SEL : COL_SWATCH_NRM);
@@ -877,7 +921,11 @@ ScreenResult MapEditorScreen::handleEvent(const sf::Event& event) {
 
             // ---- Map interaction -------------------------------------------
             if (inMapArea(mb->position)) {
-                if (m_pendingEntityType != EntityType::None) {
+                if (m_eraseMode) {
+                    tryEraseAt(mb->position);
+                    m_hoveredTile = mb->position;
+                    m_isPainting  = true;   // keep dragging to erase more
+                } else if (m_pendingEntityType != EntityType::None) {
                     tryPlaceEntity(mb->position);
                     m_hoveredTile = mb->position;
                     m_isPainting  = false;   // entity placement is single-click
@@ -895,7 +943,8 @@ ScreenResult MapEditorScreen::handleEvent(const sf::Event& event) {
                 m_panStart       = mb->position;
                 m_panCameraStart = m_camera.getCenter();
             } else {
-                // Right-click on panel: cancel entity placement
+                // Right-click on panel: cancel entity placement and erase mode
+                m_eraseMode = false;
                 clearPendingEntity();
                 buildLayout(m_lastWinSize);
             }
@@ -919,6 +968,9 @@ ScreenResult MapEditorScreen::handleEvent(const sf::Event& event) {
                 m_showLoadPanel = false;
             } else if (m_pendingEntityType != EntityType::None) {
                 clearPendingEntity();
+                buildLayout(m_lastWinSize);
+            } else if (m_eraseMode) {
+                m_eraseMode = false;
                 buildLayout(m_lastWinSize);
             } else if (m_nameActive) {
                 m_nameActive = false;
@@ -1327,6 +1379,7 @@ void MapEditorScreen::renderPanel(sf::RenderWindow& window) {
     };
     drawBtn(m_btnNew);  drawBtn(m_btnLoad);
     drawBtn(m_btnSave); drawBtn(m_btnBack);
+    drawBtn(m_btnErase);
     for (auto& btn : m_bldTeamButtons)  drawBtn(btn);
     for (auto& btn : m_unitTeamButtons) drawBtn(btn);
 
@@ -1412,6 +1465,18 @@ void MapEditorScreen::render(sf::RenderWindow& window) {
                 // Show placement ghost
                 m_placementPreview.setPosition({ wx, wy });
                 window.draw(m_placementPreview);
+            } else if (m_eraseMode) {
+                // Show red erase indicator
+                m_hoverRect.setFillColor(sf::Color(255, 60, 60, 80));
+                m_hoverRect.setOutlineColor(sf::Color(255, 60, 60, 220));
+                m_hoverRect.setPosition({ wx, wy });
+                window.draw(m_hoverRect);
+                // Restore defaults for next frame
+                m_hoverRect.setFillColor(sf::Color(255, 255, 120, 55));
+                m_hoverRect.setOutlineColor(sf::Color(255, 255, 0, 200));
+
+                if (m_isPainting)
+                    tryEraseAt(m_hoveredTile);
             } else {
                 // Show tile hover highlight
                 m_hoverRect.setPosition({ wx, wy });
