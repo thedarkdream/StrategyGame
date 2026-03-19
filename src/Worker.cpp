@@ -8,6 +8,7 @@
 #include "Map.h"
 #include "TextureManager.h"
 #include "SoundManager.h"
+#include "EntityDrawing.h"
 #include "PlayerActions.h"
 #include <cmath>
 #include <limits>
@@ -69,10 +70,10 @@ void Worker::render(sf::RenderTarget& target) {
     }
     
     // Draw selection indicator
-    renderSelectionIndicator(target);
+    EntityDrawing::drawSelectionIndicator(target, *this);
     
     // Draw health bar
-    renderHealthBar(target);
+    EntityDrawing::drawHealthBar(target, *this);
     
     // Draw carried resources indicator
     if (m_carriedResources > 0) {
@@ -497,11 +498,13 @@ void Worker::releaseBuildClaim() {
 }
 
 void Worker::onDeath() {
-    SOUNDS.playSound("units/worker/worker_death.wav", m_position);
+    SoundManager& snd = m_context ? m_context->soundManager() : SOUNDS;
+    snd.playSound("units/worker/worker_death.wav", m_position);
 }
 
-void Worker::onSpawned(IUnitContext* ctx) {
-    if (m_isLocalTeam) SOUNDS.playSound("units/worker/worker_spawn_1.wav", m_position);
+void Worker::onSpawned(IGameContext* ctx) {
+    SoundManager& snd = ctx ? ctx->soundManager() : SOUNDS;
+    if (m_isLocalTeam) snd.playSound("units/worker/worker_spawn_1.wav", m_position);
     if (ctx) {
         EntityPtr base = ctx->findHomeBase(m_team);
         if (base) setHomeBase(base);
@@ -539,6 +542,8 @@ void Worker::playVoiceLine(VoiceAction action, sf::Vector2f position) {
     s_voiceCooldownEnd[idx] = now + duration_cast<steady_clock::duration>(
         duration<float>(cooldownSecs));
 
+    // playVoiceLine is static so we use the global SOUNDS accessor here.
+    // Instance methods (onDeath, onSpawned) prefer m_context->soundManager().
     SOUNDS.playSound(path, position);
 }
 

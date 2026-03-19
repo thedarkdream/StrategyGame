@@ -20,6 +20,8 @@ set(SOURCES
     src/Pathfinder.cpp
     src/TerrainRenderer.cpp
     src/Entity.cpp
+    src/EntityDrawing.cpp
+    src/EditorPanel.cpp
     src/EntityData.cpp
     src/EntityWorld.cpp
     src/Unit.cpp
@@ -63,6 +65,7 @@ set(HEADERS
     include/MenuScreen.h
     include/GameScreen.h
     include/MapEditorScreen.h
+    include/EditorPanel.h
     include/Map.h
     include/Pathfinder.h
     include/TerrainRenderer.h
@@ -81,7 +84,8 @@ set(HEADERS
     include/AIScript.h
     include/Constants.h
     include/Types.h
-    include/IUnitContext.h
+    include/IGameContext.h
+    include/EntityDrawing.h
     include/PlayerActions.h
     include/EntityData.h
     include/ActionBar.h

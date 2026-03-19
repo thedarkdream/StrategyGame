@@ -3,6 +3,7 @@
 #include "Constants.h"
 #include "EffectsManager.h"
 #include "TextureManager.h"
+#include "EntityDrawing.h"
 
 #include <cmath>
 #include <cstdint>
@@ -48,7 +49,7 @@ void Building::takeDamage(int damage) {
         if (wasAlive) {
             // Scale explosion based on building size
             float explosionScale = std::max(m_size.x, m_size.y) / 128.0f;
-            EFFECTS.spawnExplosion(m_position, explosionScale);
+            if (m_context) m_context->effectsManager().spawnExplosion(m_position, explosionScale);
         }
         
         // Buildings don't have death animations, so they are immediately removed
@@ -96,10 +97,10 @@ void Building::render(sf::RenderTarget& target) {
     }
     
     // Draw selection indicator
-    renderSelectionIndicator(target);
+    EntityDrawing::drawSelectionIndicator(target, *this);
     
     // Draw health bar
-    renderHealthBar(target);
+    EntityDrawing::drawHealthBar(target, *this);
 }
 
 void Building::renderPreview(sf::RenderTarget& target, sf::Color tint) {
@@ -143,13 +144,11 @@ void Building::renderPreview(sf::RenderTarget& target, sf::Color tint) {
 
 bool Building::canTrain(EntityType unitType) const {
     if (!isConstructed()) return false;
-    
-    // Check if this building can produce this unit type using ENTITY_DATA
-    if (auto* buildingDef = ENTITY_DATA.getBuildingDef(m_type)) {
+
+    EntityRegistry& reg = m_context ? m_context->entityRegistry() : ENTITY_DATA;
+    if (auto* buildingDef = reg.getBuildingDef(m_type)) {
         for (EntityType produceable : buildingDef->producesUnits) {
-            if (produceable == unitType) {
-                return true;
-            }
+            if (produceable == unitType) return true;
         }
     }
     return false;
@@ -260,7 +259,8 @@ void Building::releaseBuilder() {
 }
 
 float Building::getConstructionTime() const {
-    return ENTITY_DATA.getConstructionTime(m_type);
+    EntityRegistry& reg = m_context ? m_context->entityRegistry() : ENTITY_DATA;
+    return reg.getConstructionTime(m_type);
 }
 
 void Building::updateProduction(float deltaTime) {
@@ -283,7 +283,8 @@ void Building::updateProduction(float deltaTime) {
 }
 
 float Building::getTrainingTime(EntityType unitType) const {
-    return ENTITY_DATA.getTrainingTime(unitType);
+    EntityRegistry& reg = m_context ? m_context->entityRegistry() : ENTITY_DATA;
+    return reg.getTrainingTime(unitType);
 }
 
 sf::Vector2f Building::getSpawnPoint() const {

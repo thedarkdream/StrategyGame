@@ -8,7 +8,7 @@
 #include "PlayerController.h"
 #include "ActionBar.h"
 #include "MapSerializer.h"
-#include "IUnitContext.h"
+#include "IGameContext.h"
 #include "PlayerActions.h"
 #include "GameStatistics.h"
 #include "DebugConsole.h"
@@ -19,7 +19,7 @@
 #include <array>
 #include <string>
 
-class Game : public IUnitContext {
+class Game : public IGameContext {
 public:
     // localPlayerSlot: 0 = human controls Team::Player1,
     //                  1 = human controls Team::Player2, etc.
@@ -56,11 +56,11 @@ public:
     const GameStatistics& getStatistics() const { return m_statistics; }
     int getLocalSlot() const { return m_localSlot; }
     
-    // Entity access
-    const EntityList& getAllEntities() const { return m_world.all(); }
-    EntityPtr getEntityAtPosition(sf::Vector2f position);
-    std::vector<EntityPtr> getEntitiesInRect(sf::FloatRect rect);
-    std::vector<EntityPtr> getEntitiesInRect(sf::FloatRect rect, Team team);
+    // Direct access to the entity world for read-only spatial queries.
+    // Prefer this over individual pass-through helpers on Game.
+    EntityWorld&       getWorld()       { return m_world; }
+    const EntityWorld& getWorld() const { return m_world; }
+
     EntityPtr findNearestEnemy(sf::Vector2f pos, float radius, Team excludeTeam) override;
     EntityPtr findPriorityEnemy(sf::Vector2f pos, float radius, Team excludeTeam) override;
     EntityPtr findNearestResource(sf::Vector2f pos, float radius) override;
@@ -70,8 +70,6 @@ public:
     // Collision
     bool checkPositionBlocked(sf::Vector2f pos, float radius, Entity* excludeSelf) override;
     sf::Vector2f findFreePosition(sf::Vector2f pos, float radius, float maxSearchRadius, Entity* excludeSelf) override;
-    sf::Vector2f findSpawnPosition(sf::Vector2f origin, float unitRadius);
-    sf::Vector2f findNearestFreePosition(sf::Vector2f pos, float radius, int maxRings, Entity* excludeSelf);
     std::vector<RVONeighbor> getNearbyUnitsRVO(sf::Vector2f pos, float radius, Unit* excludeSelf) override;
     
     // Entity management
@@ -84,6 +82,11 @@ public:
     void depositResources(Team team, int amount) override;
     void notifyUnitProduced(EntityType unitType, Building* sourceBuilding) override;
     void refundProductionCost(EntityType unitType, Team team) override;
+
+    // IGameContext service accessors
+    EntityRegistry& entityRegistry() override;
+    EffectsManager& effectsManager() override;
+    SoundManager&   soundManager()   override;
     
     // Per-player action dispatcher (one per occupied slot)
     PlayerActions& getActions()           { return *m_actions[m_localSlot]; }
@@ -95,7 +98,6 @@ public:
     // For workers carrying minerals: return to base, then auto-gather again.
     void issueReturnCargoCommand();
     void issueBuildCommand(EntityType buildingType, sf::Vector2f position, bool append = false);
-    void issueContinueBuildCommand(EntityPtr building, bool append = false);
     void cancelBuildingConstruction(EntityPtr building);
     void setRallyPoint(sf::Vector2f position, EntityPtr target = nullptr);
     
@@ -138,6 +140,9 @@ private:
     // Creates, wires up, and adds a unit to the world. Returns the new unit.
     UnitPtr spawnAndSetupUnit(EntityType type, Team team, sf::Vector2f pos,
                               Building* sourceBuilding);
+    // Spawn position helpers (internal — used only within Game.cpp)
+    sf::Vector2f findSpawnPosition(sf::Vector2f origin, float unitRadius);
+    sf::Vector2f findNearestFreePosition(sf::Vector2f pos, float radius, int maxRings, Entity* excludeSelf);
 
     // Helper: find the Player slot that owns entities of the given Team
     Player* getPlayerByTeam(Team t);

@@ -120,6 +120,11 @@ void Game::initialize() {
     for (int i = 0; i < playerCount; ++i)
         m_players[i] = std::make_unique<Player>(teamFromIndex(i), startingRes);
 
+    // Wire each player to the entity world so getUnits()/getBuildings() work
+    // without maintaining a separate per-player entity list.
+    for (int i = 0; i < MAX_PLAYERS; ++i)
+        if (m_players[i]) m_players[i]->setWorld(&m_world);
+
     // Initialize statistics for each active player slot
     for (int i = 0; i < playerCount; ++i) {
         m_statistics.setPlayerActive(i, teamFromIndex(i));
@@ -178,20 +183,15 @@ void Game::cleanupDeadEntities() {
     EntityList removed = m_world.extractRemovable();
     for (const auto& entity : removed) {
         Team killerTeam = entity->getLastAttackerTeam();
-        Player* owner   = getPlayerByTeam(entity->getTeam());
 
         if (entity->asUnit()) {
             m_statistics.recordUnitDestroyed(entity->getTeam(), killerTeam);
-            if (owner)
-                owner->removeUnit(std::static_pointer_cast<Unit>(entity));
         } else if (entity->asBuilding()) {
             m_statistics.recordBuildingDestroyed(entity->getTeam(), killerTeam);
-            sf::Vector2i bSize = ResourceManager::getBuildingSize(entity->getType());
+            sf::Vector2i bSize = ENTITY_DATA.getBuildingTileSize(entity->getType());
             sf::Vector2i tile  = MathUtil::buildingTileOrigin(
                 entity->getPosition(), bSize, Constants::TILE_SIZE);
             m_map.removeBuilding(tile.x, tile.y, bSize.x, bSize.y);
-            if (owner)
-                owner->removeBuilding(std::static_pointer_cast<Building>(entity));
         }
     }
 
@@ -215,18 +215,6 @@ void Game::checkVictoryConditions() {
             m_state = GameState::Victory;
         }
     }
-}
-
-EntityPtr Game::getEntityAtPosition(sf::Vector2f position) {
-    return m_world.getAt(position);
-}
-
-std::vector<EntityPtr> Game::getEntitiesInRect(sf::FloatRect rect) {
-    return m_world.getInRect(rect);
-}
-
-std::vector<EntityPtr> Game::getEntitiesInRect(sf::FloatRect rect, Team team) {
-    return m_world.getInRect(rect, team);
 }
 
 EntityPtr Game::findNearestEnemy(sf::Vector2f pos, float radius, Team excludeTeam) {
@@ -433,17 +421,19 @@ void Game::spawnUnitFromBuilding(EntityType type, Team team, Building* sourceBui
         // slot spacing = 2 * unitRadius + small gap, mirrors formationSpacing()
         const float slotSpacing = 2.0f * unitRadius + 8.0f;
 
+        // Use EntityDef flags rather than comparing against concrete EntityType values.
+        const UnitDef* unitDef = ENTITY_DATA.getUnitDef(type);
+        const bool canGather = unitDef && unitDef->canGather;
+
         if (rallyTarget && rallyTarget->isAlive()) {
             // Rally to entity
-            if (type == EntityType::Worker) {
-                // Workers gather from resources
-                if (rallyTarget->getType() == EntityType::MineralPatch || 
-                    rallyTarget->getType() == EntityType::GasGeyser) {
+            if (canGather) {
+                // Gatherers auto-gather from resource nodes, otherwise just move
+                if (rallyTarget->isResource()) {
                     if (auto* worker = unit->asWorker()) {
                         worker->gather(rallyTarget);
                     }
                 } else {
-                    // Move to the target
                     unit->moveTo(rallyTarget->getPosition());
                 }
             } else {
@@ -454,7 +444,7 @@ void Game::spawnUnitFromBuilding(EntityType type, Team team, Building* sourceBui
             // Rally to position — spread units into formation slots to avoid
             // the entire queue piling up and shaking at one point.
             sf::Vector2f slot = computeRallySlot(rallyPoint, slotSpacing);
-            if (type == EntityType::Worker) {
+            if (canGather) {
                 unit->moveTo(rallyPoint + slot);
             } else {
                 unit->attackMoveTo(rallyPoint + slot);
@@ -481,37 +471,20 @@ UnitPtr Game::spawnAndSetupUnit(EntityType type, Team team, sf::Vector2f pos,
     unit->setIsLocalTeam(m_players[m_localSlot] && team == m_players[m_localSlot]->getTeam());
     unit->onSpawned(this);
 
-    if (Player* p = getPlayerByTeam(team))
-        p->addUnit(unit);
-
     m_statistics.recordUnitCreated(team);
     addEntity(unit);
     return unit;
 }
 
 EntityPtr Game::spawnBuilding(EntityType type, Team team, sf::Vector2f position, bool startComplete) {
-    BuildingPtr building;
-    
-    switch (type) {
-        case EntityType::Base:
-            building = ResourceManager::createBuilding(EntityType::Base, team, position);
-            break;
-        case EntityType::Barracks:
-            building = ResourceManager::createBuilding(EntityType::Barracks, team, position);
-            break;
-        case EntityType::Refinery:
-            building = ResourceManager::createBuilding(EntityType::Refinery, team, position);
-            break;
-        case EntityType::Factory:
-            building = ResourceManager::createBuilding(EntityType::Factory, team, position);
-            break;
-        case EntityType::Turret:
-            building = ResourceManager::createBuilding(EntityType::Turret, team, position);
-            break;
-        default:
-            return nullptr;
-    }
-    
+    // Validate via registry — only spawn types that are actually defined as buildings.
+    const EntityDef* def = ENTITY_DATA.get(type);
+    if (!def || !def->isBuilding() || def->isResource())
+        return nullptr;
+
+    BuildingPtr building = ResourceManager::createBuilding(type, team, position);
+    if (!building) return nullptr;
+
     if (building) {
         // Set construction state based on parameter
         if (!startComplete) {
@@ -520,17 +493,14 @@ EntityPtr Game::spawnBuilding(EntityType type, Team team, sf::Vector2f position,
         
         // Inject context so every building can perform spatial queries,
         // spawn projectiles, and notify the game of produced/cancelled units
-        // through the same IUnitContext interface that Unit uses.
+        // through the same IGameContext interface that Unit uses.
         building->setContext(this);
         
         // Place on map
-        sf::Vector2i buildingSize = ResourceManager::getBuildingSize(type);
+        sf::Vector2i buildingSize = ENTITY_DATA.getBuildingTileSize(type);
         sf::Vector2i tile = MathUtil::buildingTileOrigin(position, buildingSize, Constants::TILE_SIZE);
         m_map.placeBuilding(tile.x, tile.y, buildingSize.x, buildingSize.y);
         
-        if (Player* p = getPlayerByTeam(team)) {
-            p->addBuilding(building);
-        }
         building->setIsLocalTeam(m_players[m_localSlot] && team == m_players[m_localSlot]->getTeam());
         
         // Record building creation in statistics (only for player-constructed buildings, not map setup)
@@ -550,8 +520,12 @@ void Game::notifyUnitProduced(EntityType unitType, Building* sourceBuilding) {
 
 void Game::refundProductionCost(EntityType unitType, Team team) {
     if (Player* p = getPlayerByTeam(team))
-        p->addResources(ResourceManager::getMineralCost(unitType), 0);
+        p->addResources(ENTITY_DATA.getMineralCost(unitType), 0);
 }
+
+EntityRegistry& Game::entityRegistry() { return ENTITY_DATA; }
+EffectsManager& Game::effectsManager() { return EFFECTS; }
+SoundManager&   Game::soundManager()   { return SOUNDS; }
 
 void Game::spawnProjectile(EntityPtr source, EntityPtr target, int damage, float speed) {
     if (!source || !target || !target->isAlive()) return;
@@ -587,10 +561,6 @@ void Game::issueBuildCommand(EntityType buildingType, sf::Vector2f position, boo
         }
     }
     getActions().constructBuilding(buildingType, position, selectedWorker, append);
-}
-
-void Game::issueContinueBuildCommand(EntityPtr building, bool append) {
-    getActions().continueConstruction(building, getPlayer().getSelection(), append);
 }
 
 void Game::cancelBuildingConstruction(EntityPtr building) {

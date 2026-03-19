@@ -22,9 +22,4 @@ public:
     
     // Resource node creation
     static ResourceNodePtr createResourceNode(EntityType type, sf::Vector2f position);
-    
-    // Cost lookups (now delegate to EntityRegistry)
-    static int getMineralCost(EntityType type);
-    static int getGasCost(EntityType type);
-    static sf::Vector2i getBuildingSize(EntityType type);
 };

@@ -3,8 +3,8 @@
 #include "Player.h"
 #include "Worker.h"
 #include "Building.h"
-#include "ResourceManager.h"
 #include "EntityData.h"
+#include "EffectsManager.h"
 #include "Constants.h"
 #include "MathUtil.h"
 #include <limits>
@@ -69,7 +69,7 @@ bool PlayerActions::trainUnit(BuildingPtr building, EntityType type) {
 }
 
 bool PlayerActions::constructBuilding(EntityType type, sf::Vector2f worldPos, Worker* worker, bool append) {
-    int mineralCost = ResourceManager::getMineralCost(type);
+    int mineralCost = ENTITY_DATA.getMineralCost(type);
     if (!m_player.canAfford(mineralCost, 0)) return false;
 
     // Dependency check
@@ -82,7 +82,7 @@ bool PlayerActions::constructBuilding(EntityType type, sf::Vector2f worldPos, Wo
     }
 
     // Placement check
-    sf::Vector2i tileSize = ResourceManager::getBuildingSize(type);
+    sf::Vector2i tileSize = ENTITY_DATA.getBuildingTileSize(type);
     int tileX = static_cast<int>(worldPos.x / Constants::TILE_SIZE);
     int tileY = static_cast<int>(worldPos.y / Constants::TILE_SIZE);
     if (!m_game.getMap().canPlaceBuilding(tileX, tileY, tileSize.x, tileSize.y))
@@ -140,7 +140,7 @@ void PlayerActions::cancelConstruction(EntityPtr entity) {
 
     building->releaseBuilder();
 
-    sf::Vector2i bSize = ResourceManager::getBuildingSize(building->getType());
+    sf::Vector2i bSize = ENTITY_DATA.getBuildingTileSize(building->getType());
     sf::Vector2i tile = MathUtil::buildingTileOrigin(building->getPosition(), bSize, Constants::TILE_SIZE);
     m_game.getMap().removeBuilding(tile.x, tile.y, bSize.x, bSize.y);
 
@@ -148,9 +148,6 @@ void PlayerActions::cancelConstruction(EntityPtr entity) {
         ENTITY_DATA.getMineralCost(building->getType()),
         ENTITY_DATA.getGasCost(building->getType()));
     m_player.clearSelection();
-    // Remove from the player's own building list so countBuildingsOfType and
-    // isDefeated() no longer see this ghost after it leaves the world.
-    m_player.removeBuilding(std::static_pointer_cast<Building>(entity));
     m_game.removeEntity(entity);
 }
 
@@ -280,6 +277,61 @@ void PlayerActions::stop(const std::vector<EntityPtr>& units) {
         if (auto* u = e->asUnit()) u->stop();
 }
 
+void PlayerActions::issueSmartRightClick(sf::Vector2f worldPos, EntityPtr target, bool append) {
+    PlayerCommandScope scope(m_isLocal);
+    if (!m_player.hasSelection()) return;
+
+    const auto& sel = m_player.getSelection();
+
+    // Determine whether the entire selection is production buildings.
+    bool allBuildings = true;
+    bool hasProductionBuilding = false;
+    for (const auto& entity : sel) {
+        if (!entity->asBuilding()) { allBuildings = false; break; }
+        if (auto* bldgDef = ENTITY_DATA.getBuildingDef(entity->getType()))
+            if (bldgDef->canProduce()) hasProductionBuilding = true;
+    }
+
+    if (allBuildings && hasProductionBuilding) {
+        m_game.setRallyPoint(worldPos, target);
+        return;
+    }
+
+    if (target) {
+        if (target->getTeam() != m_player.getTeam() &&
+            target->getTeam() != Team::Neutral) {
+            // Attack enemy
+            attack(sel, target, append);
+        } else if (auto* def = ENTITY_DATA.get(target->getType());
+                   def && def->isResource()) {
+            // Gather resources
+            gather(sel, target, append);
+        } else if (auto* bldg = target->asBuilding()) {
+            if (!bldg->isConstructed() && target->getTeam() == m_player.getTeam()) {
+                // Continue construction
+                continueConstruction(target, sel, append);
+            } else if (bldg->isConstructed() &&
+                       target->getTeam() == m_player.getTeam() &&
+                       target->getType() == EntityType::Base) {
+                // Return carried resources to base
+                m_game.issueReturnCargoCommand();
+            } else {
+                // Move to the building's location (own completed non-Base building)
+                move(sel, worldPos, append);
+            }
+        } else if (target->asUnit() && target->getTeam() == m_player.getTeam()) {
+            // Follow allied unit
+            follow(sel, target, append);
+        } else {
+            move(sel, worldPos, append);
+        }
+    } else {
+        // Empty ground — move
+        if (m_isLocal) EFFECTS.spawnMoveEffect(worldPos, 1.0f);
+        move(sel, worldPos, append);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Private helpers
 // ---------------------------------------------------------------------------
@@ -287,7 +339,7 @@ void PlayerActions::stop(const std::vector<EntityPtr>& units) {
 Worker* PlayerActions::findNearestIdleWorker(sf::Vector2f pos) const {
     Worker* best = nullptr;
     float   bestDist = std::numeric_limits<float>::max();
-    for (const auto& entity : m_game.getAllEntities()) {
+    for (const auto& entity : m_game.getWorld().all()) {
         if (!entity || !entity->isAlive()) continue;
         if (entity->getTeam() != m_player.getTeam()) continue;
         if (entity->getType() != EntityType::Worker) continue;

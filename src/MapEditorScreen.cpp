@@ -11,60 +11,17 @@
 #include <set>
 
 // ---------------------------------------------------------------------------
-// Palette / colour tables
+// Local colour used only by the map-area background
 // ---------------------------------------------------------------------------
 namespace {
-
-struct TileInfo { TileType type; sf::Color color; const char* name; };
-constexpr TileInfo TILE_INFOS[] = {
-    { TileType::Grass,  sf::Color(34, 139, 34), "Grass"  },
-    { TileType::Water,  sf::Color(30,  80, 160), "Water" },
-};
-constexpr int NUM_TILE_INFOS = 2;
-
-// Neutral entity definitions (no team)
-struct NeutralInfo { EntityType type; const char* name; sf::Color color; };
-constexpr NeutralInfo NEUTRAL_INFOS[] = {
-    { EntityType::MineralPatch, "Minerals", sf::Color( 80, 160, 255) },
-    { EntityType::GasGeyser,    "Geyser",   sf::Color( 60, 200, 120) },
-};
-constexpr int NUM_NEUTRAL = 2;
-
-// Building entity definitions
-struct EntInfo { EntityType type; const char* name; };
-constexpr EntInfo BUILDING_INFOS[] = {
-    { EntityType::Base,     "Base"     },
-    { EntityType::Barracks, "Barracks" },
-    { EntityType::Refinery, "Refinery" },
-    { EntityType::Factory,  "Factory"  },
-    { EntityType::Turret,   "Turret"   },
-};
-constexpr int NUM_BUILDINGS = 5;
-
-constexpr EntInfo UNIT_INFOS[] = {
-    { EntityType::Worker,    "Worker"    },
-    { EntityType::Soldier,   "Soldier"   },
-    { EntityType::Brute,     "Brute"     },
-    { EntityType::LightTank, "LightTank" },
-};
-constexpr int NUM_UNITS = 4;
-
-// Panel colour palette
-const sf::Color COL_PANEL_BG      = sf::Color( 40,  44,  52);
-const sf::Color COL_MAP_BG        = sf::Color( 15,  17,  22);
-const sf::Color COL_DIVIDER       = sf::Color( 70,  75,  85);
-const sf::Color COL_LABEL         = sf::Color(150, 155, 165);
-const sf::Color COL_TITLE_TXT     = sf::Color(220, 225, 235);
-const sf::Color COL_BTN_NORMAL    = sf::Color( 60,  65,  75);
-const sf::Color COL_BTN_HOVER     = sf::Color( 80,  90, 110);
-const sf::Color COL_BTN_SEL       = sf::Color( 55,  90, 160);
-const sf::Color COL_BTN_OUTLINE   = sf::Color( 90,  95, 105);
-const sf::Color COL_INPUT_BG      = sf::Color( 28,  31,  38);
-const sf::Color COL_SELECTED      = sf::Color( 80, 140, 255);
-const sf::Color COL_SWATCH_SEL    = sf::Color(255, 220,  50);
-const sf::Color COL_SWATCH_NRM    = sf::Color( 70,  75,  85);
-const sf::Color COL_ITEM_SEL_OUT  = sf::Color(255, 220,  50);
-
+const sf::Color COL_MAP_BG      = sf::Color( 15,  17,  22);
+const sf::Color COL_BTN_NORMAL  = sf::Color( 60,  65,  75);
+const sf::Color COL_BTN_HOVER   = sf::Color( 80,  90, 110);
+const sf::Color COL_BTN_SEL     = sf::Color( 55,  90, 160);
+const sf::Color COL_BTN_OUTLINE = sf::Color( 90,  95, 105);
+const sf::Color COL_TITLE_TXT   = sf::Color(220, 225, 235);
+const sf::Color COL_LABEL       = sf::Color(150, 155, 165);
+const sf::Color COL_DIVIDER     = sf::Color( 70,  75,  85);
 } // namespace
 
 // ===========================================================================
@@ -91,186 +48,38 @@ void MapEditorScreen::onEnter() {
 }
 
 // ===========================================================================
-// Panel layout helpers
+// Panel state / rebuild
 // ===========================================================================
-void MapEditorScreen::makeDivider(sf::RectangleShape& div, float y) {
-    div.setPosition({ 0.f, y - m_panelScrollY });
-    div.setSize({ PANEL_WIDTH, 1.f });
-    div.setFillColor(COL_DIVIDER);
+EditorPanel::State MapEditorScreen::makePanelState() const {
+    EditorPanel::State s;
+    s.mapW         = m_mapW;
+    s.mapH         = m_mapH;
+    s.playerCount  = m_mapPlayerCount;
+    s.mapName      = m_mapName;
+    s.nameActive   = m_nameActive;
+    s.eraseMode    = m_eraseMode;
+    s.pendingType  = m_pendingEntityType;
+    s.pendingTeam  = m_pendingTeam;
+    s.bldTeam      = m_bldTeam;
+    s.unitTeam     = m_unitTeam;
+    s.selectedTile = m_selectedTile;
+    s.scrollY      = m_panelScrollY;
+    s.font         = m_font;
+    return s;
 }
 
-void MapEditorScreen::makeSectionLabel(std::optional<sf::Text>& lbl,
-                                       const std::string& text, float y)
-{
-    if (!m_font) return;
-    lbl.emplace(*m_font, text, 11u);
-    lbl->setFillColor(COL_LABEL);
-    lbl->setPosition({ 10.f, y - m_panelScrollY });
+void MapEditorScreen::rebuildPanel() {
+    m_panel.rebuild(makePanelState(), m_lastWinSize);
 }
 
-MapEditorScreen::PanelButton MapEditorScreen::makePanelButton(
-    const std::string& text, sf::Vector2f pos, sf::Vector2f size,
-    unsigned int fontSize)
-{
-    PanelButton btn;
-    sf::Vector2f scrolledPos = { pos.x, pos.y - m_panelScrollY };
-    btn.shape.setPosition(scrolledPos);
-    btn.shape.setSize(size);
-    btn.shape.setFillColor(COL_BTN_NORMAL);
-    btn.shape.setOutlineColor(COL_BTN_OUTLINE);
-    btn.shape.setOutlineThickness(1.f);
-
-    if (m_font) {
-        btn.label.emplace(*m_font, text, fontSize);
-        btn.label->setFillColor(COL_TITLE_TXT);
-        sf::FloatRect lb = btn.label->getLocalBounds();
-        btn.label->setOrigin({ lb.position.x + lb.size.x * 0.5f,
-                               lb.position.y + lb.size.y * 0.5f });
-        btn.label->setPosition({ scrolledPos.x + size.x * 0.5f,
-                                  scrolledPos.y + size.y * 0.5f });
-    }
-    return btn;
-}
-
-MapEditorScreen::EntityItem MapEditorScreen::makeEntityItem(
-    EntityType type, sf::Vector2f pos, sf::Vector2f size)
-{
-    EntityItem item;
-    item.type = type;
-    sf::Vector2f scrolledPos = { pos.x, pos.y - m_panelScrollY };
-    item.shape.setPosition(scrolledPos);
-    item.shape.setSize(size);
-    item.shape.setFillColor(COL_BTN_NORMAL);
-    item.shape.setOutlineColor(COL_SWATCH_NRM);
-    item.shape.setOutlineThickness(2.f);
-
-    if (m_font) {
-        std::string abbr = ENTITY_DATA.getShortName(type);
-        item.abbrev.emplace(*m_font, abbr, 14u);
-        item.abbrev->setFillColor(COL_TITLE_TXT);
-        item.abbrev->setStyle(sf::Text::Bold);
-        sf::FloatRect ab = item.abbrev->getLocalBounds();
-        item.abbrev->setOrigin({ ab.position.x + ab.size.x * 0.5f,
-                                  ab.position.y + ab.size.y * 0.5f });
-        item.abbrev->setPosition({ scrolledPos.x + size.x * 0.5f,
-                                    scrolledPos.y + size.y * 0.5f - 6.f });
-
-        std::string name = ENTITY_DATA.getName(type);
-        if (name.size() > 8) name = name.substr(0, 8);
-        item.label.emplace(*m_font, name, 9u);
-        item.label->setFillColor(COL_LABEL);
-        sf::FloatRect lb = item.label->getLocalBounds();
-        item.label->setOrigin({ lb.position.x + lb.size.x * 0.5f, 0.f });
-        item.label->setPosition({ scrolledPos.x + size.x * 0.5f,
-                                   scrolledPos.y + size.y - 14.f });
-    }
-    return item;
-}
-
-// ---------------------------------------------------------------------------
-// Build the full panel layout. y tracks content position (unscrolled).
-// ---------------------------------------------------------------------------
+// ===========================================================================
+// Layout
+// ===========================================================================
 void MapEditorScreen::buildLayout(sf::Vector2u winSize) {
     const bool firstTime = (m_lastWinSize.x == 0 && m_lastWinSize.y == 0);
 
-    const float PW  = PANEL_WIDTH;
-    const float PAD = 10.f;
-    const float IW  = PW - PAD * 2.f;
-    float y = 0.f;
+    m_panel.rebuild(makePanelState(), winSize);
 
-    m_panelBg.setPosition({ 0.f, 0.f });
-    m_panelBg.setSize({ PW, static_cast<float>(winSize.y) });
-    m_panelBg.setFillColor(COL_PANEL_BG);
-
-    // ---- Title bar ---------------------------------------------------------
-    if (m_font) {
-        m_lblTitle.emplace(*m_font, "MAP EDITOR", 15u);
-        m_lblTitle->setFillColor(COL_TITLE_TXT);
-        m_lblTitle->setStyle(sf::Text::Bold);
-        sf::FloatRect lb = m_lblTitle->getLocalBounds();
-        m_lblTitle->setOrigin({ lb.position.x + lb.size.x * 0.5f,
-                                lb.position.y + lb.size.y * 0.5f });
-        m_lblTitle->setPosition({ PW * 0.5f, 18.f });
-    }
-    y = 38.f;
-
-    makeDivider(m_divider1, y); y += 9.f;
-
-    // ---- Properties --------------------------------------------------------
-    makeSectionLabel(m_lblProps, "PROPERTIES", y); y += 18.f;
-    makeSectionLabel(m_lblName,  "Map Name",   y); y += 16.f;
-
-    m_nameBox.setPosition({ PAD, y - m_panelScrollY });
-    m_nameBox.setSize({ IW, 24.f });
-    m_nameBox.setFillColor(COL_INPUT_BG);
-    m_nameBox.setOutlineColor(m_nameActive ? COL_SELECTED : COL_DIVIDER);
-    m_nameBox.setOutlineThickness(1.f);
-
-    if (m_font) {
-        m_nameText.emplace(*m_font, m_mapName, 13u);
-        m_nameText->setFillColor(COL_TITLE_TXT);
-        m_nameText->setPosition({ PAD + 4.f, y + 5.f - m_panelScrollY });
-    }
-    y += 30.f;
-
-    if (m_font) {
-        std::string sz = "Size:  " + std::to_string(m_mapW) + " x " +
-                         std::to_string(m_mapH) + "  tiles";
-        m_lblSize.emplace(*m_font, sz, 12u);
-        m_lblSize->setFillColor(COL_LABEL);
-        m_lblSize->setPosition({ PAD, y - m_panelScrollY });
-    }
-    y += 22.f;
-
-    {
-        float bW = (IW - 8.f) / 3.f, bH = 26.f;
-        m_btnNew  = makePanelButton("New",  { PAD,                   y }, { bW, bH });
-        m_btnLoad = makePanelButton("Load", { PAD + bW + 4.f,        y }, { bW, bH });
-        m_btnSave = makePanelButton("Save", { PAD + 2.f*(bW + 4.f),  y }, { bW, bH });
-    }
-    y += 32.f;
-    m_btnBack = makePanelButton("Back to Menu", { PAD, y }, { IW, 26.f }); y += 34.f;
-
-    m_btnErase = makePanelButton(m_eraseMode ? "[Eraser ON]" : "Eraser",
-                                  { PAD, y }, { IW, 26.f });
-    m_btnErase.selected = m_eraseMode;
-    m_btnErase.shape.setFillColor(m_eraseMode ? sf::Color(160, 50, 50) : COL_BTN_NORMAL);
-    y += 34.f;
-
-    makeDivider(m_dividerPalette, y); y += 9.f;
-
-    // ---- Tile Palette ------------------------------------------------------
-    makeSectionLabel(m_lblPalette, "TILE PALETTE", y); y += 20.f;
-    buildTileSwatches(y);
-
-    makeDivider(m_dividerNeutral, y); y += 9.f;
-
-    // ---- Neutral entities --------------------------------------------------
-    makeSectionLabel(m_lblNeutral, "NEUTRAL", y); y += 20.f;
-    buildNeutralItems(y);
-
-    makeDivider(m_dividerStartPos, y); y += 9.f;
-
-    // ---- Start positions ---------------------------------------------------
-    makeSectionLabel(m_lblStartPos, "START POSITIONS", y); y += 20.f;
-    buildStartPosItems(y);
-
-    makeDivider(m_dividerBuildings, y); y += 9.f;
-
-    // ---- Buildings ---------------------------------------------------------
-    makeSectionLabel(m_lblBuildings, "BUILDINGS", y); y += 20.f;
-    buildBuildingItems(y);
-
-    makeDivider(m_dividerUnits, y); y += 9.f;
-
-    // ---- Units -------------------------------------------------------------
-    makeSectionLabel(m_lblUnits, "UNITS", y); y += 20.f;
-    buildUnitItems(y);
-
-    y += 10.f;
-    m_panelContentH = y;
-
-    // ---- Camera ------------------------------------------------------------
     updateCameraViewport(winSize);
     if (firstTime) {
         resetCamera(winSize);
@@ -283,175 +92,6 @@ void MapEditorScreen::buildLayout(sf::Vector2u winSize) {
             m_camera.setSize({ newAreaW * wpp, newAreaH * wpp });
         }
     }
-}
-
-void MapEditorScreen::buildTileSwatches(float& y) {
-    m_swatches.clear();
-    const float PAD = 10.f, SW = 56.f, SH = 68.f, GAP = 8.f;
-    for (int i = 0; i < NUM_TILE_INFOS; ++i) {
-        const auto& info = TILE_INFOS[i];
-        int col = i % 4, row = i / 4;
-        float x = PAD + col * (SW + GAP);
-        float sy = y + row * (SH + GAP);
-
-        TileSwatch sw;
-        sw.type = info.type;
-        sw.baseColor = info.color;
-        sw.name = info.name;
-        sw.shape.setPosition({ x, sy - m_panelScrollY });
-        sw.shape.setSize({ SW, SH });
-        sw.shape.setFillColor(info.color);
-        sw.shape.setOutlineThickness(2.f);
-        sw.shape.setOutlineColor(info.type == m_selectedTile ? COL_SWATCH_SEL : COL_SWATCH_NRM);
-        if (m_font) {
-            sw.label.emplace(*m_font, info.name, 9u);
-            sw.label->setFillColor(sf::Color::White);
-            sf::FloatRect lb = sw.label->getLocalBounds();
-            sw.label->setOrigin({ lb.position.x + lb.size.x * 0.5f, 0.f });
-            sw.label->setPosition({ x + SW * 0.5f, sy + SH - 15.f - m_panelScrollY });
-        }
-        m_swatches.push_back(std::move(sw));
-    }
-    int rows = (NUM_TILE_INFOS + 3) / 4;
-    y += rows * (SH + GAP) + 4.f;
-}
-
-void MapEditorScreen::buildNeutralItems(float& y) {
-    m_neutralItems.clear();
-    const float PAD = 10.f, IW = PANEL_WIDTH - PAD * 2.f;
-    const float SW = 56.f, SH = 60.f, GAP = 8.f;
-    for (int i = 0; i < NUM_NEUTRAL; ++i) {
-        const auto& info = NEUTRAL_INFOS[i];
-        int col = i % 4, row = i / 4;
-        float x = PAD + col * (SW + GAP);
-        float sy = y + row * (SH + GAP);
-
-        EntityItem item = makeEntityItem(info.type, { x, sy }, { SW, SH });
-        item.shape.setFillColor(info.color * sf::Color(100, 100, 100, 255));
-        item.shape.setOutlineColor(
-            (m_pendingEntityType == info.type && m_pendingTeam == Team::Neutral)
-            ? COL_ITEM_SEL_OUT : COL_SWATCH_NRM);
-        m_neutralItems.push_back(std::move(item));
-    }
-    int rows = (NUM_NEUTRAL + 3) / 4;
-    y += rows * (SH + GAP) + 4.f;
-    (void)IW;
-}
-
-void MapEditorScreen::buildStartPosItems(float& y) {
-    m_startPosItems.clear();
-    const float PAD = 10.f;
-    const float SW = 56.f, SH = 60.f, GAP = 8.f;
-
-    for (int i = 0; i < m_mapPlayerCount; ++i) {
-        Team team = teamFromIndex(i);
-        int col = i % 4, row = i / 4;
-        float x = PAD + col * (SW + GAP);
-        float sy = y + row * (SH + GAP);
-
-        EntityItem item = makeEntityItem(EntityType::StartPosition, { x, sy }, { SW, SH });
-
-        // Tint with team colour
-        sf::Color tc = teamColor(team);
-        item.shape.setFillColor(sf::Color(tc.r, tc.g, tc.b, 130));
-        bool isSelected = (m_pendingEntityType == EntityType::StartPosition && m_pendingTeam == team);
-        item.shape.setOutlineColor(isSelected ? COL_ITEM_SEL_OUT : COL_SWATCH_NRM);
-
-        // Override label to "Player N"
-        if (m_font) {
-            std::string lbl = "Plr " + std::to_string(i + 1);
-            item.label.emplace(*m_font, lbl, 9u);
-            item.label->setFillColor(sf::Color(200, 210, 220));
-            sf::FloatRect lb = item.label->getLocalBounds();
-            item.label->setOrigin({ lb.position.x + lb.size.x * 0.5f, 0.f });
-            item.label->setPosition({ x + SW * 0.5f, sy + SH - 14.f - m_panelScrollY });
-        }
-
-        m_startPosItems.push_back(std::move(item));
-    }
-
-    int rows = (m_mapPlayerCount + 3) / 4;
-    y += rows * (SH + GAP) + 4.f;
-}
-
-void MapEditorScreen::buildBuildingItems(float& y) {
-    m_buildingItems.clear();
-    const float PAD = 10.f, IW = PANEL_WIDTH - PAD * 2.f;
-    const float BH = 24.f, SW = 56.f, SH = 60.f, GAP = 8.f;
-
-    // Team selector — dynamic
-    m_bldTeamButtons.clear();
-    {
-        const float BGAP = 4.f;
-        float bW = (IW - BGAP * (m_mapPlayerCount - 1)) / m_mapPlayerCount;
-        unsigned int fs = (m_mapPlayerCount <= 3) ? 13u : 11u;
-        for (int i = 0; i < m_mapPlayerCount; ++i) {
-            Team t = teamFromIndex(i);
-            float bx = PAD + i * (bW + BGAP);
-            std::string lbl = "Player " + std::to_string(i + 1);
-            PanelButton btn = makePanelButton(lbl, { bx, y }, { bW, BH }, fs);
-            btn.selected = (m_bldTeam == t);
-            btn.shape.setFillColor(m_bldTeam == t ? COL_BTN_SEL : COL_BTN_NORMAL);
-            m_bldTeamButtons.push_back(std::move(btn));
-        }
-    }
-    y += BH + 6.f;
-
-    for (int i = 0; i < NUM_BUILDINGS; ++i) {
-        const auto& info = BUILDING_INFOS[i];
-        int col = i % 4, row = i / 4;
-        float x = PAD + col * (SW + GAP);
-        float sy = y + row * (SH + GAP);
-
-        EntityItem item = makeEntityItem(info.type, { x, sy }, { SW, SH });
-        item.shape.setOutlineColor(
-            (m_pendingEntityType == info.type && m_pendingTeam == m_bldTeam)
-            ? COL_ITEM_SEL_OUT : COL_SWATCH_NRM);
-        m_buildingItems.push_back(std::move(item));
-    }
-    int rows = (NUM_BUILDINGS + 3) / 4;
-    y += rows * (SH + GAP) + 4.f;
-    (void)IW;
-}
-
-void MapEditorScreen::buildUnitItems(float& y) {
-    m_unitItems.clear();
-    const float PAD = 10.f, IW = PANEL_WIDTH - PAD * 2.f;
-    const float BH = 24.f, SW = 56.f, SH = 60.f, GAP = 8.f;
-
-    // Team selector — dynamic
-    m_unitTeamButtons.clear();
-    {
-        const float BGAP = 4.f;
-        float bW = (IW - BGAP * (m_mapPlayerCount - 1)) / m_mapPlayerCount;
-        unsigned int fs = (m_mapPlayerCount <= 3) ? 13u : 11u;
-        for (int i = 0; i < m_mapPlayerCount; ++i) {
-            Team t = teamFromIndex(i);
-            float bx = PAD + i * (bW + BGAP);
-            std::string lbl = "Player " + std::to_string(i + 1);
-            PanelButton btn = makePanelButton(lbl, { bx, y }, { bW, BH }, fs);
-            btn.selected = (m_unitTeam == t);
-            btn.shape.setFillColor(m_unitTeam == t ? COL_BTN_SEL : COL_BTN_NORMAL);
-            m_unitTeamButtons.push_back(std::move(btn));
-        }
-    }
-    y += BH + 6.f;
-
-    for (int i = 0; i < NUM_UNITS; ++i) {
-        const auto& info = UNIT_INFOS[i];
-        int col = i % 4, row = i / 4;
-        float x = PAD + col * (SW + GAP);
-        float sy = y + row * (SH + GAP);
-
-        EntityItem item = makeEntityItem(info.type, { x, sy }, { SW, SH });
-        item.shape.setOutlineColor(
-            (m_pendingEntityType == info.type && m_pendingTeam == m_unitTeam)
-            ? COL_ITEM_SEL_OUT : COL_SWATCH_NRM);
-        m_unitItems.push_back(std::move(item));
-    }
-    int rows = (NUM_UNITS + 3) / 4;
-    y += rows * (SH + GAP) + 4.f;
-    (void)IW;
 }
 
 // ===========================================================================
@@ -500,24 +140,39 @@ void MapEditorScreen::buildGridLines() {
 }
 
 // ===========================================================================
-// UI hit-testing helpers
+// UI hit-testing helpers (dialog buttons only)
 // ===========================================================================
+bool MapEditorScreen::btnHit(const PanelButton& btn, sf::Vector2f pm) {
+    return sf::FloatRect(btn.shape.getPosition(), btn.shape.getSize()).contains(pm);
+}
+
 void MapEditorScreen::updateButtonHover(PanelButton& btn, sf::Vector2f pm) {
     btn.hovered = btnHit(btn, pm);
     if (!btn.selected)
         btn.shape.setFillColor(btn.hovered ? COL_BTN_HOVER : COL_BTN_NORMAL);
 }
 
-void MapEditorScreen::updateEntityItemHover(EntityItem& item, sf::Vector2f pm) {
-    item.hovered = itemHit(item, pm);
-}
+MapEditorScreen::PanelButton MapEditorScreen::makePanelButton(
+    const std::string& text, sf::Vector2f pos, sf::Vector2f size,
+    unsigned int fontSize)
+{
+    PanelButton btn;
+    btn.shape.setPosition(pos);
+    btn.shape.setSize(size);
+    btn.shape.setFillColor(COL_BTN_NORMAL);
+    btn.shape.setOutlineColor(COL_BTN_OUTLINE);
+    btn.shape.setOutlineThickness(1.f);
 
-bool MapEditorScreen::btnHit(const PanelButton& btn, sf::Vector2f pm) const {
-    return sf::FloatRect(btn.shape.getPosition(), btn.shape.getSize()).contains(pm);
-}
-
-bool MapEditorScreen::itemHit(const EntityItem& item, sf::Vector2f pm) const {
-    return sf::FloatRect(item.shape.getPosition(), item.shape.getSize()).contains(pm);
+    if (m_font) {
+        btn.label.emplace(*m_font, text, fontSize);
+        btn.label->setFillColor(COL_TITLE_TXT);
+        sf::FloatRect lb = btn.label->getLocalBounds();
+        btn.label->setOrigin({ lb.position.x + lb.size.x * 0.5f,
+                               lb.position.y + lb.size.y * 0.5f });
+        btn.label->setPosition({ pos.x + size.x * 0.5f,
+                                  pos.y + size.y * 0.5f });
+    }
+    return btn;
 }
 
 bool MapEditorScreen::inMapArea(sf::Vector2i px) const {
@@ -550,9 +205,7 @@ void MapEditorScreen::selectPendingEntity(EntityType type, Team team) {
     m_pendingEntityType = type;
     m_pendingTeam       = team;
 
-    // Size the preview based on tile footprint
     sf::Vector2i tileSize = ENTITY_DATA.getBuildingTileSize(type);
-    // For units, tileSize comes back {1,1} which is fine
     float pw = static_cast<float>(tileSize.x * Constants::TILE_SIZE);
     float ph = static_cast<float>(tileSize.y * Constants::TILE_SIZE);
     m_placementPreview.setSize({ pw, ph });
@@ -571,7 +224,6 @@ void MapEditorScreen::tryEraseAt(sf::Vector2i pixel) {
     sf::Vector2i t = screenToTile(pixel);
     if (t.x < 0) return;
 
-    // Find the first (topmost) entity whose footprint covers tile t
     auto it = std::find_if(m_placedEntities.begin(), m_placedEntities.end(),
         [&](const PlacedEntity& pe) {
             sf::Vector2i ps = ENTITY_DATA.getBuildingTileSize(pe.type);
@@ -582,7 +234,6 @@ void MapEditorScreen::tryEraseAt(sf::Vector2i pixel) {
 
     if (it == m_placedEntities.end()) return;
 
-    // Restore underlying tiles to Grass for building/resource footprints
     const EntityDef* def = ENTITY_DATA.get(it->type);
     if (def && def->isBuilding() && it->type != EntityType::StartPosition) {
         sf::Vector2i ps = ENTITY_DATA.getBuildingTileSize(it->type);
@@ -600,11 +251,9 @@ void MapEditorScreen::tryPlaceEntity(sf::Vector2i pixel) {
     if (t.x < 0) return;
 
     sf::Vector2i tileSize = ENTITY_DATA.getBuildingTileSize(m_pendingEntityType);
-    // Bounds check
     if (t.x + tileSize.x > m_mapW || t.y + tileSize.y > m_mapH) return;
 
     if (m_pendingEntityType == EntityType::StartPosition) {
-        // Start positions are pure markers — only remove the same-team existing one
         m_placedEntities.erase(
             std::remove_if(m_placedEntities.begin(), m_placedEntities.end(),
                 [&](const PlacedEntity& pe) {
@@ -612,7 +261,6 @@ void MapEditorScreen::tryPlaceEntity(sf::Vector2i pixel) {
                 }),
             m_placedEntities.end());
     } else {
-        // Remove any overlapping game entity (leave start-position markers alone)
         m_placedEntities.erase(
             std::remove_if(m_placedEntities.begin(), m_placedEntities.end(),
                 [&](const PlacedEntity& pe) {
@@ -627,7 +275,6 @@ void MapEditorScreen::tryPlaceEntity(sf::Vector2i pixel) {
 
     m_placedEntities.push_back({ m_pendingEntityType, m_pendingTeam, t.x, t.y });
 
-    // Mark building tiles on map; start positions and units leave tiles as-is
     const EntityDef* def = ENTITY_DATA.get(m_pendingEntityType);
     if (def && def->isBuilding() && m_pendingEntityType != EntityType::StartPosition) {
         TileType tt = def->isResource() ? TileType::Resource : TileType::Building;
@@ -642,17 +289,15 @@ void MapEditorScreen::tryPlaceEntity(sf::Vector2i pixel) {
 // ===========================================================================
 ScreenResult MapEditorScreen::handleEvent(const sf::Event& event) {
 
-    // Convert raw pixel to "panel-scrolled" space for UI hit tests
     auto panelMouse = [&](sf::Vector2i px) -> sf::Vector2f {
-        return { static_cast<float>(px.x),
-                 static_cast<float>(px.y) };  // panel widgets already scrolled
+        return { static_cast<float>(px.x), static_cast<float>(px.y) };
     };
 
     // ---- Resize ------------------------------------------------------------
     if (const auto* r = event.getIf<sf::Event::Resized>()) {
         sf::Vector2u ns = r->size;
         m_panelScrollY = std::min(m_panelScrollY,
-            std::max(0.f, m_panelContentH - static_cast<float>(ns.y)));
+            std::max(0.f, m_panel.contentHeight() - static_cast<float>(ns.y)));
         buildLayout(ns);
         m_lastWinSize = ns;
         return {};
@@ -661,12 +306,11 @@ ScreenResult MapEditorScreen::handleEvent(const sf::Event& event) {
     // ---- Mouse wheel (scroll panel OR zoom map) ----------------------------
     if (const auto* mw = event.getIf<sf::Event::MouseWheelScrolled>()) {
         if (!inMapArea(mw->position)) {
-            // Scroll panel
-            float maxScroll = std::max(0.f,
-                m_panelContentH - static_cast<float>(m_lastWinSize.y));
-            m_panelScrollY = std::clamp(m_panelScrollY - mw->delta * 20.f,
-                                        0.f, maxScroll);
-            buildLayout(m_lastWinSize);
+            auto ev = m_panel.handleScroll(mw->delta, static_cast<float>(m_lastWinSize.y));
+            if (auto* sc = std::get_if<EditorPanel::EvScrollChanged>(&ev)) {
+                m_panelScrollY = sc->newScrollY;
+                rebuildPanel();
+            }
         } else {
             float factor = (mw->delta > 0) ? 0.85f : 1.18f;
             sf::Vector2f ns = m_camera.getSize() * factor;
@@ -683,13 +327,7 @@ ScreenResult MapEditorScreen::handleEvent(const sf::Event& event) {
     if (const auto* mm = event.getIf<sf::Event::MouseMoved>()) {
         sf::Vector2f pm = panelMouse(mm->position);
 
-        updateButtonHover(m_btnNew,  pm);
-        updateButtonHover(m_btnLoad, pm);
-        updateButtonHover(m_btnSave, pm);
-        updateButtonHover(m_btnBack, pm);
-        updateButtonHover(m_btnErase, pm);
-        for (auto& btn : m_bldTeamButtons)  updateButtonHover(btn, pm);
-        for (auto& btn : m_unitTeamButtons) updateButtonHover(btn, pm);
+        m_panel.handleHover(pm);
 
         if (m_showNewMapDialog) {
             for (auto& btn : m_newMapSizeButtons) updateButtonHover(btn, pm);
@@ -697,12 +335,6 @@ ScreenResult MapEditorScreen::handleEvent(const sf::Event& event) {
             updateButtonHover(m_btnNewMapConfirm, pm);
             updateButtonHover(m_btnNewMapCancel,  pm);
         }
-
-        for (auto& sw   : m_swatches)      { (void)sw; }
-        for (auto& item : m_neutralItems)  updateEntityItemHover(item, pm);
-        for (auto& item : m_startPosItems) updateEntityItemHover(item, pm);
-        for (auto& item : m_buildingItems) updateEntityItemHover(item, pm);
-        for (auto& item : m_unitItems)     updateEntityItemHover(item, pm);
 
         // Camera pan (right-drag)
         if (m_isPanning && m_lastWinSize.x > 0) {
@@ -780,155 +412,92 @@ ScreenResult MapEditorScreen::handleEvent(const sf::Event& event) {
                         return {};
                     }
                 }
-                // Click outside overlay dismisses it
                 sf::FloatRect ovr(m_loadOverlayBg.getPosition(), m_loadOverlayBg.getSize());
                 if (!ovr.contains(pm)) m_showLoadPanel = false;
                 return {};
             }
 
-            // ---- File / navigation buttons ---------------------------------
-            if (btnHit(m_btnBack, pm)) return { ScreenResult::Action::BackToMenu, "" };
-            if (btnHit(m_btnNew,  pm)) {
-                buildNewMapDialog(m_lastWinSize);
-                m_showNewMapDialog = true;
-                return {};
-            }
-            if (btnHit(m_btnLoad, pm)) {
-                refreshLoadPanel(m_lastWinSize);
-                m_showLoadPanel = true;
-                return {};
-            }
-            if (btnHit(m_btnSave, pm)) {
-                bool ok = saveCurrentMap();
-                if (m_font) {
-                    m_statusText.emplace(*m_font,
-                        ok ? "Saved to maps/" + m_mapName + ".stmap" : "Save failed!",
-                        12u);
-                    m_statusText->setFillColor(ok ? sf::Color(80, 220, 80) : sf::Color(220, 80, 80));
-                }
-                m_statusTimer = 4.f;
-                return {};
-            }
-
-            // ---- Erase toggle button ---------------------------------------
-            if (btnHit(m_btnErase, pm)) {
-                m_eraseMode = !m_eraseMode;
-                if (m_eraseMode) clearPendingEntity();
-                buildLayout(m_lastWinSize);
-                return {};
-            }
-
-            // ---- Building team selector ------------------------------------
-            {
-                bool hit = false;
-                for (int i = 0; i < static_cast<int>(m_bldTeamButtons.size()); ++i) {
-                    if (btnHit(m_bldTeamButtons[i], pm)) {
-                        m_bldTeam = teamFromIndex(i);
-                        if (m_pendingEntityType != EntityType::None) {
-                            bool isBld = false;
-                            for (int b = 0; b < NUM_BUILDINGS; ++b)
-                                if (BUILDING_INFOS[b].type == m_pendingEntityType) { isBld = true; break; }
-                            if (isBld) selectPendingEntity(m_pendingEntityType, m_bldTeam);
+            // ---- Delegate to EditorPanel ----------------------------------
+            if (m_panel.isOnPanel(mb->position)) {
+                auto ev = m_panel.handleClick(pm, makePanelState());
+                std::visit([&](auto&& e) {
+                    using T = std::decay_t<decltype(e)>;
+                    if constexpr (std::is_same_v<T, EditorPanel::EvBack>) {
+                        // handled below via return value — set a flag instead
+                        // (cannot return from lambda; handled outside visit)
+                    } else if constexpr (std::is_same_v<T, EditorPanel::EvNew>) {
+                        buildNewMapDialog(m_lastWinSize);
+                        m_showNewMapDialog = true;
+                    } else if constexpr (std::is_same_v<T, EditorPanel::EvLoad>) {
+                        refreshLoadPanel(m_lastWinSize);
+                        m_showLoadPanel = true;
+                    } else if constexpr (std::is_same_v<T, EditorPanel::EvSave>) {
+                        bool ok = saveCurrentMap();
+                        if (m_font) {
+                            m_statusText.emplace(*m_font,
+                                ok ? "Saved to maps/" + m_mapName + ".stmap" : "Save failed!",
+                                12u);
+                            m_statusText->setFillColor(ok ? sf::Color(80,220,80) : sf::Color(220,80,80));
                         }
-                        buildLayout(m_lastWinSize);
-                        hit = true; break;
-                    }
-                }
-                if (hit) return {};
-            }
-
-            // ---- Unit team selector ----------------------------------------
-            {
-                bool hit = false;
-                for (int i = 0; i < static_cast<int>(m_unitTeamButtons.size()); ++i) {
-                    if (btnHit(m_unitTeamButtons[i], pm)) {
-                        m_unitTeam = teamFromIndex(i);
+                        m_statusTimer = 4.f;
+                    } else if constexpr (std::is_same_v<T, EditorPanel::EvEraseToggle>) {
+                        m_eraseMode = !m_eraseMode;
+                        if (m_eraseMode) clearPendingEntity();
+                        rebuildPanel();
+                    } else if constexpr (std::is_same_v<T, EditorPanel::EvSelectTile>) {
+                        m_selectedTile = e.type;
+                        m_eraseMode    = false;
+                        clearPendingEntity();
+                        rebuildPanel();
+                    } else if constexpr (std::is_same_v<T, EditorPanel::EvSelectEntity>) {
+                        selectPendingEntity(e.type, e.team);
+                        rebuildPanel();
+                    } else if constexpr (std::is_same_v<T, EditorPanel::EvCancelEntity>) {
+                        clearPendingEntity();
+                        rebuildPanel();
+                    } else if constexpr (std::is_same_v<T, EditorPanel::EvBldTeamChanged>) {
+                        m_bldTeam = e.team;
+                        // update pending entity team if a building was selected
                         if (m_pendingEntityType != EntityType::None) {
-                            bool isUnit = false;
-                            for (int u = 0; u < NUM_UNITS; ++u)
-                                if (UNIT_INFOS[u].type == m_pendingEntityType) { isUnit = true; break; }
-                            if (isUnit) selectPendingEntity(m_pendingEntityType, m_unitTeam);
+                            const EntityDef* def = ENTITY_DATA.get(m_pendingEntityType);
+                            if (def && def->isBuilding() && m_pendingEntityType != EntityType::StartPosition)
+                                selectPendingEntity(m_pendingEntityType, m_bldTeam);
                         }
-                        buildLayout(m_lastWinSize);
-                        hit = true; break;
+                        rebuildPanel();
+                    } else if constexpr (std::is_same_v<T, EditorPanel::EvUnitTeamChanged>) {
+                        m_unitTeam = e.team;
+                        if (m_pendingEntityType != EntityType::None) {
+                            const EntityDef* def = ENTITY_DATA.get(m_pendingEntityType);
+                            if (def && !def->isBuilding())
+                                selectPendingEntity(m_pendingEntityType, m_unitTeam);
+                        }
+                        rebuildPanel();
+                    } else if constexpr (std::is_same_v<T, EditorPanel::EvNameFocused>) {
+                        m_nameActive = true;
+                        rebuildPanel();
+                    } else if constexpr (std::is_same_v<T, EditorPanel::EvNameUnfocused>) {
+                        m_nameActive = false;
+                        rebuildPanel();
                     }
-                }
-                if (hit) return {};
-            }
+                }, ev);
 
-            // ---- Tile swatches ---------------------------------------------
-            for (auto& sw : m_swatches) {
-                if (sf::FloatRect(sw.shape.getPosition(), sw.shape.getSize()).contains(pm)) {
-                    m_selectedTile = sw.type;
-                    m_eraseMode    = false;
-                    clearPendingEntity();
-                    for (auto& s : m_swatches)
-                        s.shape.setOutlineColor(s.type == m_selectedTile ? COL_SWATCH_SEL : COL_SWATCH_NRM);
-                    return {};
-                }
-            }
+                // Handle EvBack after visit (needs to return from handleEvent)
+                if (std::holds_alternative<EditorPanel::EvBack>(ev))
+                    return { ScreenResult::Action::BackToMenu, "" };
 
-            // ---- Neutral items ---------------------------------------------
-            for (auto& item : m_neutralItems) {
-                if (itemHit(item, pm)) {
-                    bool alreadySel = (m_pendingEntityType == item.type);
-                    clearPendingEntity();
-                    if (!alreadySel) selectPendingEntity(item.type, Team::Neutral);
-                    buildLayout(m_lastWinSize);
-                    return {};
-                }
+                return {};
             }
-
-            // ---- Start position items --------------------------------------
-            for (size_t i = 0; i < m_startPosItems.size(); ++i) {
-                if (itemHit(m_startPosItems[i], pm)) {
-                    Team team = teamFromIndex(static_cast<int>(i));
-                    bool alreadySel = (m_pendingEntityType == EntityType::StartPosition
-                                       && m_pendingTeam == team);
-                    clearPendingEntity();
-                    if (!alreadySel) selectPendingEntity(EntityType::StartPosition, team);
-                    buildLayout(m_lastWinSize);
-                    return {};
-                }
-            }
-
-            // ---- Building items --------------------------------------------
-            for (auto& item : m_buildingItems) {
-                if (itemHit(item, pm)) {
-                    bool alreadySel = (m_pendingEntityType == item.type && m_pendingTeam == m_bldTeam);
-                    clearPendingEntity();
-                    if (!alreadySel) selectPendingEntity(item.type, m_bldTeam);
-                    buildLayout(m_lastWinSize);
-                    return {};
-                }
-            }
-
-            // ---- Unit items ------------------------------------------------
-            for (auto& item : m_unitItems) {
-                if (itemHit(item, pm)) {
-                    bool alreadySel = (m_pendingEntityType == item.type && m_pendingTeam == m_unitTeam);
-                    clearPendingEntity();
-                    if (!alreadySel) selectPendingEntity(item.type, m_unitTeam);
-                    buildLayout(m_lastWinSize);
-                    return {};
-                }
-            }
-
-            // ---- Name box focus --------------------------------------------
-            sf::FloatRect nr(m_nameBox.getPosition(), m_nameBox.getSize());
-            m_nameActive = nr.contains(pm);
-            m_nameBox.setOutlineColor(m_nameActive ? COL_SELECTED : COL_DIVIDER);
 
             // ---- Map interaction -------------------------------------------
             if (inMapArea(mb->position)) {
                 if (m_eraseMode) {
                     tryEraseAt(mb->position);
                     m_hoveredTile = mb->position;
-                    m_isPainting  = true;   // keep dragging to erase more
+                    m_isPainting  = true;
                 } else if (m_pendingEntityType != EntityType::None) {
                     tryPlaceEntity(mb->position);
                     m_hoveredTile = mb->position;
-                    m_isPainting  = false;   // entity placement is single-click
+                    m_isPainting  = false;
                 } else {
                     m_isPainting  = true;
                     m_hoveredTile = mb->position;
@@ -936,17 +505,16 @@ ScreenResult MapEditorScreen::handleEvent(const sf::Event& event) {
             }
         }
 
-            if (mb->button == sf::Mouse::Button::Right) {
+        if (mb->button == sf::Mouse::Button::Right) {
             if (m_showLoadPanel) { m_showLoadPanel = false; return {}; }
             if (inMapArea(mb->position)) {
                 m_isPanning      = true;
                 m_panStart       = mb->position;
                 m_panCameraStart = m_camera.getCenter();
             } else {
-                // Right-click on panel: cancel entity placement and erase mode
                 m_eraseMode = false;
                 clearPendingEntity();
-                buildLayout(m_lastWinSize);
+                rebuildPanel();
             }
         }
         return {};
@@ -968,23 +536,23 @@ ScreenResult MapEditorScreen::handleEvent(const sf::Event& event) {
                 m_showLoadPanel = false;
             } else if (m_pendingEntityType != EntityType::None) {
                 clearPendingEntity();
-                buildLayout(m_lastWinSize);
+                rebuildPanel();
             } else if (m_eraseMode) {
                 m_eraseMode = false;
-                buildLayout(m_lastWinSize);
+                rebuildPanel();
             } else if (m_nameActive) {
                 m_nameActive = false;
-                m_nameBox.setOutlineColor(COL_DIVIDER);
+                rebuildPanel();
             }
         }
         if (m_nameActive) {
             if (kp->code == sf::Keyboard::Key::Backspace && !m_mapName.empty()) {
                 m_mapName.pop_back();
-                if (m_nameText) m_nameText->setString(m_mapName);
+                rebuildPanel();
             }
             if (kp->code == sf::Keyboard::Key::Enter) {
                 m_nameActive = false;
-                m_nameBox.setOutlineColor(COL_DIVIDER);
+                rebuildPanel();
             }
         } else if (m_pendingEntityType == EntityType::None) {
             const float PAN = static_cast<float>(Constants::TILE_SIZE * 3);
@@ -1000,7 +568,7 @@ ScreenResult MapEditorScreen::handleEvent(const sf::Event& event) {
     if (const auto* te = event.getIf<sf::Event::TextEntered>()) {
         if (m_nameActive && te->unicode >= 32u && te->unicode < 127u) {
             m_mapName += static_cast<char>(te->unicode);
-            if (m_nameText) m_nameText->setString(m_mapName);
+            rebuildPanel();
         }
     }
 
@@ -1010,6 +578,17 @@ ScreenResult MapEditorScreen::handleEvent(const sf::Event& event) {
 // ===========================================================================
 // Update
 // ===========================================================================
+ScreenResult MapEditorScreen::update(float dt) {
+    if (m_statusTimer > 0.f) {
+        m_statusTimer -= dt;
+        if (m_statusTimer <= 0.f) {
+            m_statusText.reset();
+            m_statusTimer = 0.f;
+        }
+    }
+    return {};
+}
+
 // ===========================================================================
 // Save / Load helpers
 // ===========================================================================
@@ -1021,11 +600,8 @@ bool MapEditorScreen::saveCurrentMap() {
     data.name   = m_mapName;
     data.width  = m_mapW;
     data.height = m_mapH;
-
-    // Infer playerCount from distinct non-Neutral teams used
     data.playerCount = m_mapPlayerCount;
 
-    // Collect non-default tiles (default = Grass variant 1)
     for (int y = 0; y < m_mapH; ++y) {
         for (int x = 0; x < m_mapW; ++x) {
             const Tile& tile = m_map.getTile(x, y);
@@ -1034,12 +610,10 @@ bool MapEditorScreen::saveCurrentMap() {
         }
     }
 
-    // Collect entities
     for (const auto& pe : m_placedEntities)
         data.entities.push_back({ pe.type, pe.team, pe.tileX, pe.tileY });
 
     std::string stem = m_mapName;
-    // Replace spaces with underscores in filename only
     std::replace(stem.begin(), stem.end(), ' ', '_');
     std::string path = std::string(MAPS_DIR) + "/" + stem + ".stmap";
     return MapSerializer::save(data, path);
@@ -1058,7 +632,6 @@ void MapEditorScreen::applyMapData(const MapData& data) {
     m_mapW          = data.width;
     m_mapH          = data.height;
     m_mapPlayerCount = std::max(2, data.playerCount);
-    // Clamp active teams to what the map supports
     if (teamToIndex(m_bldTeam)  >= m_mapPlayerCount) m_bldTeam  = Team::Player1;
     if (teamToIndex(m_unitTeam) >= m_mapPlayerCount) m_unitTeam = Team::Player1;
 
@@ -1088,9 +661,6 @@ void MapEditorScreen::buildNewMapDialog(sf::Vector2u winSize) {
     const float pad = 16.f;
     const float bH  = 30.f;
     const float gap = 8.f;
-    // m_panelScrollY is used by makePanelButton; compensate by adding it to Y
-    // so the net screen position equals the intended oy+... values.
-    const float sy  = m_panelScrollY;
 
     m_newMapOverlayBg.setPosition({ ox, oy });
     m_newMapOverlayBg.setSize({ ow, oh });
@@ -1116,7 +686,6 @@ void MapEditorScreen::buildNewMapDialog(sf::Vector2u winSize) {
         m_lblNewMapPlayersHdr->setPosition({ ox + pad, oy + pad + 36.f + bH + gap + 20.f });
     }
 
-    // Size preset buttons: 32, 48, 64, 96, 128
     static const int SIZES[] = { 32, 48, 64, 96, 128 };
     constexpr int NUM_SIZES  = 5;
     m_newMapSizeButtons.clear();
@@ -1125,9 +694,9 @@ void MapEditorScreen::buildNewMapDialog(sf::Vector2u winSize) {
         float bw     = (innerW - gap * (NUM_SIZES - 1)) / NUM_SIZES;
         float by     = oy + pad + 54.f;
         for (int i = 0; i < NUM_SIZES; ++i) {
-            float bx    = ox + pad + i * (bw + gap);
-            std::string lbl = std::to_string(SIZES[i]);
-            PanelButton btn = makePanelButton(lbl, { bx, by + sy }, { bw, bH }, 12u);
+            float bx = ox + pad + i * (bw + gap);
+            PanelButton btn = makePanelButton(std::to_string(SIZES[i]),
+                                              { bx, by }, { bw, bH }, 12u);
             bool sel = (m_newMapW == SIZES[i] && m_newMapH == SIZES[i]);
             btn.selected = sel;
             btn.shape.setFillColor(sel ? COL_BTN_SEL : COL_BTN_NORMAL);
@@ -1135,16 +704,15 @@ void MapEditorScreen::buildNewMapDialog(sf::Vector2u winSize) {
         }
     }
 
-    // Player count buttons: 2, 3, 4
     m_newMapPlayerBtns.clear();
     {
         float innerW = ow - pad * 2.f;
         float bw     = (innerW - gap * 2.f) / 3.f;
         float by     = oy + pad + 36.f + bH + gap + 20.f + 18.f;
         for (int i = 2; i <= 4; ++i) {
-            float bx    = ox + pad + (i - 2) * (bw + gap);
-            std::string lbl = std::to_string(i) + " Players";
-            PanelButton btn = makePanelButton(lbl, { bx, by + sy }, { bw, bH }, 12u);
+            float bx = ox + pad + (i - 2) * (bw + gap);
+            PanelButton btn = makePanelButton(std::to_string(i) + " Players",
+                                              { bx, by }, { bw, bH }, 12u);
             bool sel = (m_newMapPlayers == i);
             btn.selected = sel;
             btn.shape.setFillColor(sel ? COL_BTN_SEL : COL_BTN_NORMAL);
@@ -1152,13 +720,14 @@ void MapEditorScreen::buildNewMapDialog(sf::Vector2u winSize) {
         }
     }
 
-    // Confirm / Cancel
     {
         float bw = (ow - pad * 2.f - gap) * 0.5f;
         float by = oy + oh - bH - pad;
-        m_btnNewMapConfirm = makePanelButton("Create", { ox + pad,            by + sy }, { bw, bH });
+        m_btnNewMapConfirm = makePanelButton("Create",
+            { ox + pad, by }, { bw, bH });
         m_btnNewMapConfirm.shape.setFillColor(sf::Color(45, 110, 55));
-        m_btnNewMapCancel  = makePanelButton("Cancel", { ox + pad + bw + gap, by + sy }, { bw, bH });
+        m_btnNewMapCancel  = makePanelButton("Cancel",
+            { ox + pad + bw + gap, by }, { bw, bH });
     }
 }
 
@@ -1212,11 +781,10 @@ void MapEditorScreen::refreshLoadPanel(sf::Vector2u winSize) {
     float hf = static_cast<float>(winSize.y);
     float ow = std::min(400.f, wf - 40.f);
     float bH = 34.f, gap = 8.f, pad = 16.f;
-    float totalH = pad + 32.f + pad   // title
+    float totalH = pad + 32.f + pad
                  + static_cast<float>(m_loadMapFiles.size()) * (bH + gap)
-                 + bH + pad;          // cancel
+                 + bH + pad;
     float oh = std::min(totalH, hf - 40.f);
-
     float ox = (wf - ow) * 0.5f;
     float oy = (hf - oh) * 0.5f;
 
@@ -1255,7 +823,6 @@ void MapEditorScreen::renderLoadOverlay(sf::RenderWindow& window) {
         { static_cast<float>(ws.x), static_cast<float>(ws.y) }));
     window.setView(uiView);
 
-    // Semi-transparent full-screen dim
     sf::RectangleShape dim({ static_cast<float>(ws.x), static_cast<float>(ws.y) });
     dim.setFillColor(sf::Color(0, 0, 0, 160));
     window.draw(dim);
@@ -1281,20 +848,6 @@ void MapEditorScreen::renderLoadOverlay(sf::RenderWindow& window) {
     }
     window.draw(m_btnLoadCancel.shape);
     if (m_btnLoadCancel.label) window.draw(*m_btnLoadCancel.label);
-}
-
-// ===========================================================================
-// Update
-// ===========================================================================
-ScreenResult MapEditorScreen::update(float dt) {
-    if (m_statusTimer > 0.f) {
-        m_statusTimer -= dt;
-        if (m_statusTimer <= 0.f) {
-            m_statusText.reset();
-            m_statusTimer = 0.f;
-        }
-    }
-    return {};
 }
 
 // ===========================================================================
@@ -1334,91 +887,7 @@ void MapEditorScreen::renderPlacedEntities(sf::RenderWindow& window) {
 }
 
 void MapEditorScreen::renderPanel(sf::RenderWindow& window) {
-    sf::Vector2u ws = window.getSize();
-    sf::View uiView(sf::FloatRect({ 0.f, 0.f },
-        { static_cast<float>(ws.x), static_cast<float>(ws.y) }));
-    window.setView(uiView);
-
-    window.draw(m_panelBg);
-    window.draw(m_divider1);
-    window.draw(m_dividerPalette);
-    window.draw(m_dividerNeutral);
-    window.draw(m_dividerStartPos);
-    window.draw(m_dividerBuildings);
-    window.draw(m_dividerUnits);
-
-    if (m_lblTitle)    window.draw(*m_lblTitle);
-    if (m_lblProps)    window.draw(*m_lblProps);
-    if (m_lblName)     window.draw(*m_lblName);
-    if (m_lblSize)     window.draw(*m_lblSize);
-    if (m_lblPalette)  window.draw(*m_lblPalette);
-    if (m_lblNeutral)  window.draw(*m_lblNeutral);
-    if (m_lblStartPos) window.draw(*m_lblStartPos);
-    if (m_lblBuildings)window.draw(*m_lblBuildings);
-    if (m_lblUnits)    window.draw(*m_lblUnits);
-
-    window.draw(m_nameBox);
-    if (m_nameText) window.draw(*m_nameText);
-
-    if (m_nameActive && m_font) {
-        float tw = 0.f;
-        if (m_nameText) {
-            sf::FloatRect lb = m_nameText->getLocalBounds();
-            tw = lb.position.x + lb.size.x;
-        }
-        sf::Text cur(*m_font, "|", 14u);
-        cur.setFillColor(COL_TITLE_TXT);
-        cur.setPosition({ m_nameBox.getPosition().x + 4.f + tw,
-                           m_nameBox.getPosition().y + 4.f });
-        window.draw(cur);
-    }
-
-    auto drawBtn = [&](PanelButton& btn) {
-        window.draw(btn.shape);
-        if (btn.label) window.draw(*btn.label);
-    };
-    drawBtn(m_btnNew);  drawBtn(m_btnLoad);
-    drawBtn(m_btnSave); drawBtn(m_btnBack);
-    drawBtn(m_btnErase);
-    for (auto& btn : m_bldTeamButtons)  drawBtn(btn);
-    for (auto& btn : m_unitTeamButtons) drawBtn(btn);
-
-    for (auto& sw : m_swatches) {
-        window.draw(sw.shape);
-        if (sw.label) window.draw(*sw.label);
-    }
-    for (auto& item : m_neutralItems) {
-        window.draw(item.shape);
-        if (item.abbrev) window.draw(*item.abbrev);
-        if (item.label)  window.draw(*item.label);
-    }
-    for (auto& item : m_startPosItems) {
-        window.draw(item.shape);
-        if (item.abbrev) window.draw(*item.abbrev);
-        if (item.label)  window.draw(*item.label);
-    }
-    for (auto& item : m_buildingItems) {
-        window.draw(item.shape);
-        if (item.abbrev) window.draw(*item.abbrev);
-        if (item.label)  window.draw(*item.label);
-    }
-    for (auto& item : m_unitItems) {
-        window.draw(item.shape);
-        if (item.abbrev) window.draw(*item.abbrev);
-        if (item.label)  window.draw(*item.label);
-    }
-
-    // Scroll indicator if panel overflows
-    float wH = static_cast<float>(ws.y);
-    if (m_panelContentH > wH) {
-        float ratio    = wH / m_panelContentH;
-        float barH     = std::max(20.f, wH * ratio);
-        float barY     = (m_panelScrollY / (m_panelContentH - wH)) * (wH - barH);
-        sf::RectangleShape bar({ 4.f, barH });
-        bar.setPosition({ PANEL_WIDTH - 5.f, barY });
-        bar.setFillColor(COL_DIVIDER);
-        window.draw(bar);
-    }
+    m_panel.render(window);
 }
 
 // ===========================================================================
@@ -1462,23 +931,19 @@ void MapEditorScreen::render(sf::RenderWindow& window) {
             float wy = static_cast<float>(tile.y * Constants::TILE_SIZE);
 
             if (m_pendingEntityType != EntityType::None) {
-                // Show placement ghost
                 m_placementPreview.setPosition({ wx, wy });
                 window.draw(m_placementPreview);
             } else if (m_eraseMode) {
-                // Show red erase indicator
                 m_hoverRect.setFillColor(sf::Color(255, 60, 60, 80));
                 m_hoverRect.setOutlineColor(sf::Color(255, 60, 60, 220));
                 m_hoverRect.setPosition({ wx, wy });
                 window.draw(m_hoverRect);
-                // Restore defaults for next frame
                 m_hoverRect.setFillColor(sf::Color(255, 255, 120, 55));
                 m_hoverRect.setOutlineColor(sf::Color(255, 255, 0, 200));
 
                 if (m_isPainting)
                     tryEraseAt(m_hoveredTile);
             } else {
-                // Show tile hover highlight
                 m_hoverRect.setPosition({ wx, wy });
                 window.draw(m_hoverRect);
 

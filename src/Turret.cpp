@@ -3,6 +3,7 @@
 #include "EntityData.h"
 #include "Constants.h"
 #include "MathUtil.h"
+#include "EntityDrawing.h"
 #include <cmath>
 #include <cstdint>
 #include <string>
@@ -121,6 +122,6 @@ void Turret::render(sf::RenderTarget& target) {
     m_sprite->setPosition(m_position);
     target.draw(*m_sprite);
 
-    renderSelectionIndicator(target);
-    renderHealthBar(target);
+    EntityDrawing::drawSelectionIndicator(target, *this);
+    EntityDrawing::drawHealthBar(target, *this);
 }

@@ -14,7 +14,7 @@ class Unit;
 // Owns the master entity list and provides all spatial queries, collision
 // helpers, and per-frame physics (unit-push-out).
 //
-// Game holds one EntityWorld and delegates IUnitContext's spatial methods to
+// Game holds one EntityWorld and delegates IGameContext's spatial methods to
 // it. Nothing here knows about Players, Statistics, Map, or game rules —
 // it is a pure geometric/structural view of every live entity.
 // ---------------------------------------------------------------------------

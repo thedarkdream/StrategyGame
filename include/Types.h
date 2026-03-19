@@ -117,7 +117,7 @@ struct Command {
 };
 
 // Data for RVO (Reciprocal Velocity Obstacles) collision avoidance.
-// Defined here so IUnitContext can reference it without pulling in Unit.h.
+// Defined here so IGameContext can reference it without pulling in Unit.h.
 struct RVONeighbor {
     sf::Vector2f position;
     sf::Vector2f velocity;

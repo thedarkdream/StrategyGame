@@ -92,7 +92,7 @@ void Renderer::renderGhosts(Game& game) {
     const Map&      map = game.getMap();
 
     // Pass A: alive resource nodes (always in pre-fog, fog handles darkening)
-    for (const auto& entity : game.getAllEntities()) {
+    for (const auto& entity : game.getWorld().all()) {
         if (!entity) continue;
         if (!entity->asResourceNode()) continue;
         if (entity->isAlive() || entity->isDying()) {
@@ -154,7 +154,7 @@ void Renderer::renderEntities(Game& game) {
     const Map&      map  = game.getMap();
     const Team      myTeam = game.getPlayer().getTeam();
 
-    for (const auto& entity : game.getAllEntities()) {
+    for (const auto& entity : game.getWorld().all()) {
         if (!entity) continue;
         if (!entity->isAlive() && !entity->isDying()) continue;
 

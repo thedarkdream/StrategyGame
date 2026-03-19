@@ -7,7 +7,6 @@
 #include "Worker.h"
 #include "Building.h"
 #include "Map.h"
-#include "ResourceManager.h"
 #include "EntityData.h"
 #include "Constants.h"
 #include "MathUtil.h"
@@ -351,7 +350,7 @@ void AIController::checkAndRespondToAttack(float deltaTime) {
     // --- Find the nearest enemy unit to the triggered position -------------
     sf::Vector2f attackerPos = triggerPos;
     float bestDist = std::numeric_limits<float>::max();
-    for (const auto& entity : m_game.getAllEntities()) {
+    for (const auto& entity : m_game.getWorld().all()) {
         if (!entity || !entity->isAlive()) continue;
         if (entity->getTeam() == myTeam || entity->getTeam() == Team::Neutral) continue;
         if (!entity->asUnit()) continue;
@@ -375,16 +374,20 @@ void AIController::checkAndRespondToAttack(float deltaTime) {
 }
 
 void AIController::manageIdleWorkers() {
-    // Pre-collect mineral patches once so we don't re-scan all entities per worker.
+    // Pre-collect gatherable resource nodes once so we don't re-scan all entities per worker.
     std::vector<EntityPtr> minerals;
-    for (const auto& entity : m_game.getAllEntities()) {
-        if (entity && entity->isAlive() && entity->getType() == EntityType::MineralPatch)
+    for (const auto& entity : m_game.getWorld().all()) {
+        if (!entity || !entity->isAlive()) continue;
+        const EntityDef* def = ENTITY_DATA.get(entity->getType());
+        if (def && def->isResource())
             minerals.push_back(entity);
     }
     if (minerals.empty()) return;
 
     for (auto& unit : m_player.getUnits()) {
-        if (unit->getType() != EntityType::Worker || !unit->isIdle()) continue;
+        const EntityDef* unitDef = ENTITY_DATA.get(unit->getType());
+        if (!unitDef || !unitDef->unit || !unitDef->unit->canGather) continue;
+        if (!unit->isIdle()) continue;
 
         EntityPtr nearest;
         float nearestDist = std::numeric_limits<float>::max();
@@ -538,32 +541,15 @@ void AIController::processBuildQueue() {
 }
 
 BuildingPtr AIController::findBuildingForUnit(EntityType unitType) {
-    // Find the building type that produces this unit
-    EntityType buildingType = EntityType::None;
-    
-    switch (unitType) {
-        case EntityType::Worker:
-            buildingType = EntityType::Base;
-            break;
-        case EntityType::Soldier:
-        case EntityType::Brute:
-            buildingType = EntityType::Barracks;
-            break;
-        case EntityType::LightTank:
-            buildingType = EntityType::Factory;
-            break;
-        default:
-            return nullptr;
-    }
-    
-    // Find an idle building of that type
+    // Find an idle, completed building whose EntityDef lists unitType as producible.
     for (auto& building : m_player.getBuildings()) {
-        if (building->getType() == buildingType && 
-            building->isConstructed() && !building->isProducing()) {
+        if (!building->isConstructed() || building->isProducing()) continue;
+        const EntityDef* def = ENTITY_DATA.get(building->getType());
+        if (!def || !def->isBuilding()) continue;
+        const auto& produces = def->building->producesUnits;
+        if (std::find(produces.begin(), produces.end(), unitType) != produces.end())
             return building;
-        }
     }
-    
     return nullptr;
 }
 
@@ -600,17 +586,17 @@ sf::Vector2f AIController::findBuildLocation(EntityType buildingType) {
         return sf::Vector2f(-1, -1);
 
     sf::Vector2f basePos = m_player.getBuildings()[0]->getPosition();
-    sf::Vector2i buildingSize = ResourceManager::getBuildingSize(buildingType);
+    sf::Vector2i buildingSize = ENTITY_DATA.getBuildingTileSize(buildingType);
     int baseTileX = static_cast<int>(basePos.x / Constants::TILE_SIZE);
     int baseTileY = static_cast<int>(basePos.y / Constants::TILE_SIZE);
 
     // Compute the average direction from the base toward nearby mineral patches
     sf::Vector2f mineralDir(0.f, 0.f);
     int mineralCount = 0;
-    for (const auto& entity : m_game.getAllEntities()) {
+    for (const auto& entity : m_game.getWorld().all()) {
         if (!entity || !entity->isAlive()) continue;
-        if (entity->getType() == EntityType::MineralPatch ||
-            entity->getType() == EntityType::GasGeyser) {
+        const EntityDef* resDef = ENTITY_DATA.get(entity->getType());
+        if (resDef && resDef->isResource()) {
             float dist = MathUtil::distance(entity->getPosition(), basePos);
             if (dist < 700.f) {
                 sf::Vector2f d = entity->getPosition() - basePos;
@@ -661,7 +647,9 @@ Worker* AIController::findIdleWorker() {
     // Prefer a truly idle worker; fall back to any worker not actively building.
     Worker* fallback = nullptr;
     for (const auto& unit : m_player.getUnits()) {
-        if (unit->getType() != EntityType::Worker || !unit->isAlive()) continue;
+        if (!unit->isAlive()) continue;
+        const EntityDef* def = ENTITY_DATA.get(unit->getType());
+        if (!def || !def->unit || !def->unit->canBuild) continue;
         Worker* w = unit->asWorker();
         if (!w || w->isBuilding()) continue;
         if (w->isIdle()) return w;
@@ -681,7 +669,7 @@ Team AIController::pickEnemyTeam() {
         if (std::find(v.begin(), v.end(), t) == v.end()) v.push_back(t);
     };
 
-    for (const auto& entity : m_game.getAllEntities()) {
+    for (const auto& entity : m_game.getWorld().all()) {
         if (!entity || !entity->isAlive()) continue;
         if (entity->getTeam() == myTeam || entity->getTeam() == Team::Neutral) continue;
         if (!entity->asBuilding()) continue;
@@ -707,7 +695,7 @@ sf::Vector2f AIController::findEnemyBuildingOfTeam(Team team) {
     std::vector<sf::Vector2f> targets;
     bool foundBase = false;
 
-    for (const auto& entity : m_game.getAllEntities()) {
+    for (const auto& entity : m_game.getWorld().all()) {
         if (!entity || !entity->isAlive()) continue;
         if (entity->getTeam() != team) continue;
         if (!entity->asBuilding()) continue;
@@ -876,7 +864,7 @@ sf::Vector2f AIController::findTurretLocation(int turretIndex) {
     if (!m_defenseReady) computeBaseDefense();
     if (!m_defenseReady) return findBuildLocation(EntityType::Turret);
 
-    sf::Vector2i tileSize = ResourceManager::getBuildingSize(EntityType::Turret);
+    sf::Vector2i tileSize = ENTITY_DATA.getBuildingTileSize(EntityType::Turret);
 
     // Map index to signed spread (same pattern as rally slots).
     auto spreadOf = [](int idx) -> int {
@@ -930,7 +918,10 @@ void AIController::rallyNewCombatUnits() {
 
     for (const auto& unit : m_player.getUnits()) {
         if (!unit->isAlive()) continue;
-        if (unit->getType() == EntityType::Worker) continue;
+        {
+            const EntityDef* def = ENTITY_DATA.get(unit->getType());
+            if (!def || !def->unit || !def->unit->isCombatUnit) continue;
+        }
         if (m_deployedUnits.find(unit)    != m_deployedUnits.end())    continue;
         if (m_attackGroupUnits.find(unit) != m_attackGroupUnits.end()) continue;
         if (m_ralliedUnits.find(unit)     != m_ralliedUnits.end())     continue;

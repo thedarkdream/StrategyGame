@@ -21,6 +21,7 @@ public:
     EntityType getType() const { return m_type; }
     Team getTeam() const { return m_team; }
     sf::Vector2f getPosition() const { return m_position; }
+    sf::Vector2f getSize()     const { return m_size; }
     sf::FloatRect getBounds() const;
     int getHealth() const { return m_health; }
     int getMaxHealth() const { return m_maxHealth; }
@@ -54,7 +55,11 @@ public:
     // Target highlight (blinking indicator when entity is targeted by a command)
     void startHighlight(float duration = 3.0f);
     void updateHighlight(float deltaTime);
-    bool isHighlighted() const { return m_highlightTimeRemaining > 0.0f; }
+    bool isHighlighted()          const { return m_highlightTimeRemaining > 0.0f; }
+    // True during the "visible" half-period of the blink cycle.
+    bool isHighlightBlinkVisible() const {
+        return m_highlightBlinkTimer < (HIGHLIGHT_BLINK_PERIOD * 0.5f);
+    }
     
     // Combat
     virtual void takeDamage(int damage);
@@ -104,8 +109,6 @@ protected:
     bool m_hasSprite = false;
     
     void updateShape();
-    void renderHealthBar(sf::RenderTarget& target);
-    void renderSelectionIndicator(sf::RenderTarget& target);
     
     // Animation helpers
     void loadAnimations(const std::string& basePath);  // e.g., "units/worker"

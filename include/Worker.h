@@ -32,7 +32,7 @@ public:
     EntityPtr getBuildTarget() const { return m_buildTarget.lock(); }
     
     void onDeath() override;
-    void onSpawned(IUnitContext* ctx) override;
+    void onSpawned(IGameContext* ctx) override;
     void onSelected() override;
 
     // Workers are not collidable when gathering (to allow stacking at resources)

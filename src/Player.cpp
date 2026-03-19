@@ -3,12 +3,38 @@
 #include "Building.h"
 #include "Entity.h"
 #include "Map.h"
+#include "EntityWorld.h"
 #include <algorithm>
 
 Player::Player(Team team, const Resources& startingResources)
     : m_team(team)
     , m_resources(startingResources)
 {
+}
+
+// ---------------------------------------------------------------------------
+// Entity sets — computed live from EntityWorld filtered by team
+// ---------------------------------------------------------------------------
+UnitList Player::getUnits() const {
+    UnitList result;
+    if (!m_world) return result;
+    for (const auto& e : m_world->all()) {
+        if (!e || !e->isAlive() || e->getTeam() != m_team) continue;
+        if (auto u = std::dynamic_pointer_cast<Unit>(e))
+            result.push_back(u);
+    }
+    return result;
+}
+
+BuildingList Player::getBuildings() const {
+    BuildingList result;
+    if (!m_world) return result;
+    for (const auto& e : m_world->all()) {
+        if (!e || !e->isAlive() || e->getTeam() != m_team) continue;
+        if (auto b = std::dynamic_pointer_cast<Building>(e))
+            result.push_back(b);
+    }
+    return result;
 }
 
 void Player::addResources(int minerals, int gas) {
@@ -28,40 +54,6 @@ bool Player::spendResources(int minerals, int gas) {
 
 bool Player::canAfford(int minerals, int gas) const {
     return m_resources.minerals >= minerals && m_resources.gas >= gas;
-}
-
-void Player::addUnit(UnitPtr unit) {
-    m_units.push_back(unit);
-}
-
-void Player::addBuilding(BuildingPtr building) {
-    m_buildings.push_back(building);
-}
-
-void Player::removeUnit(UnitPtr unit) {
-    auto it = std::find(m_units.begin(), m_units.end(), unit);
-    if (it != m_units.end()) {
-        m_units.erase(it);
-    }
-    
-    // Also remove from selection
-    auto selIt = std::find(m_selection.begin(), m_selection.end(), unit);
-    if (selIt != m_selection.end()) {
-        m_selection.erase(selIt);
-    }
-}
-
-void Player::removeBuilding(BuildingPtr building) {
-    auto it = std::find(m_buildings.begin(), m_buildings.end(), building);
-    if (it != m_buildings.end()) {
-        m_buildings.erase(it);
-    }
-    
-    // Also remove from selection
-    auto selIt = std::find(m_selection.begin(), m_selection.end(), building);
-    if (selIt != m_selection.end()) {
-        m_selection.erase(selIt);
-    }
 }
 
 void Player::clearSelection() {
@@ -91,9 +83,23 @@ void Player::selectEntities(const std::vector<EntityPtr>& entities) {
     }
 }
 
+// ---------------------------------------------------------------------------
 bool Player::isDefeated() const {
-    // Defeated if no buildings and no units
-    return m_buildings.empty() && m_units.empty();
+    // Defeated when no alive buildings and no alive units in the world.
+    if (!m_world) return false;
+    for (const auto& e : m_world->all()) {
+        if (!e || !e->isAlive() || e->getTeam() != m_team) continue;
+        if (e->asUnit() || e->asBuilding()) return false;
+    }
+    return true;
+}
+
+int Player::getUnitCount() const {
+    return static_cast<int>(getUnits().size());
+}
+
+int Player::getBuildingCount() const {
+    return static_cast<int>(getBuildings().size());
 }
 
 void Player::update(float deltaTime) {
@@ -125,17 +131,17 @@ EntityPtr Player::getFirstOwnedSelectedEntity() const {
 }
 
 bool Player::hasCompletedBuilding(EntityType type) const {
-    for (const auto& building : m_buildings) {
-        if (building && building->isAlive() && 
-            building->getType() == type && building->isConstructed()) {
-            return true;
-        }
+    if (!m_world) return false;
+    for (const auto& e : m_world->all()) {
+        if (!e || !e->isAlive() || e->getTeam() != m_team) continue;
+        const Building* b = e->asBuilding();
+        if (b && b->getType() == type && b->isConstructed()) return true;
     }
     return false;
 }
 
 void Player::updateFog(const Map& map, const EntityList& allEntities) {
-    m_fog.update(m_units, m_buildings, map);
+    m_fog.update(getUnits(), getBuildings(), map);
     m_fog.recordGhosts(allEntities, map);
     m_fog.rebuildTexture();
 }

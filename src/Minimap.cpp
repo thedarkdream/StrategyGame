@@ -107,7 +107,7 @@ void Minimap::render(sf::RenderTarget& target, const Game& game, const sf::View&
     const Team myTeam = game.getPlayer().getTeam();
 
     // ---- Live entity dots --------------------------------------------------
-    for (const auto& entity : game.getAllEntities()) {
+    for (const auto& entity : game.getWorld().all()) {
         if (!entity || !entity->isAlive()) continue;
 
         // Hide enemy units outside current vision.

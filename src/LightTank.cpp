@@ -2,6 +2,7 @@
 #include "EntityData.h"
 #include "Constants.h"
 #include "SoundManager.h"
+#include "EntityDrawing.h"
 
 LightTank::LightTank(Team team, sf::Vector2f position)
     : Unit(EntityType::LightTank, team, position)
@@ -45,14 +46,14 @@ void LightTank::render(sf::RenderTarget& target) {
     target.draw(m_circle);
     
     // Health bar
-    renderHealthBar(target);
+    EntityDrawing::drawHealthBar(target, *this);
 }
 
 void LightTank::fireAttack(EntityPtr target) {
     if (!target || !target->isAlive()) return;
     
     if (m_context) {
-        SOUNDS.playSound("units/lighttank/fire.wav", m_position);
+        m_context->soundManager().playSound("units/lighttank/fire.wav", m_position);
         // Launch a homing rocket
         m_context->spawnProjectile(shared_from_this(), target, m_damage, ROCKET_SPEED);
     } else {

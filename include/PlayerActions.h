@@ -85,6 +85,12 @@ public:
     void gather(const std::vector<EntityPtr>& units, EntityPtr resource, bool append = false);
     void stop(const std::vector<EntityPtr>& units);
 
+    // Smart right-click dispatch: inspect the target and selection to decide
+    // whether to move, attack, gather, set a rally point, or continue construction.
+    // This keeps the dispatch logic out of InputHandler so it can be reused by
+    // other input surfaces (minimap right-click, unit AI queuing, etc.).
+    void issueSmartRightClick(sf::Vector2f worldPos, EntityPtr target, bool append = false);
+
 private:
     Player& m_player;
     Game&   m_game;

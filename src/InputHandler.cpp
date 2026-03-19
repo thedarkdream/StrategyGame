@@ -178,33 +178,8 @@ void InputHandler::handleMousePress(sf::Vector2i position, sf::Mouse::Button but
                 exitTargetingMode();
                 return;
             }
-            // Right-click on minimap
-            Player& player = m_game.getPlayer();
-            if (player.hasSelection()) {
-                // Check if only buildings are selected (for rally point)
-                bool onlyBuildings = true;
-                bool hasProductionBuilding = false;
-                for (const auto& entity : player.getSelection()) {
-                    if (!entity->asBuilding()) {
-                        onlyBuildings = false;
-                        break;
-                    }
-                    if (auto* bldgDef = ENTITY_DATA.getBuildingDef(entity->getType())) {
-                        if (bldgDef->canProduce()) {
-                            hasProductionBuilding = true;
-                        }
-                    }
-                }
-                
-                if (onlyBuildings && hasProductionBuilding) {
-                    // Set rally point (no entity target on minimap)
-                    m_game.setRallyPoint(worldPos, nullptr);
-                } else {
-                    // Issue move command
-                    EFFECTS.spawnMoveEffect(worldPos, 1.0f);
-                    m_game.getActions().move(m_game.getPlayer().getSelection(), worldPos, shift);
-                }
-            }
+            // Smart right-click on minimap
+            m_game.getActions().issueSmartRightClick(worldPos, nullptr, shift);
             return;
         }
     }
@@ -219,7 +194,7 @@ void InputHandler::handleMousePress(sf::Vector2i position, sf::Mouse::Button but
     if (button == sf::Mouse::Button::Left) {
         if (m_targetingMode) {
             // Execute the targeted action
-            EntityPtr target = m_game.getEntityAtPosition(worldPos);
+            EntityPtr target = m_game.getWorld().getAt(worldPos);
             executeTargetingAction(worldPos, target, shift);
             exitTargetingMode();
         } else if (m_buildMode) {
@@ -239,69 +214,9 @@ void InputHandler::handleMousePress(sf::Vector2i position, sf::Mouse::Button but
         } else if (m_buildMode) {
             exitBuildMode();
         } else {
-            // Issue command to selected units
-            Player& player = m_game.getPlayer();
-            if (player.hasSelection()) {
-                // Check if only buildings are selected (for rally point)
-                bool onlyBuildings = true;
-                bool hasProductionBuilding = false;
-                for (const auto& entity : player.getSelection()) {
-                    if (!entity->asBuilding()) {
-                        onlyBuildings = false;
-                        break;
-                    }
-                    // Check if any building can produce units
-                    if (auto* bldgDef = ENTITY_DATA.getBuildingDef(entity->getType())) {
-                        if (bldgDef->canProduce()) {
-                            hasProductionBuilding = true;
-                        }
-                    }
-                }
-                
-                // Check if clicking on an enemy or resource
-                EntityPtr target = m_game.getEntityAtPosition(worldPos);
-                
-                // If only production buildings selected, set rally point
-                if (onlyBuildings && hasProductionBuilding) {
-                    m_game.setRallyPoint(worldPos, target);
-                    return;
-                }
-                
-                if (target) {
-                    if (target->getTeam() != player.getTeam() && target->getTeam() != Team::Neutral) {
-                        // Attack enemy
-                        m_game.getActions().attack(m_game.getPlayer().getSelection(), target, shift);
-                    } else if (target->getType() == EntityType::MineralPatch || 
-                               target->getType() == EntityType::GasGeyser) {
-                        // Gather resources
-                        m_game.getActions().gather(m_game.getPlayer().getSelection(), target, shift);
-                    } else if (auto* building = target->asBuilding()) {
-                        // Check if incomplete building - send workers to continue building
-                        if (!building->isConstructed() && target->getTeam() == player.getTeam()) {
-                            m_game.issueContinueBuildCommand(target, shift);
-                        } else if (building->isConstructed() &&
-                                   target->getTeam() == player.getTeam() &&
-                                   target->getType() == EntityType::Base) {
-                            // Right-click own Base: workers carrying minerals return
-                            // their cargo and then auto-gather again.
-                            m_game.issueReturnCargoCommand();
-                        } else {
-                            // Move to location (right-click on own completed building)
-                            m_game.getActions().move(m_game.getPlayer().getSelection(), worldPos, shift);
-                        }
-                    } else if (target->asUnit() && target->getTeam() == player.getTeam()) {
-                        // Right-click on allied unit - follow them
-                        m_game.getActions().follow(m_game.getPlayer().getSelection(), target, shift);
-                    } else {
-                        // Move to location
-                        m_game.getActions().move(m_game.getPlayer().getSelection(), worldPos, shift);
-                    }
-                } else {
-                    // Move to location
-                    EFFECTS.spawnMoveEffect(worldPos, 1.0f);
-                    m_game.getActions().move(m_game.getPlayer().getSelection(), worldPos, shift);
-                }
-            }
+            // Smart right-click: delegate command dispatch to PlayerActions
+            EntityPtr target = m_game.getWorld().getAt(worldPos);
+            m_game.getActions().issueSmartRightClick(worldPos, target, shift);
         }
     } else if (button == sf::Mouse::Button::Middle) {
         // Start map drag scrolling
@@ -342,7 +257,7 @@ void InputHandler::handleMouseRelease(sf::Vector2i position, sf::Mouse::Button b
                 
                 if (isDoubleClick) {
                     // Double-click: select all units of same type on screen
-                    EntityPtr entity = m_game.getEntityAtPosition(m_selectionStart);
+                    EntityPtr entity = m_game.getWorld().getAt(m_selectionStart);
                     if (entity && entity->getTeam() == m_game.getPlayer().getTeam()) {
                         if (entity->asUnit()) {
                             selectAllOfTypeOnScreen(entity->getType());
@@ -550,7 +465,7 @@ std::string InputHandler::keyToHotkey(sf::Keyboard::Key code) {
 }
 
 void InputHandler::performSelection(sf::Vector2f worldPos) {
-    EntityPtr entity = m_game.getEntityAtPosition(worldPos);
+    EntityPtr entity = m_game.getWorld().getAt(worldPos);
     
     Player& player = m_game.getPlayer();
     
@@ -584,7 +499,7 @@ void InputHandler::performSelection(sf::Vector2f worldPos) {
 void InputHandler::performBoxSelection() {
     sf::FloatRect selectionBox = getSelectionBox();
     
-    std::vector<EntityPtr> selected = m_game.getEntitiesInRect(
+    std::vector<EntityPtr> selected = m_game.getWorld().getInRect(
         selectionBox, m_game.getPlayer().getTeam());
     
     // If we have both units and buildings, prefer units only
@@ -624,7 +539,7 @@ void InputHandler::selectAllOfTypeOnScreen(EntityType type) {
     
     // Get all player entities in the visible area
     Player& player = m_game.getPlayer();
-    std::vector<EntityPtr> entitiesOnScreen = m_game.getEntitiesInRect(screenBounds, player.getTeam());
+    std::vector<EntityPtr> entitiesOnScreen = m_game.getWorld().getInRect(screenBounds, player.getTeam());
     
     // Filter to only units of the specified type
     std::vector<EntityPtr> unitsOfType;
@@ -694,9 +609,10 @@ void InputHandler::executeTargetingAction(sf::Vector2f worldPos, EntityPtr targe
             }
             break;
         case TargetingAction::Gather:
-            if (target && (target->getType() == EntityType::MineralPatch || 
-                           target->getType() == EntityType::GasGeyser)) {
-                m_game.getActions().gather(m_game.getPlayer().getSelection(), target, shift);
+            if (target) {
+                auto* def = ENTITY_DATA.get(target->getType());
+                if (def && def->isResource())
+                    m_game.getActions().gather(m_game.getPlayer().getSelection(), target, shift);
             }
             break;
         case TargetingAction::RallyPoint:

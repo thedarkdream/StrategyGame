@@ -67,30 +67,6 @@ void Entity::updateShape() {
     m_shape.setOutlineColor(sf::Color::Black);
 }
 
-void Entity::renderHealthBar(sf::RenderTarget& target) {
-    // Always show health bar when selected, otherwise only when damaged
-    if (m_health >= m_maxHealth && !m_selected) return;
-    
-    const float barWidth = m_size.x;
-    const float barHeight = 4.0f;
-    const float yOffset = -m_size.y / 2.0f - 8.0f;
-    
-    // Background (red)
-    sf::RectangleShape bgBar(sf::Vector2f(barWidth, barHeight));
-    bgBar.setOrigin(sf::Vector2f(barWidth / 2.0f, barHeight / 2.0f));
-    bgBar.setPosition(sf::Vector2f(m_position.x, m_position.y + yOffset));
-    bgBar.setFillColor(sf::Color(180, 0, 0));
-    target.draw(bgBar);
-    
-    // Health (green)
-    float healthPercent = static_cast<float>(m_health) / static_cast<float>(m_maxHealth);
-    sf::RectangleShape healthBar(sf::Vector2f(barWidth * healthPercent, barHeight));
-    healthBar.setOrigin(sf::Vector2f(barWidth / 2.0f, barHeight / 2.0f));
-    healthBar.setPosition(sf::Vector2f(m_position.x, m_position.y + yOffset));
-    healthBar.setFillColor(sf::Color(0, 180, 0));
-    target.draw(healthBar);
-}
-
 void Entity::startHighlight(float duration) {
     m_highlightTimeRemaining = duration;
     m_highlightBlinkTimer = 0.0f;
@@ -106,33 +82,6 @@ void Entity::updateHighlight(float deltaTime) {
             m_highlightBlinkTimer -= HIGHLIGHT_BLINK_PERIOD;
         }
     }
-}
-
-void Entity::renderSelectionIndicator(sf::RenderTarget& target) {
-    // Determine team-based color: green for local player's units, red for enemies
-    sf::Color teamColor = m_isLocalTeam ? sf::Color::Green : sf::Color::Red;
-    
-    // Determine if we should show the selection indicator
-    bool showIndicator = m_selected;
-    
-    // Handle highlight blinking (same color as selection, blinks on/off)
-    if (m_highlightTimeRemaining > 0.0f) {
-        // Blink: visible for first half of period, hidden for second half
-        bool blinkVisible = m_highlightBlinkTimer < (HIGHLIGHT_BLINK_PERIOD * 0.5f);
-        if (blinkVisible) {
-            showIndicator = true;
-        }
-    }
-    
-    if (!showIndicator) return;
-    
-    sf::CircleShape circle(m_size.x / 2.0f + 4.0f);
-    circle.setOrigin(sf::Vector2f(circle.getRadius(), circle.getRadius()));
-    circle.setPosition(m_position);
-    circle.setFillColor(sf::Color::Transparent);
-    circle.setOutlineThickness(2.0f);
-    circle.setOutlineColor(teamColor);
-    target.draw(circle);
 }
 
 void Entity::loadAnimations(const std::string& basePath) {

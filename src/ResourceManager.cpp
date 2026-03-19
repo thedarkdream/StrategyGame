@@ -36,15 +36,3 @@ ResourceNodePtr ResourceManager::createResourceNode(EntityType type, sf::Vector2
     int amount = def->building->resourceAmount;
     return std::make_shared<ResourceNode>(type, position, amount);
 }
-
-int ResourceManager::getMineralCost(EntityType type) {
-    return ENTITY_DATA.getMineralCost(type);
-}
-
-int ResourceManager::getGasCost(EntityType type) {
-    return ENTITY_DATA.getGasCost(type);
-}
-
-sf::Vector2i ResourceManager::getBuildingSize(EntityType type) {
-    return ENTITY_DATA.getBuildingTileSize(type);
-}

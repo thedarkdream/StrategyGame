@@ -2,6 +2,7 @@
 
 #include "Types.h"
 #include "FogOfWar.h"
+#include "EntityWorld.h"
 #include <vector>
 
 class Map;
@@ -17,14 +18,13 @@ public:
     bool spendResources(int minerals, int gas);
     bool canAfford(int minerals, int gas) const;
     
-    // Entity management
-    void addUnit(UnitPtr unit);
-    void addBuilding(BuildingPtr building);
-    void removeUnit(UnitPtr unit);
-    void removeBuilding(BuildingPtr building);
-    
-    const UnitList& getUnits() const { return m_units; }
-    const BuildingList& getBuildings() const { return m_buildings; }
+    // Inject the EntityWorld so the player can resolve its own unit/building sets
+    // from the single authoritative list instead of maintaining a second copy.
+    void setWorld(const EntityWorld* world) { m_world = world; }
+
+    // Entity sets — computed live from the world filtered by this player's team.
+    UnitList     getUnits()     const;
+    BuildingList getBuildings() const;
     
     // Selection
     void clearSelection();
@@ -40,8 +40,8 @@ public:
     
     // Game state
     bool isDefeated() const;
-    int getUnitCount() const { return static_cast<int>(m_units.size()); }
-    int getBuildingCount() const { return static_cast<int>(m_buildings.size()); }
+    int getUnitCount()     const;
+    int getBuildingCount() const;
     bool hasCompletedBuilding(EntityType type) const;
     
     // Update
@@ -60,8 +60,7 @@ public:
 private:
     Team m_team;
     Resources m_resources;
-    UnitList m_units;
-    BuildingList m_buildings;
+    const EntityWorld* m_world = nullptr;
     std::vector<EntityPtr> m_selection;
     FogOfWar m_fog;
 };

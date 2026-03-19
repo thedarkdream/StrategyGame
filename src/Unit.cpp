@@ -7,6 +7,7 @@
 #include "MathUtil.h"
 #include "Animation.h"
 #include "EffectsManager.h"
+#include "EntityDrawing.h"
 #include <cmath>
 
 Unit::Unit(EntityType type, Team team, sf::Vector2f position)
@@ -119,10 +120,10 @@ void Unit::render(sf::RenderTarget& target) {
     }
 
     // Draw selection indicator
-    renderSelectionIndicator(target);
+    EntityDrawing::drawSelectionIndicator(target, *this);
 
     // Draw health bar
-    renderHealthBar(target);
+    EntityDrawing::drawHealthBar(target, *this);
 }
 
 void Unit::moveTo(sf::Vector2f target) {
@@ -245,7 +246,8 @@ void Unit::takeDamage(int damage, EntityPtr attacker) {
     // Spawn explosion effect when unit dies (scaled to unit size)
     if (willDie) {
         float explosionScale = std::max(m_size.x, m_size.y) / 64.0f;
-        EFFECTS.spawnExplosion(m_position, explosionScale);
+        if (m_context) m_context->effectsManager().spawnExplosion(m_position, explosionScale);
+        else EFFECTS.spawnExplosion(m_position, explosionScale);  // fallback (no context)
     }
     
     // Auto-retaliate if idle and only if this is a combat unit

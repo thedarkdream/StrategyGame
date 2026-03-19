@@ -6,9 +6,12 @@
 class Entity;
 class Unit;
 class Building;
+class EntityRegistry;
+class EffectsManager;
+class SoundManager;
 
 // ---------------------------------------------------------------------------
-// IUnitContext
+// IGameContext
 //
 // Pure-virtual interface that the game world (Game) must implement.
 // Unit and Worker hold a non-owning pointer to this interface instead of
@@ -17,11 +20,11 @@ class Building;
 // Benefits over the callback approach:
 //   • Single injection point (setContext) instead of 7 separate assignments.
 //   • Dependencies are explicit and documented in one place.
-//   • Easy to stub/mock in tests — just subclass IUnitContext.
+//   • Easy to stub/mock in tests — just subclass IGameContext.
 // ---------------------------------------------------------------------------
-class IUnitContext {
+class IGameContext {
 public:
-    virtual ~IUnitContext() = default;
+    virtual ~IGameContext() = default;
 
     // ----- Spatial / combat queries ----------------------------------------
 
@@ -74,4 +77,12 @@ public:
     // Called by a Building when training of [unitType] is cancelled.
     // The Game refunds the mineral cost to the player that owns [team].
     virtual void refundProductionCost(EntityType unitType, Team team) = 0;
+
+    // ----- Service accessors -----------------------------------------------
+    // Provide explicit access to shared services so entity subclasses do not
+    // need to reach for global singletons / macros directly.
+
+    virtual EntityRegistry&  entityRegistry() = 0;
+    virtual EffectsManager&  effectsManager() = 0;
+    virtual SoundManager&    soundManager()   = 0;
 };

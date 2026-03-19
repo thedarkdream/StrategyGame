@@ -2,6 +2,7 @@
 #include "EntityData.h"
 #include "Constants.h"
 #include "TextureManager.h"
+#include "EntityDrawing.h"
 #include <cmath>
 
 ResourceNode::ResourceNode(EntityType type, sf::Vector2f position, int resourceAmount, int visualVariant)
@@ -64,7 +65,7 @@ void ResourceNode::render(sf::RenderTarget& target) {
     }
     
     // Draw selection indicator if selected
-    renderSelectionIndicator(target);
+    EntityDrawing::drawSelectionIndicator(target, *this);
 }
 
 int ResourceNode::harvestResource() {

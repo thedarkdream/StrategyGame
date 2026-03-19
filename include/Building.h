@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Entity.h"
-#include "IUnitContext.h"
+#include "IGameContext.h"
 #include <deque>
 #include <vector>
 
@@ -59,7 +59,7 @@ public:
     // Called unconditionally by Game::spawnBuilding for every building type so
     // that subclasses (e.g. Turret) can rely on m_context without needing to
     // override a separate virtual hook.
-    void setContext(IUnitContext* ctx) { m_context = ctx; }
+    void setContext(IGameContext* ctx) { m_context = ctx; }
 
 private:
     // Construction
@@ -85,5 +85,5 @@ private:
     sf::Vector2f getSpawnPoint() const;
 
 protected:
-    IUnitContext* m_context = nullptr;
+    IGameContext* m_context = nullptr;
 };

@@ -314,7 +314,7 @@ namespace {
 void DebugConsole::renderIds(sf::RenderWindow& window) {
     if ((!m_showIds && !m_showState) || !m_font) return;
 
-    for (const auto& entity : m_game.getAllEntities()) {
+    for (const auto& entity : m_game.getWorld().all()) {
         if (!entity || !entity->isAlive()) continue;
         if (!entity->isSelected()) continue;
 
@@ -353,7 +353,7 @@ void DebugConsole::renderIds(sf::RenderWindow& window) {
 void DebugConsole::renderWaypoints(sf::RenderWindow& window) {
     if (!m_showWaypoints) return;
 
-    for (const auto& entity : m_game.getAllEntities()) {
+    for (const auto& entity : m_game.getWorld().all()) {
         if (!entity || !entity->isAlive()) continue;
         if (!entity->isSelected()) continue;
 

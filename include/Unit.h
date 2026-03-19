@@ -1,13 +1,13 @@
 #pragma once
 
 #include "Entity.h"
-#include "IUnitContext.h"
+#include "IGameContext.h"
 #include <deque>
 #include <functional>
 
 class Map;
 
-// Unit.h no longer re-declares RVONeighbor — it is defined in Types.h (via IUnitContext.h).
+// Unit.h no longer re-declares RVONeighbor — it is defined in Types.h (via IGameContext.h).
 
 class Unit : public Entity {
 public:
@@ -35,7 +35,7 @@ public:
     // Override to perform type-specific post-spawn setup (e.g. home base lookup).
     // Base implementation forwards to the no-arg Entity::onSpawned() for
     // backward compatibility with any existing overrides.
-    virtual void onSpawned(IUnitContext* ctx) { Entity::onSpawned(); }
+    virtual void onSpawned(IGameContext* ctx) { Entity::onSpawned(); }
     
     // State
     UnitState getState() const { return m_state; }
@@ -54,8 +54,8 @@ public:
 
     // Inject the game-world context that provides spatial queries,
     // projectile spawning, etc. Called once by Game::setupUnit.
-    void setContext(IUnitContext* ctx) { m_context = ctx; }
-    IUnitContext* getContext() const   { return m_context; }
+    void setContext(IGameContext* ctx) { m_context = ctx; }
+    IGameContext* getContext() const   { return m_context; }
 
     // Collision
     // m_collisionRadius is the physics/pathfinding radius; it may differ from
@@ -184,5 +184,5 @@ protected:
     static constexpr float FOLLOW_DISTANCE = 50.0f;  // Stop following when within this distance
     
     Map* m_map = nullptr;
-    IUnitContext* m_context = nullptr;
+    IGameContext* m_context = nullptr;
 };
