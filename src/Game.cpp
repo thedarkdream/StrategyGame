@@ -718,7 +718,36 @@ void Game::spawnUnitFromBuilding(EntityType type, Team team, Building* sourceBui
         // Issue rally point command
         EntityPtr rallyTarget = sourceBuilding->getRallyTarget();
         sf::Vector2f rallyPoint = sourceBuilding->getRallyPoint();
-        
+
+        // Assigns a concentric-ring formation slot around a rally position so
+        // successive units don't all pile up on the exact same tile.
+        // Counts allied units whose current position OR target is within
+        // SEARCH_RADIUS of the rally point, then maps the next unit (index n)
+        // to the appropriate ring/slot offset.  Ring 0 = center (n==0), ring k
+        // holds k*6 slots at radius k*spacing — identical to buildFormationOffsets
+        // in PlayerActions.cpp.
+        auto computeRallySlot = [&](sf::Vector2f rp, float spacing) -> sf::Vector2f {
+            constexpr float SEARCH_RADIUS = 200.0f;
+            int n = 0;
+            for (const auto& e : m_allEntities) {
+                if (!e || !e->isAlive() || e->getTeam() != team) continue;
+                const Unit* u = e->asUnit();
+                if (!u) continue;
+                bool nearPos    = MathUtil::distance(u->getPosition(),        rp) < SEARCH_RADIUS;
+                bool nearTarget = MathUtil::distance(u->getTargetPosition(),   rp) < SEARCH_RADIUS;
+                if (nearPos || nearTarget) ++n;
+            }
+            if (n == 0) return {0.f, 0.f};   // first unit gets the center slot
+            int ring = 1, ringStart = 1;
+            while (n >= ringStart + ring * 6) { ringStart += ring * 6; ++ring; }
+            int slotInRing = n - ringStart;
+            float angle = static_cast<float>(slotInRing) / static_cast<float>(ring * 6)
+                          * 2.f * 3.14159265f;
+            return { ring * spacing * std::cos(angle), ring * spacing * std::sin(angle) };
+        };
+        // slot spacing = 2 * unitRadius + small gap, mirrors formationSpacing()
+        const float slotSpacing = 2.0f * unitRadius + 8.0f;
+
         if (rallyTarget && rallyTarget->isAlive()) {
             // Rally to entity
             if (type == EntityType::Worker) {
@@ -737,11 +766,13 @@ void Game::spawnUnitFromBuilding(EntityType type, Team team, Building* sourceBui
                 unit->moveTo(rallyTarget->getPosition());
             }
         } else {
-            // Rally to position - attack-move for combat units, move for workers
+            // Rally to position — spread units into formation slots to avoid
+            // the entire queue piling up and shaking at one point.
+            sf::Vector2f slot = computeRallySlot(rallyPoint, slotSpacing);
             if (type == EntityType::Worker) {
-                unit->moveTo(rallyPoint);
+                unit->moveTo(rallyPoint + slot);
             } else {
-                unit->attackMoveTo(rallyPoint);
+                unit->attackMoveTo(rallyPoint + slot);
             }
         }
     }
