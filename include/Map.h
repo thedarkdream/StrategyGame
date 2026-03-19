@@ -29,7 +29,7 @@ public:
     
     // Building placement
     bool canPlaceBuilding(int tileX, int tileY, int width, int height) const;
-    void placeBuilding(int tileX, int tileY, int width, int height, EntityPtr building);
+    void placeBuilding(int tileX, int tileY, int width, int height);
     void removeBuilding(int tileX, int tileY, int width, int height);
     
     // Pathfinding (A* with optional unit-radius clearance)

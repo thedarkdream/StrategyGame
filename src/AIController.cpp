@@ -608,6 +608,7 @@ sf::Vector2f AIController::findBuildLocation(EntityType buildingType) {
     sf::Vector2f mineralDir(0.f, 0.f);
     int mineralCount = 0;
     for (const auto& entity : m_game.getAllEntities()) {
+        if (!entity || !entity->isAlive()) continue;
         if (entity->getType() == EntityType::MineralPatch ||
             entity->getType() == EntityType::GasGeyser) {
             float dist = MathUtil::distance(entity->getPosition(), basePos);
@@ -669,33 +670,6 @@ Worker* AIController::findIdleWorker() {
     return fallback;
 }
 
-sf::Vector2f AIController::findEnemyBase() {
-    const Team myTeam = m_player.getTeam();
-
-    // Single pass: collect base positions; if none exist, fall back to any building.
-    std::vector<sf::Vector2f> targets;
-    bool foundBase = false;
-
-    for (const auto& entity : m_game.getAllEntities()) {
-        if (!entity || !entity->isAlive()) continue;
-        if (entity->getTeam() == myTeam || entity->getTeam() == Team::Neutral) continue;
-        if (!entity->asBuilding()) continue;
-
-        const bool isBase = (entity->getType() == EntityType::Base);
-        if (isBase && !foundBase) {
-            targets.clear();   // discard any fallback buildings collected so far
-            foundBase = true;
-        }
-        if (isBase || !foundBase)
-            targets.push_back(entity->getPosition());
-    }
-
-    if (targets.empty()) return sf::Vector2f(-1, -1);
-
-    std::uniform_int_distribution<int> pick(0, static_cast<int>(targets.size()) - 1);
-    return targets[pick(m_rng)];
-}
-
 Team AIController::pickEnemyTeam() {
     const Team myTeam = m_player.getTeam();
 
@@ -727,8 +701,7 @@ Team AIController::pickEnemyTeam() {
 }
 
 sf::Vector2f AIController::findEnemyBuildingOfTeam(Team team) {
-    // If no specific team is known, fall back to the generic search.
-    if (team == Team::Neutral) return findEnemyBase();
+    if (team == Team::Neutral) return sf::Vector2f(-1, -1);
 
     // Prefer the team's Base; fall back to any of their buildings.
     std::vector<sf::Vector2f> targets;
@@ -773,7 +746,7 @@ void AIController::computeBaseDefense() {
 
     // Use the nearest enemy base as a directional hint so the weighted
     // centroid of the choke ring faces the correct side.
-    sf::Vector2f enemyPos = findEnemyBase();
+    sf::Vector2f enemyPos = findEnemyBuildingOfTeam(pickEnemyTeam());
     sf::Vector2f enemyDir = {1.f, 0.f};
     if (enemyPos.x >= 0.f) {
         sf::Vector2f d = enemyPos - m_basePos;
@@ -881,8 +854,7 @@ sf::Vector2f AIController::getDefenseRallySlot(int slotIndex) const {
         return anchor + m_defensePerp * (float(spread) * spacing);
     } else {
         // Semicircle: spread slots as angles around defensedir.
-        constexpr float PI       = 3.14159265f;
-        constexpr float HALF_ARC = 80.f * PI / 180.f;  // ±80° in radians
+        constexpr float HALF_ARC = 80.f * MathUtil::PI / 180.f;  // ±80° in radians
         const float stepRad = HALF_ARC / 8.f;           // 8 slots per side
         const float radius  = 8.f * Constants::TILE_SIZE;
         float angle = std::atan2(m_defenseDir.y, m_defenseDir.x)
@@ -929,8 +901,7 @@ sf::Vector2f AIController::findTurretLocation(int turretIndex) {
             if (result.x >= 0.f) return result;
         }
     } else {
-        constexpr float PI       = 3.14159265f;
-        constexpr float HALF_ARC = 80.f * PI / 180.f;
+        constexpr float HALF_ARC = 80.f * MathUtil::PI / 180.f;
         const float stepRad = HALF_ARC / 8.f;
         const float radius  = 10.f * Constants::TILE_SIZE;
         float baseAngle = std::atan2(m_defenseDir.y, m_defenseDir.x);

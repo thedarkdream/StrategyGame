@@ -5,6 +5,8 @@
 
 // Utility functions for vector math
 namespace MathUtil {
+    // Standard pi — use this instead of inline 3.14159… literals.
+    constexpr float PI = 3.14159265f;
     // Distance squared (avoids sqrt - use when comparing distances)
     inline float distanceSquared(sf::Vector2f a, sf::Vector2f b) {
         sf::Vector2f diff = a - b;

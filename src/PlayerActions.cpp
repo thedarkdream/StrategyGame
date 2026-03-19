@@ -26,7 +26,7 @@ namespace {
             float radius = ring * spacing;
             for (int i = 0; i < slots && static_cast<int>(out.size()) < count; ++i) {
                 float angle = static_cast<float>(i) / static_cast<float>(slots)
-                              * 2.f * 3.14159265f;
+                              * 2.f * MathUtil::PI;
                 out.push_back({radius * std::cos(angle), radius * std::sin(angle)});
             }
         }

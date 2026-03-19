@@ -39,39 +39,12 @@ namespace Constants {
     constexpr int STARTING_MINERALS = 500;
     constexpr int STARTING_GAS = 0;
     
-    // Unit costs
-    constexpr int WORKER_COST_MINERALS = 50;
-    constexpr int SOLDIER_COST_MINERALS = 75;
-    constexpr int BRUTE_COST_MINERALS = 90;
-    
-    // Building costs
-    constexpr int BASE_COST_MINERALS = 400;
-    constexpr int BARRACKS_COST_MINERALS = 150;
-    constexpr int REFINERY_COST_MINERALS = 100;
-    
-    // Unit stats
-    constexpr float WORKER_SPEED = 100.0f;
-    constexpr float SOLDIER_SPEED = 80.0f;
-    constexpr float BRUTE_SPEED = 60.0f;
-    constexpr int WORKER_HEALTH = 40;
-    constexpr int SOLDIER_HEALTH = 100;
-    constexpr int BRUTE_HEALTH = 120;
-    constexpr int SOLDIER_DAMAGE = 10;
-    constexpr int BRUTE_DAMAGE = 12;
-    constexpr float SOLDIER_ATTACK_RANGE = 150.0f;
-    constexpr float BRUTE_ATTACK_RANGE = 30.0f;
-    constexpr float SOLDIER_ATTACK_COOLDOWN = 1.0f;
-    constexpr float BRUTE_ATTACK_COOLDOWN = 0.8f;
-    
     // Resource gathering
     constexpr int MINERALS_PER_TRIP = 8;
     constexpr float GATHERING_TIME = 2.0f;
-    
-    // Colors (RGBA)
+
+    // Colors (RGBA) — used by ResourceNode for mineral/gas tints
     namespace Colors {
-        constexpr unsigned int PLAYER_COLOR = 0x3498DBFF;  // Blue
-        constexpr unsigned int ENEMY_COLOR = 0xE74C3CFF;   // Red
-        constexpr unsigned int NEUTRAL_COLOR = 0x95A5A6FF; // Gray
         constexpr unsigned int MINERAL_COLOR = 0x00CED1FF; // Cyan
         constexpr unsigned int GAS_COLOR = 0x00FF00FF;     // Green
     }

@@ -68,6 +68,7 @@ public:
     bool checkPositionBlocked(sf::Vector2f pos, float radius, Entity* excludeSelf) override;
     sf::Vector2f findFreePosition(sf::Vector2f pos, float radius, float maxSearchRadius, Entity* excludeSelf) override;
     sf::Vector2f findSpawnPosition(sf::Vector2f origin, float unitRadius);
+    sf::Vector2f findNearestFreePosition(sf::Vector2f pos, float radius, int maxRings, Entity* excludeSelf);
     std::vector<RVONeighbor> getNearbyUnitsRVO(sf::Vector2f pos, float radius, Unit* excludeSelf) override;
     
     // Entity management
@@ -137,6 +138,9 @@ private:
     // Unit setup helpers
     void setupUnit(UnitPtr& unit);
     void setupWorker(Worker* worker, EntityPtr homeBase);
+    // Creates, wires up, and adds a unit to the world. Returns the new unit.
+    UnitPtr spawnAndSetupUnit(EntityType type, Team team, sf::Vector2f pos,
+                              Building* sourceBuilding);
 
     // Per-frame: gently slide any collidable unit that is overlapping a building
     // toward the nearest face of that building until it is clear.

@@ -44,7 +44,7 @@ void Turret::preload() {
 int Turret::directionIndex(sf::Vector2f delta) {
     // Maps delta to index 0-7 where 0=E,1=SE,2=S,3=SW,4=W,5=NW,6=N,7=NE
     // Corresponds to asset numbers 1-8 (index+1).
-    float angle = std::atan2(delta.y, delta.x) * 180.f / 3.14159265f;
+    float angle = std::atan2(delta.y, delta.x) * 180.f / MathUtil::PI;
     if (angle < 0.f) angle += 360.f;
     return static_cast<int>((angle + 22.5f) / 45.f) % 8;
 }

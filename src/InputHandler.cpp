@@ -209,7 +209,7 @@ void InputHandler::handleMousePress(sf::Vector2i position, sf::Mouse::Button but
                         break;
                     }
                     if (auto* bldgDef = ENTITY_DATA.getBuildingDef(entity->getType())) {
-                        if (bldgDef->canProduce) {
+                        if (bldgDef->canProduce()) {
                             hasProductionBuilding = true;
                         }
                     }
@@ -271,7 +271,7 @@ void InputHandler::handleMousePress(sf::Vector2i position, sf::Mouse::Button but
                     }
                     // Check if any building can produce units
                     if (auto* bldgDef = ENTITY_DATA.getBuildingDef(entity->getType())) {
-                        if (bldgDef->canProduce) {
+                        if (bldgDef->canProduce()) {
                             hasProductionBuilding = true;
                         }
                     }

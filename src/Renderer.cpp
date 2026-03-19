@@ -180,7 +180,7 @@ void Renderer::renderRallyPoints(Game& game) {
         
         // Check if building can produce units
         if (auto* bldgDef = ENTITY_DATA.getBuildingDef(entity->getType())) {
-            if (!bldgDef->canProduce) continue;
+            if (!bldgDef->canProduce()) continue;
         } else {
             continue;
         }

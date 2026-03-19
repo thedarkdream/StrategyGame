@@ -179,19 +179,21 @@ void Game::preloadAssets() {
 void Game::cleanupDeadEntities() {
     for (auto& p : m_players) if (p) p->cleanupDeadEntities();
     
-    // Record statistics for dying entities before removal
+    // Record statistics and free map tiles for dying entities before removal.
     for (const auto& entity : m_allEntities) {
         if (!entity || !entity->isReadyForRemoval()) continue;
         
         Team killerTeam = entity->getLastAttackerTeam();
         
-        // Check if it's a unit
         if (entity->asUnit()) {
             m_statistics.recordUnitDestroyed(entity->getTeam(), killerTeam);
-        }
-        // Check if it's a building
-        else if (entity->asBuilding()) {
+        } else if (entity->asBuilding()) {
             m_statistics.recordBuildingDestroyed(entity->getTeam(), killerTeam);
+            // Free the map tiles so pathfinding and canPlaceBuilding see open land.
+            sf::Vector2i bSize = ResourceManager::getBuildingSize(entity->getType());
+            sf::Vector2i tile  = MathUtil::buildingTileOrigin(
+                entity->getPosition(), bSize, Constants::TILE_SIZE);
+            m_map.removeBuilding(tile.x, tile.y, bSize.x, bSize.y);
         }
     }
     
@@ -254,7 +256,9 @@ std::vector<EntityPtr> Game::getEntitiesInRect(sf::FloatRect rect, Team team) {
 
 EntityPtr Game::findNearestEnemy(sf::Vector2f pos, float radius, Team excludeTeam) {
     return findNearest(pos, radius, [excludeTeam](const EntityPtr& entity) {
-        return entity->getTeam() != excludeTeam && entity->getTeam() != Team::Neutral;
+        return entity->getTeam() != excludeTeam
+            && entity->getTeam() != Team::Neutral
+            && entity->getType() != EntityType::Rocket;
     });
 }
 
@@ -271,6 +275,7 @@ EntityPtr Game::findPriorityEnemy(sf::Vector2f pos, float radius, Team excludeTe
     for (auto& entity : m_allEntities) {
         if (!entity || !entity->isAlive()) continue;
         if (entity->getTeam() == excludeTeam || entity->getTeam() == Team::Neutral) continue;
+        if (entity->getType() == EntityType::Rocket) continue;  // Rockets are not valid targets
         
         float dist = MathUtil::distance(entity->getPosition(), pos);
         if (dist >= radius) continue;
@@ -333,15 +338,18 @@ void Game::setupWorker(Worker* worker, EntityPtr homeBase) {
 }
 
 bool Game::checkPositionBlocked(sf::Vector2f pos, float radius, Entity* excludeSelf) {
-    // For building/resource collision we use a slightly inset version of the
-    // building's pixel bounds.  The ideal diagonal path between two
-    // corner-touching buildings passes through the shared corner point exactly;
-    // in practice RVO and discrete time-steps push the unit centre a fraction
-    // of a pixel off the ideal line so it briefly enters one building's bounds.
-    // Insetting by CORNER_INSET px on every side gives enough tolerance for
-    // that sub-pixel deviation without being visually noticeable (2px on a
-    // 32px tile is 6%).
+    // Inset building/resource bounds slightly so a unit whose centre grazes the
+    // corner pixel of two touching buildings isn't falsely blocked.
     constexpr float CORNER_INSET = 2.0f;
+
+    auto insetContains = [&](const Entity* e) -> bool {
+        sf::FloatRect b = e->getBounds();
+        b.position.x += CORNER_INSET;
+        b.position.y += CORNER_INSET;
+        b.size.x     -= CORNER_INSET * 2.0f;
+        b.size.y     -= CORNER_INSET * 2.0f;
+        return b.contains(pos);
+    };
 
     for (const EntityList* list : {&m_allEntities, &m_pendingEntities}) {
     for (auto& entity : *list) {
@@ -350,95 +358,47 @@ bool Game::checkPositionBlocked(sf::Vector2f pos, float radius, Entity* excludeS
 
         if (auto* unit = entity->asUnit()) {
             if (!unit->isCollidable()) continue;
-
-            float otherRadius = unit->getCollisionRadius();
             float dist = MathUtil::distance(entity->getPosition(), pos);
-            if (dist < radius + otherRadius)
+            if (dist < radius + unit->getCollisionRadius())
                 return true;
-        }
-        else if (entity->asBuilding()) {
-            sf::FloatRect b = entity->getBounds();
-            b.position.x += CORNER_INSET;
-            b.position.y += CORNER_INSET;
-            b.size.x     -= CORNER_INSET * 2.0f;
-            b.size.y     -= CORNER_INSET * 2.0f;
-            if (b.contains(pos))
-                return true;
-        }
-        else if (entity->getType() == EntityType::MineralPatch ||
-                 entity->getType() == EntityType::GasGeyser) {
-            sf::FloatRect b = entity->getBounds();
-            b.position.x += CORNER_INSET;
-            b.position.y += CORNER_INSET;
-            b.size.x     -= CORNER_INSET * 2.0f;
-            b.size.y     -= CORNER_INSET * 2.0f;
-            if (b.contains(pos))
+        } else if (entity->asBuilding() || entity->asResourceNode()) {
+            if (insetContains(entity.get()))
                 return true;
         }
     }
     }
-
     return false;
 }
 
 sf::Vector2f Game::findFreePosition(sf::Vector2f pos, float radius, float maxSearchRadius, Entity* excludeSelf) {
-    // Try the original position first
-    if (!checkPositionBlocked(pos, radius, excludeSelf)) {
+    if (!checkPositionBlocked(pos, radius, excludeSelf))
         return pos;
-    }
-    
-    // Search in expanding circles
     float stepRadius = radius * 2.0f;
     int maxRings = static_cast<int>(maxSearchRadius / stepRadius) + 1;
-    
-    for (int ring = 1; ring <= maxRings; ++ring) {
-        float ringRadius = stepRadius * ring;
-        int points = 8 * ring;  // More points in outer rings
-        
-        for (int i = 0; i < points; ++i) {
-            float angle = (2.0f * 3.14159f * i) / points;
-            sf::Vector2f testPos = pos + sf::Vector2f(
-                std::cos(angle) * ringRadius,
-                std::sin(angle) * ringRadius
-            );
-            
-            if (!checkPositionBlocked(testPos, radius, excludeSelf)) {
-                return testPos;
-            }
-        }
-    }
-    
-    // Fallback to original if no free spot found
-    return pos;
+    return findNearestFreePosition(pos, radius, maxRings, excludeSelf);
 }
 
 sf::Vector2f Game::findSpawnPosition(sf::Vector2f origin, float unitRadius) {
-    // Try the original position first
-    if (!checkPositionBlocked(origin, unitRadius, nullptr)) {
+    if (!checkPositionBlocked(origin, unitRadius, nullptr))
         return origin;
-    }
-    
-    // Search in expanding circles
-    float searchRadius = unitRadius * 2.5f;
-    for (int ring = 1; ring <= 5; ++ring) {
-        float ringRadius = searchRadius * ring;
-        int points = 8 * ring;  // More points in outer rings
-        
+    return findNearestFreePosition(origin, unitRadius, 5, nullptr);
+}
+
+sf::Vector2f Game::findNearestFreePosition(sf::Vector2f pos, float radius, int maxRings, Entity* excludeSelf) {
+    float stepRadius = radius * 2.0f;
+    for (int ring = 1; ring <= maxRings; ++ring) {
+        float ringRadius = stepRadius * ring;
+        int points = 8 * ring;
         for (int i = 0; i < points; ++i) {
-            float angle = (2.0f * 3.14159f * i) / points;
-            sf::Vector2f testPos = origin + sf::Vector2f(
+            float angle = (2.0f * MathUtil::PI * i) / points;
+            sf::Vector2f testPos = pos + sf::Vector2f(
                 std::cos(angle) * ringRadius,
-                std::sin(angle) * ringRadius
-            );
-            
-            if (!checkPositionBlocked(testPos, unitRadius, nullptr)) {
+                std::sin(angle) * ringRadius);
+            if (!checkPositionBlocked(testPos, radius, excludeSelf))
                 return testPos;
-            }
         }
     }
-    
-    // Fallback to original if no free spot found
-    return origin;
+    return pos;  // fallback: return original if no free spot found
 }
 
 std::vector<RVONeighbor> Game::getNearbyUnitsRVO(sf::Vector2f pos, float radius, Unit* excludeSelf) {
@@ -562,60 +522,10 @@ void Game::setupFromMapData(const MapData& data) {
 }
 
 void Game::spawnUnit(EntityType type, Team team, sf::Vector2f position) {
-    // Use the actual entity pixel size so findSpawnPosition keeps units apart
-    // by their real collision radius rather than a hardcoded constant.
     sf::Vector2f entitySize = ENTITY_DATA.getSize(type);
     float unitRadius = std::max(entitySize.x, entitySize.y) / 2.0f;
-    
-    // Find a free position to spawn the unit
     sf::Vector2f spawnPos = findSpawnPosition(position, unitRadius);
-    
-    UnitPtr unit;
-    
-    switch (type) {
-        case EntityType::Worker:
-            unit = ResourceManager::createWorker(team, spawnPos);
-            break;
-        case EntityType::Soldier:
-            unit = ResourceManager::createSoldier(team, spawnPos);
-            break;
-        case EntityType::Brute:
-            unit = ResourceManager::createBrute(team, spawnPos);
-            break;
-        case EntityType::LightTank:
-            unit = ResourceManager::createLightTank(team, spawnPos);
-            break;
-        default:
-            return;
-    }
-    
-    if (unit) {
-        setupUnit(unit);
-        unit->setIsLocalTeam(m_players[m_localSlot] && team == m_players[m_localSlot]->getTeam());
-        
-        // Set home base for workers
-        if (type == EntityType::Worker) {
-            if (Player* playerPtr = getPlayerByTeam(team)) {
-                for (auto& building : playerPtr->getBuildings()) {
-                    if (building->getType() == EntityType::Base) {
-                        if (auto* w = unit->asWorker()) {
-                            setupWorker(w, building);
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-        
-        if (Player* p = getPlayerByTeam(team)) {
-            p->addUnit(unit);
-        }
-        
-        // Record unit creation in statistics
-        m_statistics.recordUnitCreated(team);
-        
-        addEntity(unit);
-    }
+    spawnAndSetupUnit(type, team, spawnPos, nullptr);
 }
 
 void Game::spawnUnitFromBuilding(EntityType type, Team team, Building* sourceBuilding) {
@@ -668,54 +578,11 @@ void Game::spawnUnitFromBuilding(EntityType type, Team team, Building* sourceBui
     }
 
     spawnPos = findSpawnPosition(spawnPos, unitRadius);
-    
-    UnitPtr unit;
-    
-    switch (type) {
-        case EntityType::Worker:
-            unit = ResourceManager::createWorker(team, spawnPos);
-            break;
-        case EntityType::Soldier:
-            unit = ResourceManager::createSoldier(team, spawnPos);
-            break;
-        case EntityType::Brute:
-            unit = ResourceManager::createBrute(team, spawnPos);
-            break;
-        case EntityType::LightTank:
-            unit = ResourceManager::createLightTank(team, spawnPos);
-            break;
-        default:
-            return;
-    }
-    
-    if (unit) {
-        setupUnit(unit);
-        unit->setIsLocalTeam(m_players[m_localSlot] && team == m_players[m_localSlot]->getTeam());
-        
-        // Set home base for workers
-        if (type == EntityType::Worker) {
-            if (Player* playerPtr = getPlayerByTeam(team)) {
-                for (auto& building : playerPtr->getBuildings()) {
-                    if (building->getType() == EntityType::Base) {
-                        if (auto* w = unit->asWorker()) {
-                            setupWorker(w, building);
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-        
-        if (Player* p = getPlayerByTeam(team)) {
-            p->addUnit(unit);
-        }
-        
-        // Record unit creation in statistics
-        m_statistics.recordUnitCreated(team);
-        
-        addEntity(unit);
-        
-        // Issue rally point command
+
+    UnitPtr unit = spawnAndSetupUnit(type, team, spawnPos, nullptr);
+    if (!unit) return;
+
+    // Issue rally point command
         EntityPtr rallyTarget = sourceBuilding->getRallyTarget();
         sf::Vector2f rallyPoint = sourceBuilding->getRallyPoint();
 
@@ -742,7 +609,7 @@ void Game::spawnUnitFromBuilding(EntityType type, Team team, Building* sourceBui
             while (n >= ringStart + ring * 6) { ringStart += ring * 6; ++ring; }
             int slotInRing = n - ringStart;
             float angle = static_cast<float>(slotInRing) / static_cast<float>(ring * 6)
-                          * 2.f * 3.14159265f;
+                          * 2.f * MathUtil::PI;
             return { ring * spacing * std::cos(angle), ring * spacing * std::sin(angle) };
         };
         // slot spacing = 2 * unitRadius + small gap, mirrors formationSpacing()
@@ -775,7 +642,40 @@ void Game::spawnUnitFromBuilding(EntityType type, Team team, Building* sourceBui
                 unit->attackMoveTo(rallyPoint + slot);
             }
         }
+}
+
+// ---------------------------------------------------------------------------
+// Private helper — creates a unit, wires it up and adds it to the world.
+// Returns the new unit (or nullptr for unknown types).
+// ---------------------------------------------------------------------------
+UnitPtr Game::spawnAndSetupUnit(EntityType type, Team team, sf::Vector2f pos,
+                                 Building* /*sourceBuilding*/)
+{
+    UnitPtr unit = ResourceManager::createUnit(type, team, pos);
+    if (!unit) return nullptr;
+
+    setupUnit(unit);
+    unit->setIsLocalTeam(m_players[m_localSlot] && team == m_players[m_localSlot]->getTeam());
+
+    // Assign home base for workers
+    if (type == EntityType::Worker) {
+        if (Player* playerPtr = getPlayerByTeam(team)) {
+            for (auto& building : playerPtr->getBuildings()) {
+                if (building->getType() == EntityType::Base) {
+                    if (auto* w = unit->asWorker())
+                        setupWorker(w, building);
+                    break;
+                }
+            }
+        }
     }
+
+    if (Player* p = getPlayerByTeam(team))
+        p->addUnit(unit);
+
+    m_statistics.recordUnitCreated(team);
+    addEntity(unit);
+    return unit;
 }
 
 EntityPtr Game::spawnBuilding(EntityType type, Team team, sf::Vector2f position, bool startComplete) {
@@ -820,7 +720,7 @@ EntityPtr Game::spawnBuilding(EntityType type, Team team, sf::Vector2f position,
         // Place on map
         sf::Vector2i buildingSize = ResourceManager::getBuildingSize(type);
         sf::Vector2i tile = MathUtil::buildingTileOrigin(position, buildingSize, Constants::TILE_SIZE);
-        m_map.placeBuilding(tile.x, tile.y, buildingSize.x, buildingSize.y, building);
+        m_map.placeBuilding(tile.x, tile.y, buildingSize.x, buildingSize.y);
         
         if (Player* p = getPlayerByTeam(team)) {
             p->addBuilding(building);
@@ -967,7 +867,7 @@ void Game::setRallyPoint(sf::Vector2f position, EntityPtr target) {
         if (auto* building = entity->asBuilding()) {
             // Check if building can produce units
             if (auto* bldgDef = ENTITY_DATA.getBuildingDef(entity->getType())) {
-                if (bldgDef->canProduce) {
+                if (bldgDef->canProduce()) {
                     if (target) {
                         building->setRallyTarget(target);
                     } else {

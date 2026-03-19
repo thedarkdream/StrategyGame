@@ -58,11 +58,13 @@ struct CombatBuildingDef {
 // Building-specific data
 struct BuildingDef {
     sf::Vector2i tileSize = {1, 1};     // Size in tiles
-    bool canProduce = false;
     std::vector<EntityType> producesUnits;  // What units can be trained here
     bool isResourceNode = false;
     int resourceAmount = 0;             // For resource nodes
     float constructionTime = 10.0f;     // Time in seconds to construct
+
+    // True when this building produces units (derived from producesUnits).
+    bool canProduce() const { return !producesUnits.empty(); }
 
     // Present only for combat buildings (e.g. Turret); nullopt otherwise.
     std::optional<CombatBuildingDef> combat;

@@ -167,14 +167,13 @@ bool Map::canPlaceBuilding(int tileX, int tileY, int width, int height) const {
     return true;
 }
 
-void Map::placeBuilding(int tileX, int tileY, int width, int height, EntityPtr building) {
+void Map::placeBuilding(int tileX, int tileY, int width, int height) {
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             if (isValidTile(tileX + x, tileY + y)) {
-                m_tiles[tileY + y][tileX + x].type = TileType::Building;
-                m_tiles[tileY + y][tileX + x].walkable = false;
+                m_tiles[tileY + y][tileX + x].type     = TileType::Building;
+                m_tiles[tileY + y][tileX + x].walkable  = false;
                 m_tiles[tileY + y][tileX + x].buildable = false;
-                m_tiles[tileY + y][tileX + x].occupant = building;
             }
         }
     }
@@ -187,7 +186,6 @@ void Map::removeBuilding(int tileX, int tileY, int width, int height) {
                 m_tiles[tileY + y][tileX + x].type     = TileType::Grass;
                 m_tiles[tileY + y][tileX + x].walkable  = true;
                 m_tiles[tileY + y][tileX + x].buildable = true;
-                m_tiles[tileY + y][tileX + x].occupant  = nullptr;
             }
         }
     }
@@ -515,7 +513,6 @@ void Map::setTileType(int x, int y, TileType type) {
     tile.type      = type;
     tile.walkable  = (type == TileType::Grass || type == TileType::Resource);
     tile.buildable = (type == TileType::Grass);
-    tile.occupant  = nullptr;
     // Assign a random variant for the new tile type
     if (type == TileType::Grass) {
         std::uniform_int_distribution<int> dist(1, 8);
@@ -534,7 +531,6 @@ void Map::setTileType(int x, int y, TileType type, uint8_t variant) {
     tile.type      = type;
     tile.walkable  = (type == TileType::Grass || type == TileType::Resource);
     tile.buildable = (type == TileType::Grass);
-    tile.occupant  = nullptr;
     tile.variant   = variant;
 }
 

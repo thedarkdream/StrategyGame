@@ -130,10 +130,9 @@ private:
     // Build position for the `turretIndex`-th turret at the choke.
     sf::Vector2f findTurretLocation(int turretIndex);
     Worker*      findIdleWorker();
-    sf::Vector2f findEnemyBase();
     // Pick which enemy team to attack this wave (prefers teams with a live Base).
     Team         pickEnemyTeam();
-    // Like findEnemyBase but scoped to a specific team (Base first, then any building).
+    // Scoped to a specific team: prefers their Base, falls back to any building.
     sf::Vector2f findEnemyBuildingOfTeam(Team team);
 
     // Re-find a worker for a started build whose original worker abandoned the job.

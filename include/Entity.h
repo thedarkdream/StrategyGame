@@ -65,8 +65,7 @@ public:
 protected:
     void markUnderAttack()   { m_underAttackTimer = UNDER_ATTACK_WINDOW; }
     void tickUnderAttack(float dt) { m_underAttackTimer = std::max(0.f, m_underAttackTimer - dt); }
-    
-protected:
+
     uint32_t     m_id;
     EntityType m_type;
     Team m_team;

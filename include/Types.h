@@ -93,11 +93,10 @@ struct Resources {
 };
 
 struct Tile {
-    TileType  type      = TileType::Grass;
-    bool      walkable  = true;
-    bool      buildable = true;
-    uint8_t   variant   = 1;   // Which texture variant (1-8 for Grass, 1-4 for Water)
-    EntityPtr occupant  = nullptr;
+    TileType type      = TileType::Grass;
+    bool     walkable  = true;
+    bool     buildable = true;
+    uint8_t  variant   = 1;   // Which texture variant (1-8 for Grass, 1-4 for Water)
 };
 
 struct Command {

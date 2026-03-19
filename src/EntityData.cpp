@@ -103,14 +103,14 @@ void EntityRegistry::initializeDefaults() {
         def.type = EntityType::Worker;
         def.name = "Worker";
         def.shortName = "W";
-        def.mineralCost = Constants::WORKER_COST_MINERALS;
+        def.mineralCost = 50;
         def.gasCost = 0;
-        def.health = Constants::WORKER_HEALTH;
+        def.health = 40;
         def.size = {24.0f, 24.0f};
         def.visionRadius = 224.0f;  // 7 tiles
         
         UnitDef unit;
-        unit.speed = Constants::WORKER_SPEED;
+        unit.speed = 100.0f;
         unit.damage = 5;
         unit.attackRange = 30.0f;
         unit.attackCooldown = 1.5f;
@@ -172,17 +172,17 @@ void EntityRegistry::initializeDefaults() {
         def.type = EntityType::Soldier;
         def.name = "Soldier";
         def.shortName = "S";
-        def.mineralCost = Constants::SOLDIER_COST_MINERALS;
+        def.mineralCost = 75;
         def.gasCost = 0;
-        def.health = Constants::SOLDIER_HEALTH;
+        def.health = 100;
         def.size = {24.0f, 24.0f};
         def.visionRadius = 256.0f;  // 8 tiles
         
         UnitDef unit;
-        unit.speed = Constants::SOLDIER_SPEED;
-        unit.damage = Constants::SOLDIER_DAMAGE;
-        unit.attackRange = Constants::SOLDIER_ATTACK_RANGE;
-        unit.attackCooldown = Constants::SOLDIER_ATTACK_COOLDOWN;
+        unit.speed = 80.0f;
+        unit.damage = 10;
+        unit.attackRange = 150.0f;
+        unit.attackCooldown = 1.0f;
         unit.autoAttackRangeBonus = 50.0f;
         unit.trainingTime = 5.0f;
         unit.canGather = false;
@@ -239,17 +239,17 @@ void EntityRegistry::initializeDefaults() {
         def.type = EntityType::Brute;
         def.name = "Brute";
         def.shortName = "B";
-        def.mineralCost = Constants::BRUTE_COST_MINERALS;
+        def.mineralCost = 90;
         def.gasCost = 0;
-        def.health = Constants::BRUTE_HEALTH;
+        def.health = 120;
         def.size = {28.0f, 28.0f};
         def.visionRadius = 224.0f;  // 7 tiles
         
         UnitDef unit;
-        unit.speed = Constants::BRUTE_SPEED;
-        unit.damage = Constants::BRUTE_DAMAGE;
-        unit.attackRange = Constants::BRUTE_ATTACK_RANGE;
-        unit.attackCooldown = Constants::BRUTE_ATTACK_COOLDOWN;
+        unit.speed = 60.0f;
+        unit.damage = 12;
+        unit.attackRange = 30.0f;
+        unit.attackCooldown = 0.8f;
         unit.autoAttackRangeBonus = 50.0f;
         unit.trainingTime = 4.0f;
         unit.canGather = false;
@@ -275,7 +275,7 @@ void EntityRegistry::initializeDefaults() {
         def.type = EntityType::Base;
         def.name = "Command Center";
         def.shortName = "CC";
-        def.mineralCost = Constants::BASE_COST_MINERALS;
+        def.mineralCost = 400;
         def.gasCost = 0;
         def.health = 1500;
         def.size = {96.0f, 96.0f};
@@ -283,7 +283,6 @@ void EntityRegistry::initializeDefaults() {
         
         BuildingDef building;
         building.tileSize = {3, 3};
-        building.canProduce = true;
         building.producesUnits = {EntityType::Worker};
         building.isResourceNode = false;
         building.constructionTime = 30.0f;  // 30 seconds
@@ -313,7 +312,7 @@ void EntityRegistry::initializeDefaults() {
         def.type = EntityType::Barracks;
         def.name = "Barracks";
         def.shortName = "BK";
-        def.mineralCost = Constants::BARRACKS_COST_MINERALS;
+        def.mineralCost = 150;
         def.gasCost = 0;
         def.health = 1000;
         def.size = {96.0f, 64.0f};
@@ -321,7 +320,6 @@ void EntityRegistry::initializeDefaults() {
         
         BuildingDef building;
         building.tileSize = {3, 2};
-        building.canProduce = true;
         building.producesUnits = {EntityType::Soldier, EntityType::Brute};
         building.isResourceNode = false;
         building.constructionTime = 10.0f;  // 10 seconds
@@ -357,7 +355,7 @@ void EntityRegistry::initializeDefaults() {
         def.type = EntityType::Refinery;
         def.name = "Refinery";
         def.shortName = "RF";
-        def.mineralCost = Constants::REFINERY_COST_MINERALS;
+        def.mineralCost = 100;
         def.gasCost = 0;
         def.health = 500;
         def.size = {64.0f, 64.0f};
@@ -365,13 +363,12 @@ void EntityRegistry::initializeDefaults() {
         
         BuildingDef building;
         building.tileSize = {2, 2};
-        building.canProduce = false;
         building.isResourceNode = false;
         def.building = building;
-        
+
         registerEntity(std::move(def));
     }
-    
+
     // Factory
     {
         EntityDef def;
@@ -386,7 +383,6 @@ void EntityRegistry::initializeDefaults() {
         
         BuildingDef building;
         building.tileSize = {3, 2};
-        building.canProduce = true;
         building.producesUnits = {EntityType::LightTank};
         building.isResourceNode = false;
         building.constructionTime = 15.0f;  // 15 seconds
@@ -424,7 +420,6 @@ void EntityRegistry::initializeDefaults() {
 
         BuildingDef building;
         building.tileSize = {2, 2};
-        building.canProduce = false;
         building.isResourceNode = false;
         building.constructionTime = 10.0f;
         building.combat = CombatBuildingDef{
@@ -451,7 +446,6 @@ void EntityRegistry::initializeDefaults() {
         
         BuildingDef building;
         building.tileSize = {2, 1};
-        building.canProduce = false;
         building.isResourceNode = true;
         building.resourceAmount = 1500;
         def.building = building;
@@ -472,7 +466,6 @@ void EntityRegistry::initializeDefaults() {
         
         BuildingDef building;
         building.tileSize = {2, 2};
-        building.canProduce = false;
         building.isResourceNode = true;
         building.resourceAmount = 2500;
         def.building = building;
@@ -493,7 +486,6 @@ void EntityRegistry::initializeDefaults() {
         def.size = {96.0f, 96.0f};  // matches Base visual size
         BuildingDef building;
         building.tileSize = {3, 3};  // same footprint as Base
-        building.canProduce = false;
         building.isResourceNode = false;
         def.building = building;
         registerEntity(std::move(def));

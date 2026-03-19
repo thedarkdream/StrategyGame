@@ -1,5 +1,6 @@
 #pragma once
 
+#include "MathUtil.h"
 #include <SFML/Graphics/Rect.hpp>
 #include <SFML/Graphics/Texture.hpp>
 #include <SFML/System/Vector2.hpp>
@@ -34,7 +35,7 @@ inline Direction directionFromVector(sf::Vector2f movement) {
     float angle = std::atan2(movement.y, movement.x);
     
     // Convert to 0-360 degrees
-    float degrees = angle * 180.0f / 3.14159265f;
+    float degrees = angle * 180.0f / MathUtil::PI;
     if (degrees < 0) degrees += 360.0f;
     
     // Map to 8 directions (each direction covers 45 degrees)

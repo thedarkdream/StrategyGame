@@ -600,7 +600,7 @@ void Unit::moveTowardsTarget(float deltaTime) {
             // angular progress toward the actual destination. This cleanly handles
             // corners where the old ±90° slide would oscillate.
             constexpr float PROBE_DEG[] = { 90.f, -90.f, 45.f, -45.f, 135.f, -135.f, 180.f };
-            constexpr float DEG_TO_RAD = 3.14159265f / 180.0f;
+            constexpr float DEG_TO_RAD = MathUtil::PI / 180.0f;
 
             float baseAngle = std::atan2(direction.y, direction.x);
             float moveDist  = m_speed * deltaTime;
