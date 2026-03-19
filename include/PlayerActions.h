@@ -8,6 +8,32 @@ class Game;
 class Worker;
 
 // ---------------------------------------------------------------------------
+// PlayerCommandScope — lightweight RAII scope guard.
+//
+// Activated at the entry of every PlayerActions method that belongs to the
+// local human player (m_isLocal == true).  Queued lambdas capture a `bool`
+// at creation time and re-activate the scope when executed, so deferred
+// actions are treated the same as immediate ones.
+//
+// Any system (voice lines, UI feedback, …) can call
+//   PlayerCommandScope::isActive()
+// to know whether the current call stack originated from a direct player
+// input rather than an automated game process (AI, rally points, auto-attack,
+// automated regather, etc.).
+// ---------------------------------------------------------------------------
+struct PlayerCommandScope {
+    explicit PlayerCommandScope(bool activate) : m_active(activate)
+        { if (m_active) ++s_depth; }
+    ~PlayerCommandScope()
+        { if (m_active) --s_depth; }
+
+    static bool isActive() { return s_depth > 0; }
+private:
+    bool m_active;
+    static int s_depth;
+};
+
+// ---------------------------------------------------------------------------
 // PlayerActions — unified interface for all player-issued game actions.
 //
 // Both the human player (InputHandler / ActionBar) and the AI (AIController)

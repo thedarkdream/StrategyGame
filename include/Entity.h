@@ -31,8 +31,13 @@ public:
     
     // Setters
     void setPosition(sf::Vector2f position) { m_position = position; }
-    void setSelected(bool selected) { m_selected = selected; }
+    void setSelected(bool selected) { m_selected = selected; if (selected) onSelected(); }
     void setIsLocalTeam(bool val) { m_isLocalTeam = val; }
+
+    // Called once when this entity becomes selected; override for unit voice lines etc.
+    virtual void onSelected() {}
+    // Called once after the entity is fully spawned and wired into the world.
+    virtual void onSpawned() {}
     bool isLocalTeam() const { return m_isLocalTeam; }
 
     // Category helpers — virtual downcast without RTTI overhead.

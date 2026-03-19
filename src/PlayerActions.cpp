@@ -12,6 +12,9 @@
 #include <numeric>
 #include <cmath>
 
+// Static definition for PlayerCommandScope depth counter.
+int PlayerCommandScope::s_depth = 0;
+
 namespace {
     // Build concentric-ring offsets for `count` units around (0,0).
     // Ring 0: 1 slot (center). Ring k: k*6 slots at radius k*spacing.
@@ -156,12 +159,15 @@ void PlayerActions::cancelConstruction(EntityPtr entity) {
 // ---------------------------------------------------------------------------
 
 void PlayerActions::move(const std::vector<EntityPtr>& units, sf::Vector2f target, bool append) {
+    PlayerCommandScope scope(m_isLocal);
     // For queued (shift-click) commands we don't know the future positions of
     // units, so we cannot assign meaningful formation slots.
     if (append) {
         for (const auto& e : units)
             if (auto* u = e->asUnit())
-                u->appendToQueue([u, target]{ u->moveTo(target); });
+                u->appendToQueue([u, target]{
+                    u->moveTo(target);
+                });
         return;
     }
 
@@ -186,6 +192,7 @@ void PlayerActions::move(const std::vector<EntityPtr>& units, sf::Vector2f targe
 }
 
 void PlayerActions::follow(const std::vector<EntityPtr>& units, EntityPtr target, bool append) {
+    PlayerCommandScope scope(m_isLocal);
     if (m_isLocal && target) target->startHighlight();
     std::weak_ptr<Entity> tWeak = target;
     for (const auto& e : units) {
@@ -203,6 +210,7 @@ void PlayerActions::follow(const std::vector<EntityPtr>& units, EntityPtr target
 }
 
 void PlayerActions::attack(const std::vector<EntityPtr>& units, EntityPtr target, bool append) {
+    PlayerCommandScope scope(m_isLocal);
     if (m_isLocal && target) target->startHighlight();
     std::weak_ptr<Entity> tWeak = target;
     for (const auto& e : units) {
@@ -220,10 +228,13 @@ void PlayerActions::attack(const std::vector<EntityPtr>& units, EntityPtr target
 }
 
 void PlayerActions::attackMove(const std::vector<EntityPtr>& units, sf::Vector2f target, bool append) {
+    PlayerCommandScope scope(m_isLocal);
     if (append) {
         for (const auto& e : units)
             if (auto* u = e->asUnit())
-                u->appendToQueue([u, target]{ u->attackMoveTo(target); });
+                u->appendToQueue([u, target]{
+                    u->attackMoveTo(target);
+                });
         return;
     }
 
@@ -246,6 +257,7 @@ void PlayerActions::attackMove(const std::vector<EntityPtr>& units, sf::Vector2f
 }
 
 void PlayerActions::gather(const std::vector<EntityPtr>& units, EntityPtr resource, bool append) {
+    PlayerCommandScope scope(m_isLocal);
     if (m_isLocal && resource && !append) resource->startHighlight();
     std::weak_ptr<Entity> rWeak = resource;
     for (const auto& e : units) {
@@ -263,6 +275,7 @@ void PlayerActions::gather(const std::vector<EntityPtr>& units, EntityPtr resour
 }
 
 void PlayerActions::stop(const std::vector<EntityPtr>& units) {
+    PlayerCommandScope scope(m_isLocal);
     for (const auto& e : units)
         if (auto* u = e->asUnit()) u->stop();
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Unit.h"
+#include <chrono>
 
 class Building;
 
@@ -31,6 +32,8 @@ public:
     EntityPtr getBuildTarget() const { return m_buildTarget.lock(); }
     
     void onDeath() override;
+    void onSpawned() override;
+    void onSelected() override;
 
     // Workers are not collidable when gathering (to allow stacking at resources)
     bool isCollidable() const override;
@@ -61,4 +64,10 @@ private:
     
     // Escape collision if overlapping with entities (after transitioning from non-collidable)
     void escapeCollisionIfNeeded();
+
+    // Voice line system — static so cooldown is shared across all workers (prevents spam)
+    enum class VoiceAction { Select = 0, Move = 1, Attack = 2, Gather = 3 };
+    static constexpr int NUM_VOICE_ACTIONS = 4;
+    static void playVoiceLine(VoiceAction action, sf::Vector2f position);
+    static std::chrono::steady_clock::time_point s_voiceCooldownEnd[NUM_VOICE_ACTIONS];
 };

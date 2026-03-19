@@ -8,8 +8,16 @@
 #include "Map.h"
 #include "TextureManager.h"
 #include "SoundManager.h"
+#include "PlayerActions.h"
 #include <cmath>
 #include <limits>
+#include <random>
+
+// ---------------------------------------------------------------------------
+// Static voice-line cooldown state (one cooldown end-point per action category)
+// ---------------------------------------------------------------------------
+std::chrono::steady_clock::time_point
+    Worker::s_voiceCooldownEnd[Worker::NUM_VOICE_ACTIONS] = {};
 
 Worker::Worker(Team team, sf::Vector2f position)
     : Unit(EntityType::Worker, team, position)
@@ -40,6 +48,7 @@ void Worker::moveTo(sf::Vector2f target) {
     releaseMiningClaim();
     releaseBuildClaim();
     escapeCollisionIfNeeded();
+    if (PlayerCommandScope::isActive()) playVoiceLine(VoiceAction::Move, m_position);
     Unit::moveTo(target);
 }
 
@@ -47,6 +56,7 @@ void Worker::attackMoveTo(sf::Vector2f target) {
     releaseMiningClaim();
     releaseBuildClaim();
     escapeCollisionIfNeeded();
+    if (PlayerCommandScope::isActive()) playVoiceLine(VoiceAction::Attack, m_position);
     Unit::attackMoveTo(target);
 }
 
@@ -95,6 +105,7 @@ void Worker::gather(EntityPtr resource) {
         playAnimation(AnimationState::Idle);
         return;
     }
+    if (PlayerCommandScope::isActive()) playVoiceLine(VoiceAction::Gather, m_position);
     
     // Release any previous mining claim
     releaseMiningClaim();
@@ -489,7 +500,55 @@ void Worker::onDeath() {
     SOUNDS.playSound("units/worker/worker_death.wav", m_position);
 }
 
+void Worker::onSpawned() {
+    if (m_isLocalTeam) SOUNDS.playSound("units/worker/worker_spawn_1.wav", m_position);
+}
+
+void Worker::onSelected() {
+    if (m_isLocalTeam) playVoiceLine(VoiceAction::Select, m_position);
+}
+
+void Worker::playVoiceLine(VoiceAction action, sf::Vector2f position) {
+    using namespace std::chrono;
+    const int idx = static_cast<int>(action);
+    const auto now = steady_clock::now();
+    if (now < s_voiceCooldownEnd[idx]) return;  // Still in cooldown
+
+    // File variant counts per action (select=4, move=4, attack=3, gather=3)
+    static constexpr int COUNTS[NUM_VOICE_ACTIONS] = { 4, 4, 3, 3 };
+    static const char*   PREFIXES[NUM_VOICE_ACTIONS] = {
+        "units/worker/worker_select_",
+        "units/worker/worker_move_",
+        "units/worker/worker_attack_",
+        "units/worker/worker_gather_"
+    };
+
+    static std::mt19937 rng{ std::random_device{}() };
+    const int variant = std::uniform_int_distribution<int>(1, COUNTS[idx])(rng);
+    const std::string path = std::string(PREFIXES[idx]) + std::to_string(variant) + ".wav";
+
+    sf::SoundBuffer* buf = SOUNDS.loadBuffer(path);
+    if (!buf) return;
+
+    // Cooldown = sound duration + 2 second buffer to prevent spam
+    const float cooldownSecs = buf->getDuration().asSeconds() + 2.0f;
+    s_voiceCooldownEnd[idx] = now + duration_cast<steady_clock::duration>(
+        duration<float>(cooldownSecs));
+
+    SOUNDS.playSound(path, position);
+}
+
 void Worker::preload() {
     TEXTURES.loadAnimationSet("units/worker");
     SOUNDS.loadBuffer("units/worker/worker_death.wav");
+    SOUNDS.loadBuffer("units/worker/worker_spawn_1.wav");
+    // Preload all voice line variants
+    for (int i = 1; i <= 4; ++i)
+        SOUNDS.loadBuffer("units/worker/worker_select_" + std::to_string(i) + ".wav");
+    for (int i = 1; i <= 4; ++i)
+        SOUNDS.loadBuffer("units/worker/worker_move_" + std::to_string(i) + ".wav");
+    for (int i = 1; i <= 3; ++i)
+        SOUNDS.loadBuffer("units/worker/worker_attack_" + std::to_string(i) + ".wav");
+    for (int i = 1; i <= 3; ++i)
+        SOUNDS.loadBuffer("units/worker/worker_gather_" + std::to_string(i) + ".wav");
 }

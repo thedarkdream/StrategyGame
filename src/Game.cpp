@@ -669,6 +669,7 @@ UnitPtr Game::spawnAndSetupUnit(EntityType type, Team team, sf::Vector2f pos,
 
     setupUnit(unit);
     unit->setIsLocalTeam(m_players[m_localSlot] && team == m_players[m_localSlot]->getTeam());
+    unit->onSpawned();
 
     // Assign home base for workers
     if (type == EntityType::Worker) {
