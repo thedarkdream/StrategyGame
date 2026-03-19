@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Types.h"
+#include "Minimap.h"
 #include <SFML/Graphics.hpp>
 class Game;
 class Map;
@@ -15,17 +16,14 @@ public:
     void setCamera(const sf::View& camera) { m_camera = camera; }
 
     // Call whenever the map tiles change so the minimap terrain is re-baked
-    void invalidateMinimapTerrain() { m_minimapTerrainDirty = true; }
+    void invalidateMinimapTerrain() { m_minimap.invalidate(); }
     
 private:
     sf::RenderWindow& m_window;
     sf::View m_camera;
     const sf::Font* m_font{ nullptr };
 
-    // Cached terrain layer for the minimap (one pixel per tile)
-    sf::Texture m_minimapTerrainTex;
-    bool        m_minimapTerrainDirty = true;
-    void rebuildMinimapTerrain(Map& map);
+    Minimap m_minimap;
     
     // Render layers
     void renderMap(Map& map);

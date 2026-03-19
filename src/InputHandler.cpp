@@ -1,6 +1,7 @@
 #include "InputHandler.h"
 #include "Game.h"
 #include "Constants.h"
+#include "Minimap.h"
 #include "Entity.h"
 #include "EntityData.h"
 #include "Unit.h"
@@ -138,31 +139,11 @@ void InputHandler::clampCamera() {
 }
 
 bool InputHandler::isPositionOnMinimap(sf::Vector2i screenPos) const {
-    sf::Vector2u windowSize = m_window.getSize();
-    float minimapX = Constants::MINIMAP_PADDING;
-    float minimapY = static_cast<float>(windowSize.y) - Constants::MINIMAP_SIZE - Constants::MINIMAP_PADDING;
-    
-    return screenPos.x >= minimapX && 
-           screenPos.x <= minimapX + Constants::MINIMAP_SIZE &&
-           screenPos.y >= minimapY && 
-           screenPos.y <= minimapY + Constants::MINIMAP_SIZE;
+    return Minimap::isHit(screenPos, m_window.getSize());
 }
 
 sf::Vector2f InputHandler::minimapToWorld(sf::Vector2i screenPos) const {
-    sf::Vector2u windowSize = m_window.getSize();
-    float minimapX = Constants::MINIMAP_PADDING;
-    float minimapY = static_cast<float>(windowSize.y) - Constants::MINIMAP_SIZE - Constants::MINIMAP_PADDING;
-    
-    // Calculate relative position within the minimap (0 to 1)
-    float relX = (screenPos.x - minimapX) / Constants::MINIMAP_SIZE;
-    float relY = (screenPos.y - minimapY) / Constants::MINIMAP_SIZE;
-    
-    // Convert to world coordinates using actual map dimensions
-    const Map& map = m_game.getMap();
-    float worldX = relX * map.getWidth() * Constants::TILE_SIZE;
-    float worldY = relY * map.getHeight() * Constants::TILE_SIZE;
-    
-    return sf::Vector2f(worldX, worldY);
+    return Minimap::toWorldPos(screenPos, m_window.getSize(), m_game.getMap());
 }
 
 void InputHandler::centerCameraAt(sf::Vector2f worldPos) {

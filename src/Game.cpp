@@ -46,21 +46,18 @@ void Game::update(float deltaTime) {
     SOUNDS.setListenerPosition(m_input->getCamera().getCenter());
     
     // Update all entities (units, buildings, projectiles, etc.) regardless of owner
-    // NOTE: iterate by snapshot size - new entities spawned mid-loop (e.g. rockets)
-    // are buffered in m_pendingEntities and flushed after the loop to avoid
-    // iterator invalidation from vector reallocation.
-    for (auto& entity : m_allEntities) {
+    // NOTE: new entities spawned mid-loop (e.g. rockets) are buffered in the world's
+    // pending list and flushed after the loop to avoid iterator invalidation.
+    for (auto& entity : m_world.all()) {
         if (entity && entity->isAlive()) {
             entity->update(deltaTime);
             entity->updateHighlight(deltaTime);
         }
     }
-    flushPendingEntities();  // Safe to add new entities now
+    m_world.flush();  // Safe to add new entities now
 
     // Slide any unit that is physically inside a building outward each frame.
-    // This handles workers that get trapped when a building is placed on them,
-    // as well as any other overlap that occurs during normal gameplay.
-    pushUnitsOutOfBuildings(deltaTime);
+    m_world.pushUnitsOutOfBuildings(deltaTime);
 
     // Update all player controllers (AI ticks, network polling, etc.)
     for (int i = 0; i < MAX_PLAYERS; ++i) {
@@ -75,9 +72,7 @@ void Game::update(float deltaTime) {
     cleanupDeadEntities();
 
     // Update fog of war for the local human player every frame.
-    // This recomputes which tiles are visible based on current unit/building
-    // positions and rebuilds the fog overlay texture used by the Renderer.
-    getPlayer().updateFog(m_map, m_allEntities);
+    getPlayer().updateFog(m_map, m_world.all());
 
     // Check victory/defeat
     checkVictoryConditions();
@@ -177,13 +172,11 @@ void Game::preloadAssets() {
 }
 
 void Game::cleanupDeadEntities() {
-    // Single pass: record statistics, free map tiles, and unlink each dying
-    // entity from its owning Player's typed lists — all before the shared_ptr
-    // is released by the erase below.  This keeps Player::m_units / m_buildings
-    // in sync with m_allEntities without a separate cleanup call on Player.
-    for (const auto& entity : m_allEntities) {
-        if (!entity || !entity->isReadyForRemoval()) continue;
-
+    // Extract all entities that have finished dying. Process the bookkeeping
+    // (stats, map tiles, player typed-lists) on the returned snapshot before
+    // the shared_ptrs are released.
+    EntityList removed = m_world.extractRemovable();
+    for (const auto& entity : removed) {
         Team killerTeam = entity->getLastAttackerTeam();
         Player* owner   = getPlayerByTeam(entity->getTeam());
 
@@ -193,7 +186,6 @@ void Game::cleanupDeadEntities() {
                 owner->removeUnit(std::static_pointer_cast<Unit>(entity));
         } else if (entity->asBuilding()) {
             m_statistics.recordBuildingDestroyed(entity->getTeam(), killerTeam);
-            // Free the map tiles so pathfinding and canPlaceBuilding see open land.
             sf::Vector2i bSize = ResourceManager::getBuildingSize(entity->getType());
             sf::Vector2i tile  = MathUtil::buildingTileOrigin(
                 entity->getPosition(), bSize, Constants::TILE_SIZE);
@@ -203,19 +195,9 @@ void Game::cleanupDeadEntities() {
         }
     }
 
-    // Prune dead/dying units from each player's selection every frame so the
-    // HUD reacts immediately when a unit's health hits zero (before the death
-    // animation finishes and isReadyForRemoval becomes true).
+    // Prune dead/dying units from each player's selection every frame.
     for (auto& p : m_players)
         if (p) p->cleanupSelection();
-
-    // Erase from the master list (shared_ptr refcount drops to zero here for
-    // entities with no other owners).
-    m_allEntities.erase(
-        std::remove_if(m_allEntities.begin(), m_allEntities.end(),
-            [](const EntityPtr& entity) { return !entity || entity->isReadyForRemoval(); }),
-        m_allEntities.end()
-    );
 }
 
 void Game::checkVictoryConditions() {
@@ -236,238 +218,63 @@ void Game::checkVictoryConditions() {
 }
 
 EntityPtr Game::getEntityAtPosition(sf::Vector2f position) {
-    for (auto& entity : m_allEntities) {
-        if (entity && entity->isAlive() && entity->getType() != EntityType::Rocket
-            && entity->getBounds().contains(position)) {
-            return entity;
-        }
-    }
-    return nullptr;
+    return m_world.getAt(position);
 }
 
 std::vector<EntityPtr> Game::getEntitiesInRect(sf::FloatRect rect) {
-    std::vector<EntityPtr> result;
-    for (auto& entity : m_allEntities) {
-        if (entity && entity->isAlive() && rect.findIntersection(entity->getBounds()).has_value()) {
-            result.push_back(entity);
-        }
-    }
-    return result;
+    return m_world.getInRect(rect);
 }
 
 std::vector<EntityPtr> Game::getEntitiesInRect(sf::FloatRect rect, Team team) {
-    std::vector<EntityPtr> result;
-    for (auto& entity : m_allEntities) {
-        if (entity && entity->isAlive() && 
-            entity->getTeam() == team && 
-            rect.findIntersection(entity->getBounds()).has_value()) {
-            result.push_back(entity);
-        }
-    }
-    return result;
+    return m_world.getInRect(rect, team);
 }
 
 EntityPtr Game::findNearestEnemy(sf::Vector2f pos, float radius, Team excludeTeam) {
-    return findNearest(pos, radius, [excludeTeam](const EntityPtr& entity) {
-        return entity->getTeam() != excludeTeam
-            && entity->getTeam() != Team::Neutral
-            && entity->getType() != EntityType::Rocket;
-    });
+    return m_world.findNearestEnemy(pos, radius, excludeTeam);
 }
 
 EntityPtr Game::findPriorityEnemy(sf::Vector2f pos, float radius, Team excludeTeam) {
-    // Priority: combat units > workers > buildings
-    // Within each category, pick the nearest
-    EntityPtr bestCombatUnit = nullptr;
-    EntityPtr bestWorker = nullptr;
-    EntityPtr bestBuilding = nullptr;
-    float bestCombatDist = radius;
-    float bestWorkerDist = radius;
-    float bestBuildingDist = radius;
-    
-    for (auto& entity : m_allEntities) {
-        if (!entity || !entity->isAlive()) continue;
-        if (entity->getTeam() == excludeTeam || entity->getTeam() == Team::Neutral) continue;
-        if (entity->getType() == EntityType::Rocket) continue;  // Rockets are not valid targets
-        
-        float dist = MathUtil::distance(entity->getPosition(), pos);
-        if (dist >= radius) continue;
-        
-        if (entity->asBuilding()) {
-            if (dist < bestBuildingDist) {
-                bestBuildingDist = dist;
-                bestBuilding = entity;
-            }
-        } else if (entity->asUnit()) {
-            // Distinguish combat units from non-combat (gatherers, builders, etc.)
-            if (entity->asUnit()->isCombatUnit()) {
-                if (dist < bestCombatDist) {
-                    bestCombatDist = dist;
-                    bestCombatUnit = entity;
-                }
-            } else {
-                if (dist < bestWorkerDist) {
-                    bestWorkerDist = dist;
-                    bestWorker = entity;
-                }
-            }
-        }
-    }
-    
-    // Return highest priority target found
-    if (bestCombatUnit) return bestCombatUnit;
-    if (bestWorker) return bestWorker;
-    return bestBuilding;
+    return m_world.findPriorityEnemy(pos, radius, excludeTeam);
 }
 
 EntityPtr Game::findNearestResource(sf::Vector2f pos, float radius) {
-    return findNearest(pos, radius, [](const EntityPtr& entity) {
-        return entity->isResource();
-    });
+    return m_world.findNearestResource(pos, radius);
 }
 
 EntityPtr Game::findNearestAvailableResource(sf::Vector2f pos, float radius, EntityPtr exclude) {
-    return findNearest(pos, radius, [exclude](const EntityPtr& entity) {
-        if (!entity->isResource()) return false;
-        if (entity == exclude) return false;
-        
-        // Check if this resource is being actively mined
-        if (auto* resourceNode = entity->asResourceNode()) {
-            if (resourceNode->isBeingMined()) return false;
-        }
-        return true;
-    });
-}
-
-void Game::setupUnit(UnitPtr& unit) {
-    unit->setMap(&m_map);
-    unit->setContext(this);
+    return m_world.findNearestAvailableResource(pos, radius, exclude);
 }
 
 EntityPtr Game::findHomeBase(Team team) {
-    if (Player* p = getPlayerByTeam(team)) {
-        for (auto& building : p->getBuildings()) {
-            if (building->getType() == EntityType::Base)
-                return building;
-        }
-    }
-    return nullptr;
+    return m_world.findHomeBase(team);
 }
 
 bool Game::checkPositionBlocked(sf::Vector2f pos, float radius, Entity* excludeSelf) {
-    // Inset building/resource bounds slightly so a unit whose centre grazes the
-    // corner pixel of two touching buildings isn't falsely blocked.
-    constexpr float CORNER_INSET = 2.0f;
-
-    auto insetContains = [&](const Entity* e) -> bool {
-        sf::FloatRect b = e->getBounds();
-        b.position.x += CORNER_INSET;
-        b.position.y += CORNER_INSET;
-        b.size.x     -= CORNER_INSET * 2.0f;
-        b.size.y     -= CORNER_INSET * 2.0f;
-        return b.contains(pos);
-    };
-
-    for (const EntityList* list : {&m_allEntities, &m_pendingEntities}) {
-    for (auto& entity : *list) {
-        if (!entity || !entity->isAlive()) continue;
-        if (entity.get() == excludeSelf) continue;
-
-        if (auto* unit = entity->asUnit()) {
-            if (!unit->isCollidable()) continue;
-            float dist = MathUtil::distance(entity->getPosition(), pos);
-            if (dist < radius + unit->getCollisionRadius())
-                return true;
-        } else if (entity->asBuilding() || entity->asResourceNode()) {
-            if (insetContains(entity.get()))
-                return true;
-        }
-    }
-    }
-    return false;
+    return m_world.checkPositionBlocked(pos, radius, excludeSelf);
 }
 
 sf::Vector2f Game::findFreePosition(sf::Vector2f pos, float radius, float maxSearchRadius, Entity* excludeSelf) {
-    if (!checkPositionBlocked(pos, radius, excludeSelf))
-        return pos;
-    float stepRadius = radius * 2.0f;
-    int maxRings = static_cast<int>(maxSearchRadius / stepRadius) + 1;
-    return findNearestFreePosition(pos, radius, maxRings, excludeSelf);
+    return m_world.findFreePosition(pos, radius, maxSearchRadius, excludeSelf);
 }
 
 sf::Vector2f Game::findSpawnPosition(sf::Vector2f origin, float unitRadius) {
-    if (!checkPositionBlocked(origin, unitRadius, nullptr))
-        return origin;
-    return findNearestFreePosition(origin, unitRadius, 5, nullptr);
+    return m_world.findSpawnPosition(origin, unitRadius);
 }
 
 sf::Vector2f Game::findNearestFreePosition(sf::Vector2f pos, float radius, int maxRings, Entity* excludeSelf) {
-    float stepRadius = radius * 2.0f;
-    for (int ring = 1; ring <= maxRings; ++ring) {
-        float ringRadius = stepRadius * ring;
-        int points = 8 * ring;
-        for (int i = 0; i < points; ++i) {
-            float angle = (2.0f * MathUtil::PI * i) / points;
-            sf::Vector2f testPos = pos + sf::Vector2f(
-                std::cos(angle) * ringRadius,
-                std::sin(angle) * ringRadius);
-            if (!checkPositionBlocked(testPos, radius, excludeSelf))
-                return testPos;
-        }
-    }
-    return pos;  // fallback: return original if no free spot found
+    return m_world.findNearestFreePosition(pos, radius, maxRings, excludeSelf);
 }
 
 std::vector<RVONeighbor> Game::getNearbyUnitsRVO(sf::Vector2f pos, float radius, Unit* excludeSelf) {
-    std::vector<RVONeighbor> result;
-    
-    for (auto& entity : m_allEntities) {
-        if (!entity || !entity->isAlive()) continue;
-        
-        if (auto* unit = entity->asUnit()) {
-            if (unit == excludeSelf) continue;
-            if (!unit->isCollidable()) continue;
-            
-            float dist = MathUtil::distance(entity->getPosition(), pos);
-            if (dist < radius) {
-                RVONeighbor neighbor;
-                neighbor.position = unit->getPosition();
-                neighbor.velocity = unit->getVelocity();
-                neighbor.radius = unit->getCollisionRadius();
-                result.push_back(neighbor);
-            }
-        }
-    }
-    
-    return result;
+    return m_world.getNearbyUnitsRVO(pos, radius, excludeSelf);
 }
 
 void Game::addEntity(EntityPtr entity) {
-    // Buffer the entity; it will be moved to m_allEntities after the current update
-    // loop completes, preventing vector reallocation from invalidating loop iterators.
-    m_pendingEntities.push_back(entity);
-}
-
-void Game::flushPendingEntities() {
-    if (m_pendingEntities.empty()) return;
-    m_allEntities.insert(m_allEntities.end(),
-        std::make_move_iterator(m_pendingEntities.begin()),
-        std::make_move_iterator(m_pendingEntities.end()));
-    m_pendingEntities.clear();
+    m_world.add(entity);
 }
 
 void Game::removeEntity(EntityPtr entity) {
-    // Remove from the live list (normal case: entity has already been flushed).
-    auto it = std::find(m_allEntities.begin(), m_allEntities.end(), entity);
-    if (it != m_allEntities.end()) {
-        m_allEntities.erase(it);
-    }
-    // Also purge from the pending buffer in case removal is requested on the
-    // same frame the entity was spawned (before the next flush).
-    auto pit = std::find(m_pendingEntities.begin(), m_pendingEntities.end(), entity);
-    if (pit != m_pendingEntities.end()) {
-        m_pendingEntities.erase(pit);
-    }
+    m_world.remove(entity);
 }
 
 // ---------------------------------------------------------------------------
@@ -603,17 +410,11 @@ void Game::spawnUnitFromBuilding(EntityType type, Team team, Building* sourceBui
         EntityPtr rallyTarget = sourceBuilding->getRallyTarget();
         sf::Vector2f rallyPoint = sourceBuilding->getRallyPoint();
 
-        // Assigns a concentric-ring formation slot around a rally position so
-        // successive units don't all pile up on the exact same tile.
-        // Counts allied units whose current position OR target is within
-        // SEARCH_RADIUS of the rally point, then maps the next unit (index n)
-        // to the appropriate ring/slot offset.  Ring 0 = center (n==0), ring k
-        // holds k*6 slots at radius k*spacing — identical to buildFormationOffsets
-        // in PlayerActions.cpp.
+        // Assigns a concentric-ring formation slot around a rally position.
         auto computeRallySlot = [&](sf::Vector2f rp, float spacing) -> sf::Vector2f {
             constexpr float SEARCH_RADIUS = 200.0f;
             int n = 0;
-            for (const auto& e : m_allEntities) {
+            for (const auto& e : m_world.all()) {
                 if (!e || !e->isAlive() || e->getTeam() != team) continue;
                 const Unit* u = e->asUnit();
                 if (!u) continue;
@@ -665,6 +466,11 @@ void Game::spawnUnitFromBuilding(EntityType type, Team team, Building* sourceBui
 // Private helper — creates a unit, wires it up and adds it to the world.
 // Returns the new unit (or nullptr for unknown types).
 // ---------------------------------------------------------------------------
+void Game::setupUnit(UnitPtr& unit) {
+    unit->setMap(&m_map);
+    unit->setContext(this);
+}
+
 UnitPtr Game::spawnAndSetupUnit(EntityType type, Team team, sf::Vector2f pos,
                                  Building* /*sourceBuilding*/)
 {
@@ -789,63 +595,6 @@ void Game::issueContinueBuildCommand(EntityPtr building, bool append) {
 
 void Game::cancelBuildingConstruction(EntityPtr building) {
     getActions().cancelConstruction(building);
-}
-
-void Game::pushUnitsOutOfBuildings(float deltaTime) {
-    // Speed at which trapped units are pushed clear (pixels per second).
-    constexpr float PUSH_SPEED = 150.0f;
-    // How far inside the building bounds the centre must be before we push.
-    // Match the inset used in checkPositionBlocked so the two systems agree
-    // on what counts as "inside" a building.
-    constexpr float INSET = 2.0f;
-
-    for (auto& entity : m_allEntities) {
-        if (!entity || !entity->isAlive()) continue;
-        Unit* unit = entity->asUnit();
-        if (!unit || !unit->isCollidable()) continue;
-
-        sf::Vector2f pos = unit->getPosition();
-
-        for (auto& other : m_allEntities) {
-            if (!other || !other->isAlive()) continue;
-            if (!other->asBuilding()) continue;
-
-            sf::FloatRect bounds = other->getBounds();
-
-            // Inset the bounds slightly so corner-squeezers are not falsely
-            // ejected while their centre is just grazing the building edge.
-            sf::FloatRect inner = bounds;
-            inner.position.x += INSET;
-            inner.position.y += INSET;
-            inner.size.x     -= INSET * 2.0f;
-            inner.size.y     -= INSET * 2.0f;
-
-            if (!inner.contains(pos)) continue;
-
-            // Minimum-penetration depenetration against the full (non-inset)
-            // bounds so the push distance is measured from the real wall face.
-            float dLeft   = pos.x - bounds.position.x;
-            float dRight  = (bounds.position.x + bounds.size.x) - pos.x;
-            float dTop    = pos.y - bounds.position.y;
-            float dBottom = (bounds.position.y + bounds.size.y) - pos.y;
-
-            float minH = std::min(dLeft, dRight);
-            float minV = std::min(dTop,  dBottom);
-
-            sf::Vector2f pushDir;
-            if (minH <= minV) {
-                pushDir = (dLeft <= dRight) ? sf::Vector2f(-1.f, 0.f)
-                                            : sf::Vector2f( 1.f, 0.f);
-            } else {
-                pushDir = (dTop  <= dBottom) ? sf::Vector2f(0.f, -1.f)
-                                             : sf::Vector2f(0.f,  1.f);
-            }
-
-            pos += pushDir * (PUSH_SPEED * deltaTime);
-        }
-
-        unit->setPosition(pos);
-    }
 }
 
 void Game::setRallyPoint(sf::Vector2f position, EntityPtr target) {

@@ -12,6 +12,7 @@
 #include "PlayerActions.h"
 #include "GameStatistics.h"
 #include "DebugConsole.h"
+#include "EntityWorld.h"
 #include <SFML/Graphics.hpp>
 #include <memory>
 #include <vector>
@@ -38,6 +39,7 @@ public:
     
     // Access to game components
     Map& getMap() { return m_map; }
+    const Map& getMap() const { return m_map; }
     // Local-human player (camera, selection, action bar)
     Player& getPlayer()       { return *m_players[m_localSlot]; }
     const Player& getPlayer() const { return *m_players[m_localSlot]; }
@@ -55,7 +57,7 @@ public:
     int getLocalSlot() const { return m_localSlot; }
     
     // Entity access
-    const EntityList& getAllEntities() const { return m_allEntities; }
+    const EntityList& getAllEntities() const { return m_world.all(); }
     EntityPtr getEntityAtPosition(sf::Vector2f position);
     std::vector<EntityPtr> getEntitiesInRect(sf::FloatRect rect);
     std::vector<EntityPtr> getEntitiesInRect(sf::FloatRect rect, Team team);
@@ -119,8 +121,7 @@ private:
     std::unique_ptr<DebugConsole>      m_debugConsole;
     
     // All entities in game
-    EntityList m_allEntities;
-    EntityList m_pendingEntities;  // Entities added mid-frame; flushed after update loop
+    EntityWorld m_world;
     
     // Game loop helpers
     
@@ -138,38 +139,6 @@ private:
     UnitPtr spawnAndSetupUnit(EntityType type, Team team, sf::Vector2f pos,
                               Building* sourceBuilding);
 
-    // Per-frame: gently slide any collidable unit that is overlapping a building
-    // toward the nearest face of that building until it is clear.
-    void pushUnitsOutOfBuildings(float deltaTime);
-
     // Helper: find the Player slot that owns entities of the given Team
     Player* getPlayerByTeam(Team t);
-
-    // Generic entity finder template
-    template<typename Predicate>
-    EntityPtr findNearest(sf::Vector2f pos, float radius, Predicate predicate);
 };
-
-// Template implementation (must be in header)
-#include "Entity.h"
-#include "MathUtil.h"
-
-template<typename Predicate>
-EntityPtr Game::findNearest(sf::Vector2f pos, float radius, Predicate predicate) {
-    EntityPtr nearest = nullptr;
-    float nearestDist = radius;
-    
-    for (auto& entity : m_allEntities) {
-        if (!entity || !entity->isAlive()) continue;
-        if (!predicate(entity)) continue;
-        
-        float dist = MathUtil::distance(entity->getPosition(), pos);
-        
-        if (dist < nearestDist) {
-            nearestDist = dist;
-            nearest = entity;
-        }
-    }
-    
-    return nearest;
-}

@@ -21,6 +21,7 @@ set(SOURCES
     src/TerrainRenderer.cpp
     src/Entity.cpp
     src/EntityData.cpp
+    src/EntityWorld.cpp
     src/Unit.cpp
     src/Worker.cpp
     src/Soldier.cpp
@@ -30,6 +31,7 @@ set(SOURCES
     src/Player.cpp
     src/InputHandler.cpp
     src/Renderer.cpp
+    src/Minimap.cpp
     src/ResourceManager.cpp
     src/AIController.cpp
     src/AIScript.cpp
