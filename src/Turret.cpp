@@ -20,6 +20,15 @@ Turret::Turret(Team team, sf::Vector2f position)
         m_fireTextures[i] = TEXTURES.loadTexture("buildings/turret/turret_fire_" + n + ".png");
     }
 
+    // Pull combat stats from EntityData — single source of truth.
+    if (const CombatBuildingDef* cd = ENTITY_DATA.getCombatBuildingDef(EntityType::Turret)) {
+        m_attackRange     = cd->attackRange;
+        m_attackDamage    = cd->attackDamage;
+        m_attackCooldown  = cd->attackCooldown;
+        m_bulletSpeed     = cd->projectileSpeed;
+        m_fireDisplayTime = cd->fireDisplayTime;
+    }
+
     m_dirIndex = 3;  // default SW (index 3)
     updateSprite();
 }
@@ -75,9 +84,9 @@ void Turret::update(float deltaTime) {
     // Acquire / refresh target
     EntityPtr target = m_currentTarget.lock();
     if (!target || !target->isAlive() ||
-        MathUtil::distance(target->getPosition(), m_position) > ATTACK_RANGE + 16.f) {
+        MathUtil::distance(target->getPosition(), m_position) > m_attackRange + 16.f) {
         // Search for new target
-        target = m_context->findNearestEnemy(m_position, ATTACK_RANGE, m_team);
+        target = m_context->findNearestEnemy(m_position, m_attackRange, m_team);
         m_currentTarget = target ? std::weak_ptr<Entity>(target) : std::weak_ptr<Entity>{};
     }
 
@@ -88,9 +97,9 @@ void Turret::update(float deltaTime) {
 
         // Fire if cooldown expired
         if (m_attackTimer <= 0.f) {
-            m_context->spawnProjectile(shared_from_this(), target, ATTACK_DAMAGE, BULLET_SPEED);
-            m_attackTimer = ATTACK_COOLDOWN;
-            m_fireTimer   = FIRE_DISPLAY;
+            m_context->spawnProjectile(shared_from_this(), target, m_attackDamage, m_bulletSpeed);
+            m_attackTimer = m_attackCooldown;
+            m_fireTimer   = m_fireDisplayTime;
         }
     }
 

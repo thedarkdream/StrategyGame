@@ -74,6 +74,11 @@ const BuildingDef* EntityRegistry::getBuildingDef(EntityType type) const {
     return (def && def->building) ? &def->building.value() : nullptr;
 }
 
+const CombatBuildingDef* EntityRegistry::getCombatBuildingDef(EntityType type) const {
+    auto* bd = getBuildingDef(type);
+    return (bd && bd->combat) ? &bd->combat.value() : nullptr;
+}
+
 float EntityRegistry::getConstructionTime(EntityType type) const {
     auto* buildingDef = getBuildingDef(type);
     return buildingDef ? buildingDef->constructionTime : 10.0f;
@@ -422,6 +427,13 @@ void EntityRegistry::initializeDefaults() {
         building.canProduce = false;
         building.isResourceNode = false;
         building.constructionTime = 10.0f;
+        building.combat = CombatBuildingDef{
+            .attackRange     = 200.f,
+            .attackDamage    = 20,
+            .attackCooldown  = 1.0f,
+            .projectileSpeed = 700.f,
+            .fireDisplayTime = 0.25f,
+        };
         def.building = building;
 
         registerEntity(std::move(def));

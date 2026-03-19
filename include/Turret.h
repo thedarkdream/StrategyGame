@@ -42,12 +42,12 @@ private:
     // Current direction index (persists after target dies)
     int  m_dirIndex   = 3;  // default SW
 
-    // Combat
-    static constexpr float ATTACK_RANGE    = 200.f;
-    static constexpr float ATTACK_COOLDOWN = 1.0f;
-    static constexpr int   ATTACK_DAMAGE   = 20;
-    static constexpr float BULLET_SPEED    = 700.f;
-    static constexpr float FIRE_DISPLAY    = 0.25f;  // seconds fire sprite is shown
+    // Combat stats — initialised from EntityData::getCombatBuildingDef in constructor
+    float m_attackRange     = 0.f;
+    float m_attackCooldown  = 0.f;
+    int   m_attackDamage    = 0;
+    float m_bulletSpeed     = 0.f;
+    float m_fireDisplayTime = 0.f;
 
     float m_attackTimer    = 0.f;
     float m_fireTimer      = 0.f;  // counts down while showing fire sprite

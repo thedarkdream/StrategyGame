@@ -45,6 +45,16 @@ struct UnitDef {
     bool isCombatUnit = false;          // Has auto-attack behavior
 };
 
+// Combat stats for buildings that can attack (e.g. Turret).
+// Only populated for combat buildings; absent (nullopt) for everything else.
+struct CombatBuildingDef {
+    float attackRange     = 0.f;  // Max targeting radius in pixels
+    int   attackDamage    = 0;    // Damage per projectile
+    float attackCooldown  = 0.f;  // Seconds between shots
+    float projectileSpeed = 0.f;  // Projectile travel speed in pixels/s
+    float fireDisplayTime = 0.f;  // Seconds the "firing" sprite is shown after a shot
+};
+
 // Building-specific data
 struct BuildingDef {
     sf::Vector2i tileSize = {1, 1};     // Size in tiles
@@ -53,6 +63,9 @@ struct BuildingDef {
     bool isResourceNode = false;
     int resourceAmount = 0;             // For resource nodes
     float constructionTime = 10.0f;     // Time in seconds to construct
+
+    // Present only for combat buildings (e.g. Turret); nullopt otherwise.
+    std::optional<CombatBuildingDef> combat;
 };
 
 // Complete entity definition
@@ -113,7 +126,8 @@ public:
     float getVisionRadius(EntityType type) const;
     
     // Building-specific  
-    const BuildingDef* getBuildingDef(EntityType type) const;
+    const BuildingDef*       getBuildingDef(EntityType type) const;
+    const CombatBuildingDef* getCombatBuildingDef(EntityType type) const;
     float getConstructionTime(EntityType type) const;
     
 private:
