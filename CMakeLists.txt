@@ -17,6 +17,8 @@ set(SOURCES
     src/MapEditorScreen.cpp
     src/MapSerializer.cpp
     src/Map.cpp
+    src/Pathfinder.cpp
+    src/TerrainRenderer.cpp
     src/Entity.cpp
     src/EntityData.cpp
     src/Unit.cpp
@@ -60,6 +62,8 @@ set(HEADERS
     include/GameScreen.h
     include/MapEditorScreen.h
     include/Map.h
+    include/Pathfinder.h
+    include/TerrainRenderer.h
     include/Entity.h
     include/Unit.h
     include/Worker.h
