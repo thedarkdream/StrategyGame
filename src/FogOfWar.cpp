@@ -7,25 +7,33 @@
 #include <cmath>
 
 FogOfWar::FogOfWar() {
-    // The entire map starts EXPLORED (terrain + mineral starting positions are
-    // always known from the beginning of the game).
-    for (int y = 0; y < H; ++y)
-        for (int x = 0; x < W; ++x) {
-            m_explored[y][x] = true;
-            m_visible[y][x]  = false;
-        }
-
-    // Create an initial (all-fog) texture so the Renderer always has a valid
-    // texture to draw even before the first update() call.
+    // Arrays are sized dynamically on the first update() call; nothing to
+    // initialise here.  rebuildTexture() produces a minimal valid texture so
+    // the Renderer always has something to draw before the first update().
     rebuildTexture();
 }
 
 // ---------------------------------------------------------------------------
+void FogOfWar::resize(int w, int h) {
+    m_W = w;
+    m_H = h;
+    // All tiles start EXPLORED (terrain + starting mineral positions are
+    // always known from the beginning of the game).
+    m_explored.assign(static_cast<size_t>(w * h), 1);
+    m_visible .assign(static_cast<size_t>(w * h), 0);
+}
+
+// ---------------------------------------------------------------------------
 void FogOfWar::update(const UnitList& units, const BuildingList& buildings, const Map& map) {
+    // Lazily initialise (or reinitialise on map change)
+    const int mapW = map.getWidth();
+    const int mapH = map.getHeight();
+    if (m_W != mapW || m_H != mapH)
+        resize(mapW, mapH);
+
     // Clear per-frame visibility
-    for (int y = 0; y < H; ++y)
-        for (int x = 0; x < W; ++x)
-            m_visible[y][x] = false;
+    for (int i = 0; i < m_W * m_H; ++i)
+        m_visible[i] = 0;
 
     // Helper: given a world-space position and a vision radius (in world units),
     // mark all tiles whose centres fall within that circle as visible.
@@ -39,15 +47,15 @@ void FogOfWar::update(const UnitList& units, const BuildingList& buildings, cons
             for (int dx = -tileRadius; dx <= tileRadius; ++dx) {
                 int tx = centre.x + dx;
                 int ty = centre.y + dy;
-                if (tx < 0 || tx >= W || ty < 0 || ty >= H) continue;
+                if (tx < 0 || tx >= m_W || ty < 0 || ty >= m_H) continue;
 
                 // Distance check: centre of tile vs entity position (world units)
                 sf::Vector2f tileCentre = map.tileToWorldCenter(tx, ty);
                 float ddx = tileCentre.x - worldPos.x;
                 float ddy = tileCentre.y - worldPos.y;
                 if (ddx * ddx + ddy * ddy <= visionRadius * visionRadius) {
-                    m_visible[ty][tx]  = true;
-                    m_explored[ty][tx] = true;   // Mark as discovered forever
+                    m_visible [ty * m_W + tx] = 1;
+                    m_explored[ty * m_W + tx] = 1;   // Mark as discovered forever
                 }
             }
         }
@@ -70,14 +78,14 @@ void FogOfWar::update(const UnitList& units, const BuildingList& buildings, cons
 // ---------------------------------------------------------------------------
 bool FogOfWar::isVisible(int tx, int ty) const {
     if (m_revealed) return true;
-    if (tx < 0 || tx >= W || ty < 0 || ty >= H) return false;
-    return m_visible[ty][tx];
+    if (m_W == 0 || tx < 0 || tx >= m_W || ty < 0 || ty >= m_H) return false;
+    return m_visible[ty * m_W + tx] != 0;
 }
 
 bool FogOfWar::isExplored(int tx, int ty) const {
     if (m_revealed) return true;
-    if (tx < 0 || tx >= W || ty < 0 || ty >= H) return false;
-    return m_explored[ty][tx];
+    if (m_W == 0 || tx < 0 || tx >= m_W || ty < 0 || ty >= m_H) return false;
+    return m_explored[ty * m_W + tx] != 0;
 }
 
 bool FogOfWar::isVisibleAtWorld(sf::Vector2f worldPos, const Map& map) const {
@@ -95,10 +103,10 @@ void FogOfWar::recordGhosts(const EntityList& allEntities, const Map& map) {
         if (!isResource && !isBuilding) continue;
 
         sf::Vector2i tile = map.worldToTile(entity->getPosition());
-        if (tile.x < 0 || tile.x >= W || tile.y < 0 || tile.y >= H) continue;
+        if (m_W == 0 || tile.x < 0 || tile.x >= m_W || tile.y < 0 || tile.y >= m_H) continue;
 
-        const bool explored = m_explored[tile.y][tile.x];
-        const bool visible  = m_visible[tile.y][tile.x];
+        const bool explored = m_explored[tile.y * m_W + tile.x] != 0;
+        const bool visible  = m_visible [tile.y * m_W + tile.x] != 0;
 
         // Resource nodes: record whenever the tile is explored (they are
         // known from game start because the whole map starts explored).
@@ -121,18 +129,22 @@ void FogOfWar::recordGhosts(const EntityList& allEntities, const Map& map) {
 
 // ---------------------------------------------------------------------------
 void FogOfWar::rebuildTexture() {
-    // Build a W×H RGBA image: one pixel per tile.
-    sf::Image img(sf::Vector2u(static_cast<unsigned>(W), static_cast<unsigned>(H)),
+    // If the map hasn't been initialised yet, produce a minimal 1×1 placeholder.
+    const int texW = (m_W > 0) ? m_W : 1;
+    const int texH = (m_H > 0) ? m_H : 1;
+
+    // Build a texW×texH RGBA image: one pixel per tile.
+    sf::Image img(sf::Vector2u(static_cast<unsigned>(texW), static_cast<unsigned>(texH)),
                   sf::Color::Transparent);
 
     // When fully revealed the texture is left all-transparent (no overlay).
-    if (!m_revealed) {
-        for (int y = 0; y < H; ++y) {
-            for (int x = 0; x < W; ++x) {
+    if (!m_revealed && m_W > 0) {
+        for (int y = 0; y < m_H; ++y) {
+            for (int x = 0; x < m_W; ++x) {
                 sf::Color c;
-                if (m_visible[y][x]) {
+                if (m_visible[y * m_W + x]) {
                     c = sf::Color(0, 0, 0, 0);      // Fully transparent – no fog
-                } else if (m_explored[y][x]) {
+                } else if (m_explored[y * m_W + x]) {
                     c = sf::Color(0, 0, 0, 160);    // Shroud – previously seen
                 } else {
                     c = sf::Color(0, 0, 0, 230);    // Unexplored – total darkness
@@ -144,7 +156,6 @@ void FogOfWar::rebuildTexture() {
     }
 
     if (!m_fogTexture.loadFromImage(img)) {
-        // Should never fail for a 64×64 image
         return;
     }
     // Smooth = true gives a nicer soft fog edge when the tiny texture is

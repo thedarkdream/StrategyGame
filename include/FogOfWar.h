@@ -4,6 +4,7 @@
 #include "Constants.h"
 #include <SFML/Graphics.hpp>
 #include <unordered_map>
+#include <vector>
 
 class Map;
 
@@ -76,12 +77,16 @@ public:
     bool isRevealed()  const { return m_revealed; }
 
 private:
-    static constexpr int W = Constants::MAP_WIDTH;
-    static constexpr int H = Constants::MAP_HEIGHT;
+    // Actual map dimensions – set on first update() call.
+    int m_W = 0;
+    int m_H = 0;
 
-    // [row y][col x] layout
-    bool m_explored[H][W];
-    bool m_visible[H][W];
+    // Flat [y * m_W + x] layout. uint8_t avoids std::vector<bool> bit-packing.
+    std::vector<uint8_t> m_explored;
+    std::vector<uint8_t> m_visible;
+
+    // Resize (and clear) the visibility arrays to the given dimensions.
+    void resize(int w, int h);
 
     bool m_revealed = false;  // set by reveal_map console command
 
