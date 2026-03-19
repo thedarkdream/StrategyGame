@@ -1,5 +1,11 @@
 #include "EntityData.h"
 #include "Constants.h"
+#include "Worker.h"
+#include "Soldier.h"
+#include "LightTank.h"
+#include "Building.h"
+#include "Turret.h"
+#include "ResourceNode.h"
 
 const std::vector<ActionDef> EntityRegistry::s_emptyActions = {};
 
@@ -94,6 +100,13 @@ float EntityRegistry::getVisionRadius(EntityType type) const {
     return def ? def->visionRadius : 0.0f;
 }
 
+void EntityRegistry::preloadAll() const {
+    for (const auto& [type, def] : m_definitions) {
+        if (def.preloadFn)
+            def.preloadFn();
+    }
+}
+
 void EntityRegistry::initializeDefaults() {
     // ==================== UNITS ====================
     
@@ -120,7 +133,8 @@ void EntityRegistry::initializeDefaults() {
         unit.canBuild = true;
         unit.isCombatUnit = false;
         def.unit = unit;
-        
+        def.preloadFn = &Worker::preload;
+
         // Worker actions
         ActionDef buildBarracks;
         buildBarracks.label = "Build";
@@ -189,7 +203,8 @@ void EntityRegistry::initializeDefaults() {
         unit.canBuild = false;
         unit.isCombatUnit = true;
         def.unit = unit;
-        
+        def.preloadFn = &Soldier::preload;
+
         // Combat unit actions
         def.actions = {
             {"Move", "M", ActionDef::Type::TargetMove},
@@ -224,6 +239,7 @@ void EntityRegistry::initializeDefaults() {
         unit.isCombatUnit = true;
         def.unit = unit;
         
+        def.preloadFn = &LightTank::preload;
         def.actions = {
             {"Move", "M", ActionDef::Type::TargetMove},
             {"Stop", "S", ActionDef::Type::Instant},
@@ -287,6 +303,7 @@ void EntityRegistry::initializeDefaults() {
         building.isResourceNode = false;
         building.constructionTime = 30.0f;  // 30 seconds
         def.building = building;
+        def.preloadFn = &Building::preload;  // Preloads assets for all building types
         
         // Base actions - train workers
         ActionDef trainWorker;
@@ -430,6 +447,7 @@ void EntityRegistry::initializeDefaults() {
             .fireDisplayTime = 0.25f,
         };
         def.building = building;
+        def.preloadFn = &Turret::preload;
 
         registerEntity(std::move(def));
     }
@@ -449,7 +467,8 @@ void EntityRegistry::initializeDefaults() {
         building.isResourceNode = true;
         building.resourceAmount = 1500;
         def.building = building;
-        
+        def.preloadFn = &ResourceNode::preload;  // Preloads assets for all resource node types
+
         registerEntity(std::move(def));
     }
     

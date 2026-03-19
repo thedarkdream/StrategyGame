@@ -3,6 +3,7 @@
 #include "Types.h"
 #include <SFML/Graphics/Color.hpp>
 #include <SFML/Window/Keyboard.hpp>
+#include <functional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -93,7 +94,12 @@ struct EntityDef {
     
     // Available actions for this entity
     std::vector<ActionDef> actions;
-    
+
+    // Called by EntityRegistry::preloadAll() to warm up textures/sounds for this type.
+    // Leave as nullptr for types that share another type's preload (e.g. Brute uses
+    // no dedicated assets) or for non-asset entities (StartPosition, etc.).
+    std::function<void()> preloadFn;
+
     // Helpers
     bool isUnit() const { return unit.has_value(); }
     bool isBuilding() const { return building.has_value(); }
@@ -109,6 +115,9 @@ public:
     
     // Get definition by type (returns nullptr if not found)
     const EntityDef* get(EntityType type) const;
+
+    // Call every registered preloadFn (skip nulls). Invoke once at startup.
+    void preloadAll() const;
     
     // Convenience accessors
     int getMineralCost(EntityType type) const;

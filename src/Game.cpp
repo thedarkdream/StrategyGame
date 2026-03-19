@@ -1,14 +1,13 @@
 #include "Game.h"
 #include "Unit.h"
 #include "Worker.h"
-#include "Soldier.h"
 #include "Building.h"
 #include "ResourceNode.h"
 #include "ResourceManager.h"
 #include "EffectsManager.h"
 #include "SoundManager.h"
 #include "TextureManager.h"
-#include "LightTank.h"
+#include "EntityData.h"
 #include "Projectile.h"
 #include "Constants.h"
 #include "MathUtil.h"
@@ -167,11 +166,12 @@ void Game::initialize() {
 }
 
 void Game::preloadAssets() {
-    Worker::preload();
-    Soldier::preload();
-    Building::preload();
-    ResourceNode::preload();
-    LightTank::preload();
+    // Each EntityDef may carry a preloadFn registered in EntityData.cpp.
+    // Iterating the registry ensures every current and future unit/building
+    // type is preloaded without any manual additions here.
+    ENTITY_DATA.preloadAll();
+
+    // Assets not tied to a specific EntityDef:
     Projectile::preload();
     EffectsManager::preload();
 }
