@@ -94,6 +94,9 @@ protected:
     bool hasReachedTarget() const;
     bool hasGroupArrived(float deltaTime);  // Check if stuck near destination (group arrival)
     void findPath(sf::Vector2f target);
+    // Replan path using soft tile costs derived from nearby stationary units,
+    // so the new path routes around the crowd rather than through it.
+    void findPathAvoiding(sf::Vector2f target);
     float getDistanceTo(sf::Vector2f pos) const;
     float getDistanceTo(EntityPtr entity) const;
     sf::Vector2f computeRVOVelocity(sf::Vector2f preferredVelocity, float deltaTime);

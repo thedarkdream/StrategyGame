@@ -1,6 +1,7 @@
 #include "Unit.h"
 #include "Map.h"
 #include "Building.h"
+#include <unordered_map>
 #include "Constants.h"
 #include "EntityData.h"
 #include "MathUtil.h"
@@ -527,7 +528,14 @@ void Unit::followPath(float deltaTime) {
             m_navSamplePos   = m_position;
             m_navSampleTimer = 0.0f;
             if (m_navStuckTimer >= NAV_STUCK_THRESHOLD) {
-                findPath(m_targetPosition);
+                // If the blockage looks unit-caused (no static obstacle flag),
+                // replan with soft unit-position costs so A* routes around the
+                // crowd.  Static-obstacle jams still use a plain replan since
+                // adding unit costs doesn't help when a wall is responsible.
+                if (!m_blockedByStaticObstacle)
+                    findPathAvoiding(m_targetPosition);
+                else
+                    findPath(m_targetPosition);
                 m_navStuckTimer = 0.0f;
             }
         }
@@ -733,6 +741,63 @@ void Unit::findPath(sf::Vector2f target) {
 
     // No map — fall back to a direct move only as a last resort.
     m_path.push_back(target);
+}
+
+void Unit::findPathAvoiding(sf::Vector2f target) {
+    if (!m_map || !m_context) { findPath(target); return; }
+
+    // Build a per-tile soft-cost map from nearby nearly-stationary units.
+    // Only idle/slow units contribute — moving ones are handled by RVO already.
+    std::unordered_map<int, float> extraCosts;
+    constexpr float GATHER_RADIUS  = 200.0f;
+    constexpr float IDLE_SPEED_MAX = 30.0f;   // px/s — below this = "parked"
+    constexpr float CENTER_PENALTY =  6.0f;   // cost added to the occupied tile
+    constexpr float RING_PENALTY   =  2.0f;   // cost added to each cardinal neighbour
+
+    const int mapW     = m_map->getWidth();
+    sf::Vector2i goalT = m_map->worldToTile(target);
+
+    auto neighbors = m_context->getNearbyUnitsRVO(m_position, GATHER_RADIUS, this);
+    for (const auto& nb : neighbors) {
+        float spdSq = nb.velocity.x * nb.velocity.x
+                    + nb.velocity.y * nb.velocity.y;
+        if (spdSq > IDLE_SPEED_MAX * IDLE_SPEED_MAX) continue;  // skip moving units
+
+        sf::Vector2i t = m_map->worldToTile(nb.position);
+        if (t == goalT) continue;   // never penalise the destination tile itself
+
+        extraCosts[t.y * mapW + t.x] += CENTER_PENALTY;
+
+        // Penalise cardinal neighbours so the path curves before the crowd,
+        // not just one tile to the side of it.
+        const int odx[] = { 1, -1,  0,  0 };
+        const int ody[] = { 0,  0,  1, -1 };
+        for (int k = 0; k < 4; ++k) {
+            int tx = t.x + odx[k], ty = t.y + ody[k];
+            if (m_map->isValidTile(tx, ty) && sf::Vector2i{tx, ty} != goalT)
+                extraCosts[ty * mapW + tx] += RING_PENALTY;
+        }
+    }
+
+    // Fall back to plain findPath when no nearby idle units were found.
+    if (extraCosts.empty()) { findPath(target); return; }
+
+    // Reuse all the same goal-snapping / partial-path logic as findPath().
+    m_path.clear();
+    m_pathIndex = 0;
+
+    bool goalWasWalkable = m_map->isValidTile(goalT.x, goalT.y)
+                        && m_map->isWalkable(goalT.x, goalT.y);
+
+    m_path = m_map->findPath(m_position, target, m_collisionRadius, extraCosts);
+
+    if (!m_path.empty()) {
+        sf::Vector2i reachedTile = m_map->worldToTile(m_path.back());
+        if (goalWasWalkable && goalT != reachedTile)
+            m_targetPosition = m_path.back();
+    } else {
+        m_targetPosition = m_position;
+    }
 }
 
 float Unit::getDistanceTo(sf::Vector2f pos) const {

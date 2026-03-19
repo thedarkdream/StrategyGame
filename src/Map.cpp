@@ -2,6 +2,7 @@
 #include "Constants.h"
 #include <queue>
 #include <unordered_set>
+#include <unordered_map>
 #include <algorithm>
 #include <cstdint>
 #include <limits>
@@ -193,7 +194,8 @@ void Map::removeBuilding(int tileX, int tileY, int width, int height) {
 }
 
 std::vector<sf::Vector2f> Map::findPath(sf::Vector2f start, sf::Vector2f end,
-                                         float unitRadius) {
+                                         float unitRadius,
+                                         const std::unordered_map<int, float>& extraTileCosts) {
     // A* pathfinding
     sf::Vector2i startTile = worldToTile(start);
     sf::Vector2i endTile = worldToTile(end);
@@ -407,6 +409,13 @@ std::vector<sf::Vector2f> Map::findPath(sf::Vector2f start, sf::Vector2f end,
             }
 
             float newG = current.g + costs[i] + clearancePenalty;
+            // Dynamic soft-obstacle cost — injected by unit-aware replanning
+            // to steer the path around clusters of stationary allies.
+            if (!extraTileCosts.empty()) {
+                auto ecIt = extraTileCosts.find(neighborHash);
+                if (ecIt != extraTileCosts.end())
+                    newG += ecIt->second;
+            }
             float newH = heuristic(nx, ny, endTile.x, endTile.y);
             
             // Check if this path is better

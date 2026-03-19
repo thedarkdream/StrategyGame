@@ -6,6 +6,7 @@
 #include <vector>
 #include <array>
 #include <random>
+#include <unordered_map>
 
 class Map {
 public:
@@ -36,8 +37,13 @@ public:
     // activate clearance-aware neighbour pruning in A* and a fat-tube line-
     // of-sight check in smoothPath so the produced path is safe to physically
     // traverse without clipping building corners.
+    //
+    // extraTileCosts: optional map of (tileY*mapWidth + tileX) → additional
+    // A* g-cost for that tile.  Used by unit-aware replanning to steer paths
+    // around crowds of stationary allies without hard-blocking any tile.
     std::vector<sf::Vector2f> findPath(sf::Vector2f start, sf::Vector2f end,
-                                       float unitRadius = 0.0f);
+                                       float unitRadius = 0.0f,
+                                       const std::unordered_map<int, float>& extraTileCosts = {});
     
     // Editor
     void initEmpty();   // Reset all tiles to Grass with random variants
