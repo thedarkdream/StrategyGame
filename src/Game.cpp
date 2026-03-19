@@ -344,8 +344,14 @@ void Game::setupUnit(UnitPtr& unit) {
     unit->setContext(this);
 }
 
-void Game::setupWorker(Worker* worker, EntityPtr homeBase) {
-    worker->setHomeBase(homeBase);
+EntityPtr Game::findHomeBase(Team team) {
+    if (Player* p = getPlayerByTeam(team)) {
+        for (auto& building : p->getBuildings()) {
+            if (building->getType() == EntityType::Base)
+                return building;
+        }
+    }
+    return nullptr;
 }
 
 bool Game::checkPositionBlocked(sf::Vector2f pos, float radius, Entity* excludeSelf) {
@@ -667,20 +673,7 @@ UnitPtr Game::spawnAndSetupUnit(EntityType type, Team team, sf::Vector2f pos,
 
     setupUnit(unit);
     unit->setIsLocalTeam(m_players[m_localSlot] && team == m_players[m_localSlot]->getTeam());
-    unit->onSpawned();
-
-    // Assign home base for workers
-    if (type == EntityType::Worker) {
-        if (Player* playerPtr = getPlayerByTeam(team)) {
-            for (auto& building : playerPtr->getBuildings()) {
-                if (building->getType() == EntityType::Base) {
-                    if (auto* w = unit->asWorker())
-                        setupWorker(w, building);
-                    break;
-                }
-            }
-        }
-    }
+    unit->onSpawned(this);
 
     if (Player* p = getPlayerByTeam(team))
         p->addUnit(unit);

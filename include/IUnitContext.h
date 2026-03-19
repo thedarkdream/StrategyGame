@@ -57,6 +57,10 @@ public:
     // claimed by another worker. [exclude] is the node to skip (may be null).
     virtual EntityPtr findNearestAvailableResource(sf::Vector2f pos, float radius, EntityPtr exclude) = 0;
 
+    // Returns the first Base building owned by [team], or nullptr if none exists.
+    // Used by Worker::onSpawned to wire up its home-base reference.
+    virtual EntityPtr findHomeBase(Team team) = 0;
+
     // Called by a Worker when it deposits harvested resources.
     // The Game credits the amount to the player that owns [team].
     virtual void depositResources(Team team, int amount) = 0;

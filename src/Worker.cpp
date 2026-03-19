@@ -500,8 +500,12 @@ void Worker::onDeath() {
     SOUNDS.playSound("units/worker/worker_death.wav", m_position);
 }
 
-void Worker::onSpawned() {
+void Worker::onSpawned(IUnitContext* ctx) {
     if (m_isLocalTeam) SOUNDS.playSound("units/worker/worker_spawn_1.wav", m_position);
+    if (ctx) {
+        EntityPtr base = ctx->findHomeBase(m_team);
+        if (base) setHomeBase(base);
+    }
 }
 
 void Worker::onSelected() {

@@ -30,6 +30,12 @@ public:
     
     // Combat - override to auto-retaliate when attacked while idle
     void takeDamage(int damage, EntityPtr attacker) override;
+
+    // Called once after the unit is fully wired into the world (context set).
+    // Override to perform type-specific post-spawn setup (e.g. home base lookup).
+    // Base implementation forwards to the no-arg Entity::onSpawned() for
+    // backward compatibility with any existing overrides.
+    virtual void onSpawned(IUnitContext* ctx) { Entity::onSpawned(); }
     
     // State
     UnitState getState() const { return m_state; }

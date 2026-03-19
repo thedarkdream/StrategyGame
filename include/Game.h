@@ -63,6 +63,7 @@ public:
     EntityPtr findPriorityEnemy(sf::Vector2f pos, float radius, Team excludeTeam) override;
     EntityPtr findNearestResource(sf::Vector2f pos, float radius) override;
     EntityPtr findNearestAvailableResource(sf::Vector2f pos, float radius, EntityPtr exclude = nullptr) override;
+    EntityPtr findHomeBase(Team team) override;
     
     // Collision
     bool checkPositionBlocked(sf::Vector2f pos, float radius, Entity* excludeSelf) override;
@@ -133,7 +134,6 @@ private:
     
     // Unit setup helpers
     void setupUnit(UnitPtr& unit);
-    void setupWorker(Worker* worker, EntityPtr homeBase);
     // Creates, wires up, and adds a unit to the world. Returns the new unit.
     UnitPtr spawnAndSetupUnit(EntityType type, Team team, sf::Vector2f pos,
                               Building* sourceBuilding);
