@@ -67,6 +67,10 @@ public:
     // Under-attack detection: true within UNDER_ATTACK_WINDOW seconds of last hit.
     bool isUnderAttack() const { return m_underAttackTimer > 0.f; }
 
+    // True when this entity is a resource node (mineral patch, gas geyser, etc.).
+    // Delegates to EntityDef::isResource() so the check stays data-driven.
+    bool isResource() const;
+
 protected:
     void markUnderAttack()   { m_underAttackTimer = UNDER_ATTACK_WINDOW; }
     void tickUnderAttack(float dt) { m_underAttackTimer = std::max(0.f, m_underAttackTimer - dt); }

@@ -299,16 +299,16 @@ EntityPtr Game::findPriorityEnemy(sf::Vector2f pos, float radius, Team excludeTe
                 bestBuilding = entity;
             }
         } else if (entity->asUnit()) {
-            // Distinguish workers from combat units
-            if (entity->getType() == EntityType::Worker) {
-                if (dist < bestWorkerDist) {
-                    bestWorkerDist = dist;
-                    bestWorker = entity;
-                }
-            } else {
+            // Distinguish combat units from non-combat (gatherers, builders, etc.)
+            if (entity->asUnit()->isCombatUnit()) {
                 if (dist < bestCombatDist) {
                     bestCombatDist = dist;
                     bestCombatUnit = entity;
+                }
+            } else {
+                if (dist < bestWorkerDist) {
+                    bestWorkerDist = dist;
+                    bestWorker = entity;
                 }
             }
         }
@@ -322,15 +322,13 @@ EntityPtr Game::findPriorityEnemy(sf::Vector2f pos, float radius, Team excludeTe
 
 EntityPtr Game::findNearestResource(sf::Vector2f pos, float radius) {
     return findNearest(pos, radius, [](const EntityPtr& entity) {
-        return entity->getType() == EntityType::MineralPatch || 
-               entity->getType() == EntityType::GasGeyser;
+        return entity->isResource();
     });
 }
 
 EntityPtr Game::findNearestAvailableResource(sf::Vector2f pos, float radius, EntityPtr exclude) {
     return findNearest(pos, radius, [exclude](const EntityPtr& entity) {
-        if (entity->getType() != EntityType::MineralPatch && 
-            entity->getType() != EntityType::GasGeyser) return false;
+        if (!entity->isResource()) return false;
         if (entity == exclude) return false;
         
         // Check if this resource is being actively mined

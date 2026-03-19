@@ -41,6 +41,7 @@ public:
     float getAttackRange() const { return m_attackRange; }
     float getAttackCooldown() const { return m_attackCooldown; }
     float getAttacksPerSecond() const { return m_attackCooldown > 0 ? 1.0f / m_attackCooldown : 0.0f; }
+    bool isCombatUnit() const { return m_isCombatUnit; }
     
     // Reference to map for pathfinding
     void setMap(Map* map) { m_map = map; }

@@ -1,7 +1,13 @@
 #include "Entity.h"
 #include "Constants.h"
+#include "EntityData.h"
 #include "TextureManager.h"
 #include <cmath>
+
+bool Entity::isResource() const {
+    const EntityDef* def = ENTITY_DATA.get(m_type);
+    return def && def->isResource();
+}
 
 Entity::Entity(EntityType type, Team team, sf::Vector2f position)
     : m_id(IdGenerator::instance().nextId())

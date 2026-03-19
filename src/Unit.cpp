@@ -248,8 +248,8 @@ void Unit::takeDamage(int damage, EntityPtr attacker) {
         EFFECTS.spawnExplosion(m_position, explosionScale);
     }
     
-    // Auto-retaliate if idle and not a worker
-    if (m_state == UnitState::Idle && m_type != EntityType::Worker) {
+    // Auto-retaliate if idle and only if this is a combat unit
+    if (m_state == UnitState::Idle && m_isCombatUnit) {
         if (attacker && attacker->isAlive() && attacker->getTeam() != m_team) {
             beginAttacking(attacker, false);  // Auto-retaliation
         }
