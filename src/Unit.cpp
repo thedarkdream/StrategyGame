@@ -565,11 +565,22 @@ void Unit::moveTowardsTarget(float deltaTime) {
     
     // Apply velocity
     sf::Vector2f newPosition = m_position + newVelocity * deltaTime;
-    
-    // Still check for static obstacles (buildings, resources)
+
+    // Helper: returns true if a world position is on a non-walkable tile (water).
+    // This is checked independently of checkPositionBlocked which only tests
+    // solid entities (buildings, units) — previously water was never checked,
+    // letting units slide onto water when probing around building corners.
+    auto onNonWalkableTile = [&](sf::Vector2f pos) -> bool {
+        if (!m_map) return false;
+        sf::Vector2i t = m_map->worldToTile(pos);
+        return !m_map->isWalkable(t.x, t.y);
+    };
+
+    // Still check for static obstacles (buildings, resources) AND water tiles.
     if (m_context && isCollidable()) {
         float radius = getCollisionRadius();
-        if (m_context->checkPositionBlocked(newPosition, radius, this)) {
+        if (m_context->checkPositionBlocked(newPosition, radius, this)
+                || onNonWalkableTile(newPosition)) {
             // Probe 7 alternate directions (every 45°, skipping the already-blocked
             // forward direction) and choose the non-blocked one that makes the most
             // angular progress toward the actual destination. This cleanly handles
@@ -593,7 +604,10 @@ void Unit::moveTowardsTarget(float deltaTime) {
                 sf::Vector2f probeDir(std::cos(angle), std::sin(angle));
                 sf::Vector2f probePos = m_position + probeDir * moveDist;
 
-                if (!m_context->checkPositionBlocked(probePos, radius, this)) {
+                // Reject probes that land on water just as we reject probes
+                // that overlap a building or resource.
+                if (!m_context->checkPositionBlocked(probePos, radius, this)
+                        && !onNonWalkableTile(probePos)) {
                     float dot = probeDir.x * targetDir.x + probeDir.y * targetDir.y;
                     if (dot > bestDot) {
                         bestDot = dot;
@@ -615,7 +629,7 @@ void Unit::moveTowardsTarget(float deltaTime) {
             return;
         }
     }
-    
+
     m_position = newPosition;
     m_velocity = newVelocity;
 }

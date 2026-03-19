@@ -197,9 +197,36 @@ std::vector<sf::Vector2f> Map::findPath(sf::Vector2f start, sf::Vector2f end) {
     sf::Vector2i startTile = worldToTile(start);
     sf::Vector2i endTile = worldToTile(end);
     
-    // If start or end is invalid, return direct path
+    // If start or end is outside the map, return direct path
     if (!isValidTile(startTile.x, startTile.y) || !isValidTile(endTile.x, endTile.y)) {
         return { end };
+    }
+
+    // If the unit has somehow ended up on a non-walkable tile (e.g. pushed onto
+    // water by RVO), snap the A* start to the nearest walkable neighbour so the
+    // reconstructed path begins on solid ground and smoothPath doesn't build LOS
+    // lines that originate inside water.
+    if (!isWalkable(startTile.x, startTile.y)) {
+        sf::Vector2i bestStart(-1, -1);
+        float bestDist = std::numeric_limits<float>::max();
+        for (int radius = 1; radius <= 5; ++radius) {
+            for (int dx = -radius; dx <= radius; ++dx) {
+                for (int dy = -radius; dy <= radius; ++dy) {
+                    if (std::abs(dx) != radius && std::abs(dy) != radius) continue;
+                    int nx = startTile.x + dx;
+                    int ny = startTile.y + dy;
+                    if (!isValidTile(nx, ny) || !isWalkable(nx, ny)) continue;
+                    float d = static_cast<float>(dx * dx + dy * dy);
+                    if (d < bestDist) { bestDist = d; bestStart = { nx, ny }; }
+                }
+            }
+            if (bestStart.x != -1) break;
+        }
+        if (bestStart.x == -1) return { end };
+        startTile = bestStart;
+        // Use the snapped tile centre as the path start so the unit immediately
+        // heads toward walkable ground rather than staying in water.
+        start = tileToWorldCenter(startTile.x, startTile.y);
     }
     
     // Remember whether the destination itself was set on a walkable tile so we
@@ -392,11 +419,11 @@ std::vector<sf::Vector2f> Map::findPath(sf::Vector2f start, sf::Vector2f end) {
 }
 
 bool Map::hasLineOfSight(int x0, int y0, int x1, int y1) const {
-    // Walk along the line from (x0,y0) to (x1,y1) using a supercover approach.
-    // At each step we check the primary tile *and* the two neighbouring tiles that
-    // are orthogonally adjacent to the line. This makes the check conservative
-    // enough that a unit with non-zero radius won't clip a corner even though the
-    // line itself technically cleared it.
+    // Walk along the line from (x0,y0) to (x1,y1) using a true supercover:
+    // at each sample point we check ALL FOUR floor/ceil corner combinations.
+    // This avoids the previous bug where the mixed (floor(fx),ceil(fy)) and
+    // (ceil(fx),floor(fy)) tiles were never examined, letting diagonal lines
+    // slip through water-tile corners and causing units to walk over water.
     int steps = std::max(std::abs(x1 - x0), std::abs(y1 - y0));
     if (steps == 0) return true;
 
@@ -405,19 +432,17 @@ bool Map::hasLineOfSight(int x0, int y0, int x1, int y1) const {
         float fx = x0 + t * (x1 - x0);
         float fy = y0 + t * (y1 - y0);
 
-        // Primary tile (round)
-        int tx = static_cast<int>(std::round(fx));
-        int ty = static_cast<int>(std::round(fy));
-        if (!isWalkable(tx, ty)) return false;
-
-        // Conservative side tiles: check floor and ceil on each axis
         int txf = static_cast<int>(std::floor(fx));
         int tyf = static_cast<int>(std::floor(fy));
         int txc = static_cast<int>(std::ceil(fx));
         int tyc = static_cast<int>(std::ceil(fy));
-        // Only the tiles that differ from the primary tile matter
-        if ((txf != tx || tyf != ty) && !isWalkable(txf, tyf)) return false;
-        if ((txc != tx || tyc != ty) && !isWalkable(txc, tyc)) return false;
+
+        // Check all four corner tiles — deduplicate automatically via isWalkable
+        // returning true for out-of-bounds (already handled inside isWalkable).
+        if (!isWalkable(txf, tyf)) return false;
+        if (!isWalkable(txf, tyc)) return false;
+        if (!isWalkable(txc, tyf)) return false;
+        if (!isWalkable(txc, tyc)) return false;
     }
     return true;
 }
