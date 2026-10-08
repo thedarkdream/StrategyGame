@@ -78,11 +78,13 @@ EditorView3D::EditorView3D(sf::RenderWindow& window)
 {
     Scene3D::initGL(m_window);
     m_shader = std::make_unique<GLShader>(Scene3D::sceneVertexSource(), Scene3D::sceneFragmentSource());
+    m_terrain = std::make_unique<TerrainLayer3D>();
 }
 
 EditorView3D::~EditorView3D() {
     // GL objects must be released with the window's context current.
     m_window.setActive(true);
+    m_terrain.reset();
     m_shader.reset();
 }
 
@@ -92,11 +94,7 @@ void EditorView3D::render(const Map& map, const Camera& camera, sf::IntRect area
     if (area.size.x <= 0 || area.size.y <= 0) return;
     m_window.setActive(true);
 
-    if (m_terrainDirty) {
-        Scene3D::buildTerrainMesh(map, m_terrainData);
-        m_terrainMesh.upload(m_terrainData);
-        m_terrainDirty = false;
-    }
+    m_terrain->update(map);
 
     // Placed entities.
     const float ts = static_cast<float>(Constants::TILE_SIZE);
@@ -145,12 +143,12 @@ void EditorView3D::render(const Map& map, const Camera& camera, sf::IntRect area
 
     const glm::mat4 viewProj = Camera3D::viewProjection(
         camera, sf::Vector2u(static_cast<unsigned>(area.size.x), static_cast<unsigned>(area.size.y)), map);
+    m_terrain->drawTerrain(viewProj, Scene3D::lightDirection(), ts);
+
     m_shader->use();
     m_shader->setMat4("uViewProj", viewProj);
     m_shader->setVec3("uLightDir", Scene3D::lightDirection());
     m_shader->setFloat("uAlpha", 1.0f);
-    m_shader->setFloat("uGridSize", ts);
-    m_terrainMesh.draw();
     m_shader->setFloat("uGridSize", 0.0f);
     if (hasBoxes) m_boxMesh.draw();
 

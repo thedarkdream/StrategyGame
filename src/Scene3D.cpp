@@ -2,8 +2,10 @@
 #include "Scene3D.h"
 #include "Map.h"
 #include "Constants.h"
+#include "TerrainTiling.h"
 #include <glm/glm.hpp>
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <stdexcept>
 #include <string>
@@ -95,7 +97,7 @@ void initGL(sf::RenderWindow& window) {
                                  + reinterpret_cast<const char*>(glewGetErrorString(err)));
 }
 
-void buildTerrainMesh(const Map& map, MeshData& data, MeshData* fogGrid) {
+void buildTerrainMesh(const Map& map, MeshData& data, MeshData* fogGrid, TexturedTerrain* textured) {
     const float ts = static_cast<float>(Constants::TILE_SIZE);
     const int   mw = map.getWidth();
     const int   mh = map.getHeight();
@@ -129,40 +131,68 @@ void buildTerrainMesh(const Map& map, MeshData& data, MeshData* fogGrid) {
         fogGrid->vertices.reserve(static_cast<size_t>(mw * mh) * 4);
         fogGrid->indices.reserve(static_cast<size_t>(mw * mh) * 6);
     }
+    if (textured) {
+        textured->base.clear();
+        textured->overlay.clear();
+        textured->base.vertices.reserve(static_cast<size_t>(mw * mh) * 4);
+        textured->base.indices.reserve(static_cast<size_t>(mw * mh) * 6);
+    }
+
+    // Appends one tile quad to `mesh`, `colors` being the colour slot of each corner
+    // (NW, NE, SE, SW; game x right, y down).  Lit quads get the smooth terrain
+    // normals; unlit ones (fog) a zero normal.
+    using Corners = std::array<glm::vec3, 4>;
+    auto addTile = [&](MeshData& mesh, int x, int y, float heightLift, bool lit, const Corners& colors) {
+        const auto base = static_cast<std::uint32_t>(mesh.vertices.size());
+        const int vx[4] = { x, x + 1, x + 1, x };
+        const int vy[4] = { y, y,     y + 1, y + 1 };
+        for (int i = 0; i < 4; ++i) {
+            mesh.vertices.push_back({
+                { static_cast<float>(vx[i]) * ts, heightAt(vx[i], vy[i]) + heightLift, static_cast<float>(vy[i]) * ts },
+                lit ? normalAt(vx[i], vy[i]) : glm::vec3(0.0f),
+                colors[static_cast<size_t>(i)] });
+        }
+        // Counter-clockwise seen from above (+Y).
+        mesh.indices.insert(mesh.indices.end(), {base, base + 3, base + 2, base, base + 2, base + 1});
+    };
+
+    // Colour slot of a textured tile corner: image UV and texture layer.
+    auto imageCorners = [](int layer) {
+        const float l = static_cast<float>(layer);
+        return Corners{ glm::vec3(0.0f, 0.0f, l), glm::vec3(1.0f, 0.0f, l),
+                        glm::vec3(1.0f, 1.0f, l), glm::vec3(0.0f, 1.0f, l) };
+    };
 
     for (int y = 0; y < mh; ++y) {
         for (int x = 0; x < mw; ++x) {
             const Tile& tile = map.getTile(x, y);
-            const float shade = 1.0f + static_cast<float>((tile.variant * 37) % 9 - 4) * 0.012f;
+            const bool isWater = tile.type == TileType::Water;
 
-            glm::vec3 color;
-            if (tile.type == TileType::Water)      color = glm::vec3(0.16f, 0.36f, 0.68f);
-            else if (map.isCliffTile(x, y))        color = glm::vec3(0.45f, 0.42f, 0.38f);
-            else                                    color = glm::vec3(0.28f, 0.52f, 0.24f);
-            // Higher ground is slightly lighter so relief reads at a glance.
-            const float lift = 1.0f + static_cast<float>(map.getTileElevation(x, y)) * 0.05f;
-            color = glm::min(color * shade * lift, glm::vec3(1.0f));
-
-            const auto base = static_cast<std::uint32_t>(data.vertices.size());
-            const int vx[4] = { x, x + 1, x + 1, x };
-            const int vy[4] = { y, y,     y + 1, y + 1 };
-            for (int i = 0; i < 4; ++i) {
-                data.vertices.push_back({
-                    { static_cast<float>(vx[i]) * ts, heightAt(vx[i], vy[i]), static_cast<float>(vy[i]) * ts },
-                    normalAt(vx[i], vy[i]),
-                    color });
-                if (fogGrid) {
-                    fogGrid->vertices.push_back({
-                        { static_cast<float>(vx[i]) * ts, heightAt(vx[i], vy[i]) + kFogLift, static_cast<float>(vy[i]) * ts },
-                        glm::vec3(0.0f),
-                        glm::vec3(static_cast<float>(vx[i]) / static_cast<float>(mw),
-                                  static_cast<float>(vy[i]) / static_cast<float>(mh), 0.0f) });
-                }
+            if (textured && (isWater || !map.isCliffTile(x, y))) {
+                const TerrainTiling::TileArt art = TerrainTiling::describe(map, x, y);
+                addTile(textured->base, x, y, 0.0f, true, imageCorners(art.base));
+                if (art.overlay != TerrainTiling::kNone)
+                    addTile(textured->overlay, x, y, 0.0f, true, imageCorners(art.overlay));
+            } else {
+                const float shade = 1.0f + static_cast<float>((tile.variant * 37) % 9 - 4) * 0.012f;
+                glm::vec3 color;
+                if (isWater)                    color = glm::vec3(0.16f, 0.36f, 0.68f);
+                else if (map.isCliffTile(x, y)) color = glm::vec3(0.45f, 0.42f, 0.38f);
+                else                            color = glm::vec3(0.28f, 0.52f, 0.24f);
+                // Higher ground is slightly lighter so relief reads at a glance.
+                const float lift = 1.0f + static_cast<float>(map.getTileElevation(x, y)) * 0.05f;
+                color = glm::min(color * shade * lift, glm::vec3(1.0f));
+                addTile(data, x, y, 0.0f, true, { color, color, color, color });
             }
-            // Counter-clockwise seen from above (+Y).
-            data.indices.insert(data.indices.end(), {base, base + 3, base + 2, base, base + 2, base + 1});
-            if (fogGrid)
-                fogGrid->indices.insert(fogGrid->indices.end(), {base, base + 3, base + 2, base, base + 2, base + 1});
+
+            if (fogGrid) {
+                auto fogUV = [&](int vx, int vy) {
+                    return glm::vec3(static_cast<float>(vx) / static_cast<float>(mw),
+                                     static_cast<float>(vy) / static_cast<float>(mh), 0.0f);
+                };
+                addTile(*fogGrid, x, y, kFogLift, false,
+                        { fogUV(x, y), fogUV(x + 1, y), fogUV(x + 1, y + 1), fogUV(x, y + 1) });
+            }
         }
     }
 }

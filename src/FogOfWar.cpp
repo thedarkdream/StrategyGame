@@ -94,6 +94,24 @@ bool FogOfWar::isVisibleAtWorld(sf::Vector2f worldPos, const Map& map) const {
     return isVisible(tile.x, tile.y);
 }
 
+bool FogOfWar::isEntityShown(const Entity& entity, const Map& map, Team viewer) const {
+    if (entity.isResource()) return true;
+    return entity.getTeam() == viewer || isVisibleAtWorld(entity.getPosition(), map);
+}
+
+std::vector<EntityPtr> FogOfWar::getRememberedEntities(const Map& map) const {
+    std::vector<EntityPtr> result;
+    for (const auto& [id, ghost] : m_ghosts) {
+        const EntityPtr& entity = ghost.entity;
+        if (!entity) continue;
+        if (entity->isResource() && (entity->isAlive() || entity->isDying())) continue;
+        const sf::Vector2i tile = map.worldToTile(entity->getPosition());
+        if (isVisible(tile.x, tile.y)) continue;
+        result.push_back(entity);
+    }
+    return result;
+}
+
 // ---------------------------------------------------------------------------
 void FogOfWar::recordGhosts(const EntityList& allEntities, const Map& map) {
     for (const auto& entity : allEntities) {

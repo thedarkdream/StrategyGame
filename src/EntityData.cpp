@@ -100,6 +100,12 @@ float EntityRegistry::getVisionRadius(EntityType type) const {
     return def ? def->visionRadius : 0.0f;
 }
 
+const VisualDef& EntityRegistry::getVisual(EntityType type) const {
+    static const VisualDef kDefault;
+    auto* def = get(type);
+    return def ? def->visual : kDefault;
+}
+
 void EntityRegistry::preloadAll() const {
     for (const auto& [type, def] : m_definitions) {
         if (def.preloadFn)
@@ -114,6 +120,7 @@ void EntityRegistry::initializeDefaults() {
     {
         EntityDef def;
         def.type = EntityType::Worker;
+        def.visual = VisualDef::unit();
         def.name = "Worker";
         def.shortName = "W";
         def.mineralCost = 50;
@@ -184,6 +191,7 @@ void EntityRegistry::initializeDefaults() {
     {
         EntityDef def;
         def.type = EntityType::Soldier;
+        def.visual = VisualDef::unit();
         def.name = "Soldier";
         def.shortName = "S";
         def.mineralCost = 75;
@@ -219,6 +227,7 @@ void EntityRegistry::initializeDefaults() {
     {
         EntityDef def;
         def.type = EntityType::LightTank;
+        def.visual = VisualDef::unit();
         def.name = "Light Tank";
         def.shortName = "LT";
         def.mineralCost = 150;
@@ -253,6 +262,7 @@ void EntityRegistry::initializeDefaults() {
     {
         EntityDef def;
         def.type = EntityType::Brute;
+        def.visual = VisualDef::unit();
         def.name = "Brute";
         def.shortName = "B";
         def.mineralCost = 90;
@@ -289,6 +299,7 @@ void EntityRegistry::initializeDefaults() {
     {
         EntityDef def;
         def.type = EntityType::Base;
+        def.visual = VisualDef::building();
         def.name = "Command Center";
         def.shortName = "CC";
         def.mineralCost = 400;
@@ -327,6 +338,7 @@ void EntityRegistry::initializeDefaults() {
     {
         EntityDef def;
         def.type = EntityType::Barracks;
+        def.visual = VisualDef::building();
         def.name = "Barracks";
         def.shortName = "BK";
         def.mineralCost = 150;
@@ -370,6 +382,7 @@ void EntityRegistry::initializeDefaults() {
     {
         EntityDef def;
         def.type = EntityType::Refinery;
+        def.visual = VisualDef::building();
         def.name = "Refinery";
         def.shortName = "RF";
         def.mineralCost = 100;
@@ -390,6 +403,7 @@ void EntityRegistry::initializeDefaults() {
     {
         EntityDef def;
         def.type = EntityType::Factory;
+        def.visual = VisualDef::building();
         def.name = "Factory";
         def.shortName = "FC";
         def.mineralCost = 150;
@@ -427,6 +441,8 @@ void EntityRegistry::initializeDefaults() {
     {
         EntityDef def;
         def.type = EntityType::Turret;
+        def.visual = VisualDef::building();
+        def.visual.spriteAnchor = 0.25f;   // turret art sits a little higher in its image
         def.name = "Turret";
         def.shortName = "TU";
         def.mineralCost = 75;
@@ -455,6 +471,7 @@ void EntityRegistry::initializeDefaults() {
     {
         EntityDef def;
         def.type = EntityType::MineralPatch;
+        def.visual = VisualDef::resource();
         def.name = "Mineral Patch";
         def.shortName = "M";
         def.mineralCost = 0;
@@ -476,6 +493,7 @@ void EntityRegistry::initializeDefaults() {
     {
         EntityDef def;
         def.type = EntityType::GasGeyser;
+        def.visual = VisualDef::resource();
         def.name = "Vespene Geyser";
         def.shortName = "G";
         def.mineralCost = 0;
@@ -498,6 +516,7 @@ void EntityRegistry::initializeDefaults() {
     {
         EntityDef def;
         def.type = EntityType::StartPosition;
+        def.visual = VisualDef::building();
         def.name = "Start Pos";
         def.shortName = "SP";
         def.mineralCost = 0;
@@ -507,6 +526,22 @@ void EntityRegistry::initializeDefaults() {
         building.tileSize = {3, 3};  // same footprint as Base
         building.isResourceNode = false;
         def.building = building;
+        registerEntity(std::move(def));
+    }
+
+    // ==================== PROJECTILES ====================
+
+    // Homing rocket fired by the light tank and turret.  Never placed or trained;
+    // registered so its appearance comes from the same table as everything else.
+    {
+        EntityDef def;
+        def.type = EntityType::Rocket;
+        def.name = "Rocket";
+        def.shortName = "R";
+        def.health = 1;
+        def.size = {6.0f, 6.0f};
+        def.visionRadius = 0.0f;
+        def.visual = VisualDef::projectile();
         registerEntity(std::move(def));
     }
 }

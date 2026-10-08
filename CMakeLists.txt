@@ -41,6 +41,13 @@ set(SOURCES
     src/EntityRenderer2D.cpp
     src/Renderer3D.cpp
     src/Scene3D.cpp
+    src/TerrainTiling.cpp
+    src/EntityVisual.cpp
+    src/Placement3D.cpp
+    src/SpriteBatch3D.cpp
+    src/TerrainLayer3D.cpp
+    src/Picking3D.cpp
+    src/Overlay3D.cpp
     src/EditorView3D.cpp
     src/GLShader.cpp
     src/GLMesh.cpp
@@ -97,6 +104,13 @@ set(HEADERS
     include/EntityRenderer2D.h
     include/Renderer3D.h
     include/Scene3D.h
+    include/TerrainTiling.h
+    include/EntityVisual.h
+    include/Placement3D.h
+    include/SpriteBatch3D.h
+    include/TerrainLayer3D.h
+    include/Picking3D.h
+    include/Overlay3D.h
     include/EditorView3D.h
     include/GLShader.h
     include/GLMesh.h

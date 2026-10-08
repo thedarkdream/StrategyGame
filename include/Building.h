@@ -30,6 +30,9 @@ public:
     // Building state
     bool isConstructed() const { return m_constructionProgress >= 1.0f; }
     float getConstructionProgress() const { return m_constructionProgress; }
+    float getVisualOpacity() const override {
+        return isConstructed() ? 1.0f : 0.5f + 0.5f * m_constructionProgress;
+    }
     void addConstructionProgress(float amount);
     void startConstruction();  // Set building to under-construction state
     

@@ -1,14 +1,16 @@
 #pragma once
 
 // ---------------------------------------------------------------------------
-// EditorView3D — draws the map editor's map area in 3D: the terrain with a tile
-// grid, the placed entities as team-coloured boxes and the hover / placement
-// highlight.  The 2D SFML UI (panel, dialogs) is drawn by the editor afterwards.
+// EditorView3D — draws the map editor's map area in 3D: the terrain (the same
+// TerrainLayer3D as the game, plus a tile grid), the placed entities as
+// team-coloured boxes and the hover / placement highlight.  The 2D SFML UI
+// (panel, dialogs) is drawn by the editor afterwards.
 // ---------------------------------------------------------------------------
 
 #include "Camera.h"
 #include "GLMesh.h"
 #include "GLShader.h"
+#include "TerrainLayer3D.h"
 #include <SFML/Graphics.hpp>
 #include <memory>
 #include <optional>
@@ -39,7 +41,7 @@ public:
     EditorView3D& operator=(const EditorView3D&) = delete;
 
     // Call whenever tiles / elevations of the map changed.
-    void invalidateTerrain() { m_terrainDirty = true; }
+    void invalidateTerrain() { m_terrain->invalidate(); }
 
     // Draws into `area` (window pixels, top-left origin); the rest of the window is untouched.
     void render(const Map& map, const Camera& camera, sf::IntRect area,
@@ -49,13 +51,11 @@ public:
 private:
     sf::RenderWindow&         m_window;
     std::unique_ptr<GLShader> m_shader;
-    GLMesh                    m_terrainMesh;
-    MeshData                  m_terrainData;
+    std::unique_ptr<TerrainLayer3D> m_terrain;
     GLMesh                    m_boxMesh;
     MeshData                  m_boxData;
     GLMesh                    m_fillMesh;      // translucent highlight on the ground
     MeshData                  m_fillData;
     GLMesh                    m_outlineMesh;   // opaque highlight border
     MeshData                  m_outlineData;
-    bool                      m_terrainDirty = true;
 };

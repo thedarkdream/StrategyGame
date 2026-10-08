@@ -6,6 +6,17 @@
 #include <SFML/Graphics/Color.hpp>
 #include <string>
 
+// What a renderer needs to draw one frame: the texture, the source rectangle
+// inside it and the size in world units.  The texture is null when there is
+// nothing to draw.
+struct SpriteFrame {
+    const sf::Texture* texture = nullptr;
+    sf::IntRect        rect;
+    sf::Vector2f       size;
+
+    bool valid() const { return texture && size.x > 0.0f && size.y > 0.0f; }
+};
+
 // Animation playback state for an entity or effect.  It owns no drawable: a
 // renderer reads the current texture, source rectangle, origin and scale and
 // draws them however it likes.
@@ -57,6 +68,9 @@ public:
     sf::IntRect getCurrentTextureRect() const;   // includes the direction row
     sf::Vector2f getOrigin() const;              // in unscaled frame pixels
     sf::Vector2f getScale() const { return m_scale; }
+
+    // The current frame as one value (see SpriteFrame).
+    SpriteFrame getFrame() const { return { getCurrentTexture(), getCurrentTextureRect(), getSize() }; }
 
     // Get current frame bounds (after scaling)
     sf::Vector2f getSize() const;

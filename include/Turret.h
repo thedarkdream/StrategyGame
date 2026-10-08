@@ -24,7 +24,19 @@ public:
         return (m_fireTimer > 0.f ? m_fireTextures : m_idleTextures)[m_dirIndex];
     }
 
+    // Whole texture, scaled down to world size.
+    SpriteFrame getSpriteFrame() const override {
+        const sf::Texture* tex = getCurrentTexture();
+        if (!tex) return {};
+        const sf::Vector2u ts = tex->getSize();
+        return { tex,
+                 sf::IntRect(sf::Vector2i(0, 0), sf::Vector2i(static_cast<int>(ts.x), static_cast<int>(ts.y))),
+                 sf::Vector2f(static_cast<float>(ts.x) * kSpriteScale, static_cast<float>(ts.y) * kSpriteScale) };
+    }
+
 private:
+    static constexpr float kSpriteScale = 0.25f;
+
     // 8 directions — assets are named turret_1.png … turret_8.png
     // (1=E, 2=SE, 3=S, 4=SW, 5=W, 6=NW, 7=N, 8=NE)
     static constexpr int DIR_COUNT = 8;

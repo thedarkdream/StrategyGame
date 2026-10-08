@@ -7,6 +7,7 @@
 #include <vector>
 
 class Map;
+class Entity;
 
 // ---------------------------------------------------------------------------
 // FogOfWar – per-player visibility tracker for the Fog of War system.
@@ -61,6 +62,16 @@ public:
 
     // World-space convenience (converts to tile internally)
     bool isVisibleAtWorld(sf::Vector2f worldPos, const Map& map) const;
+
+    // Whether `entity` is drawn / pickable for the player of team `viewer`:
+    // resource nodes and own entities always, everything else only while its
+    // tile is visible.
+    bool isEntityShown(const Entity& entity, const Map& map, Team viewer) const;
+
+    // Remembered buildings and resource nodes to draw in the shroud: ghosts whose
+    // tile is not currently visible (live resource nodes are drawn with the other
+    // entities and are left out).
+    std::vector<EntityPtr> getRememberedEntities(const Map& map) const;
 
     // Read-only access to the ghost snapshot table.
     const std::unordered_map<uint32_t, GhostRecord>& getGhosts() const { return m_ghosts; }

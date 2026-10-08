@@ -3,11 +3,17 @@
 // ---------------------------------------------------------------------------
 // Renderer3D — OpenGL implementation of IRenderer.
 //
-// Draws the heightmap terrain, sprite entities as camera-facing billboards (or
-// boxes when an entity has no artwork), the fog-of-war overlay, effects, rally
-// points and selection/health markers, seen through a fixed-angle perspective
+// Orchestrates one frame of the 3D view seen through a fixed-angle perspective
 // camera derived from the shared Camera (see Camera3D.h).  The 2D HUD is drawn
 // on top through SFML (Renderer2D::renderHud).
+//
+// Renderer3D knows no entity types: how an entity looks comes from
+// describeVisual (EntityVisual.h), whether it is shown from FogOfWar, and the
+// individual passes live in their own classes:
+//   TerrainLayer3D  heightmap and fog overlay
+//   SpriteBatch3D   textured quads (entities, effects)
+//   Overlay3D       rings, health bars, rally points, build preview
+//   Picking3D       mouse picking
 //
 // The SFML window supplies the GL context; GLEW loads the entry points.
 // ---------------------------------------------------------------------------
@@ -16,15 +22,15 @@
 #include "Renderer2D.h"
 #include "GLShader.h"
 #include "GLMesh.h"
-#include <glm/glm.hpp>
 #include <SFML/Graphics.hpp>
 #include <memory>
-#include <unordered_set>
 #include <vector>
 
 class Map;
 class InputHandler;
-class FogOfWar;
+class TerrainLayer3D;
+class SpriteBatch3D;
+
 class Renderer3D : public IRenderer {
 public:
     // Throws std::runtime_error when the GL context / loader / shaders are
@@ -37,10 +43,7 @@ public:
         m_camera = camera;
         m_hud.setCamera(camera);
     }
-    void invalidateMinimapTerrain() override {
-        m_hud.invalidateMinimapTerrain();
-        m_terrainDirty = true;
-    }
+    void invalidateMinimapTerrain() override;
 
     sf::Vector2f screenToWorld(const Camera& camera, sf::Vector2i pixel, const Map& map) const override;
     EntityPtr pickEntity(const Camera& camera, sf::Vector2i pixel, Game& game) const override;
@@ -49,49 +52,22 @@ public:
                                               Game& game) const override;
 
 private:
-    // Camera-facing textured quad vertex (sprites are drawn as billboards).
-    struct SpriteVertex {
-        glm::vec3 position;
-        glm::vec2 uv;
-        glm::vec4 tint;
-    };
-    struct SpriteBatch {
-        unsigned int texture;
-        bool         postFog;   // drawn after the fog overlay (visible entities, effects)
-        int          first;
-        int          count;
-    };
-
-    void rebuildTerrain(const Map& map);
-    void buildEntities(Game& game);
-    void buildBuildPreview(Game& game);
-    void buildRallyPoints(Game& game);
-    void uploadSprites();
-    void drawSprites(const glm::mat4& viewProj, bool postFog);
-    void drawFog(const glm::mat4& viewProj, const FogOfWar& fog);
-    void prepareSpriteTexture(unsigned int handle, bool mipmaps);
+    void buildFrame(Game& game);
     void drawSelectionRect(const InputHandler& input);
 
-    sf::RenderWindow&        m_window;
-    Camera                   m_camera;
-    Renderer2D               m_hud;
+    sf::RenderWindow&         m_window;
+    Camera                    m_camera;
+    Renderer2D                m_hud;
     std::unique_ptr<GLShader> m_shader;
-    std::unique_ptr<GLShader> m_spriteShader;
-    std::unique_ptr<GLShader> m_fogShader;
-    GLMesh                   m_terrainMesh;
-    GLMesh                   m_fogMesh;       // terrain-hugging grid textured with the fog map
-    GLMesh                   m_entityMesh;
-    MeshData                 m_entityData;
-    GLMesh                   m_ringMesh;      // selection rings on the ground
-    MeshData                 m_ringData;
-    GLMesh                   m_barMesh;       // health bars (drawn over everything)
-    MeshData                 m_barData;
-    GLMesh                   m_previewMesh;
-    MeshData                 m_previewData;
-    std::vector<SpriteVertex> m_spriteVerts;
-    std::vector<SpriteBatch>  m_spriteBatches;
-    unsigned int             m_spriteVao = 0;
-    unsigned int             m_spriteVbo = 0;
-    std::unordered_set<unsigned int> m_preparedTextures;
-    bool                     m_terrainDirty = true;
+    std::unique_ptr<TerrainLayer3D> m_terrain;
+    std::unique_ptr<SpriteBatch3D>  m_sprites;
+
+    GLMesh   m_entityMesh;    // lit boxes: entities without artwork, flag poles
+    MeshData m_entityData;
+    GLMesh   m_ringMesh;      // unlit flat geometry on the ground: rings, rally lines
+    MeshData m_ringData;
+    GLMesh   m_barMesh;       // health bars (drawn over everything)
+    MeshData m_barData;
+    GLMesh   m_previewMesh;
+    MeshData m_previewData;
 };

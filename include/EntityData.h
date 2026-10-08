@@ -71,6 +71,30 @@ struct BuildingDef {
     std::optional<CombatBuildingDef> combat;
 };
 
+// How an entity type is shown by the renderers.  Everything here is static per
+// type; what changes per entity (current frame, construction opacity) is
+// reported by the Entity itself.
+struct VisualDef {
+    // Fraction of the sprite height that lies below the entity's ground point.
+    float spriteAnchor = 0.25f;
+    // Height of the stand-in box (and of the picking volume for sprite-less
+    // entities), as a multiple of the smaller footprint side.
+    float bodyHeight = 1.0f;
+    // > 0: the entity hovers this far above the ground (projectiles).
+    float flyHeight = 0.0f;
+    bool  selectable = true;        // can show a selection ring and be picked
+    bool  showsHealthBar = true;    // bar when selected or damaged
+
+    static VisualDef unit()     { return {}; }
+    static VisualDef building() { VisualDef v; v.spriteAnchor = 0.22f; v.bodyHeight = 0.8f; return v; }
+    static VisualDef resource() {
+        VisualDef v; v.spriteAnchor = 0.22f; v.bodyHeight = 0.5f; v.showsHealthBar = false; return v;
+    }
+    static VisualDef projectile() {
+        VisualDef v; v.flyHeight = 10.0f; v.selectable = false; v.showsHealthBar = false; return v;
+    }
+};
+
 // Complete entity definition
 struct EntityDef {
     EntityType type = EntityType::None;
@@ -84,6 +108,9 @@ struct EntityDef {
     // Common stats
     int health = 0;
     sf::Vector2f size = {0.0f, 0.0f};   // Visual/collision size in pixels
+
+    // Appearance (see VisualDef)
+    VisualDef visual;
 
     // Sight radius in world units (how far this entity can reveal the fog of war)
     float visionRadius = 200.0f;
@@ -135,6 +162,9 @@ public:
 
     // Vision / Fog of War
     float getVisionRadius(EntityType type) const;
+
+    // Appearance of a type (defaults for types without a definition).
+    const VisualDef& getVisual(EntityType type) const;
     
     // Building-specific  
     const BuildingDef*       getBuildingDef(EntityType type) const;

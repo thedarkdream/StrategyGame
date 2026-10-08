@@ -34,6 +34,14 @@ public:
     sf::Color       getColor() const { return m_color; }
     bool            hasSprite() const { return m_hasSprite; }
     AnimatedSprite& getAnimatedSprite() { return m_animatedSprite; }
+
+    // The frame to draw now (texture == nullptr: the entity has no artwork).
+    // Entities with their own artwork override this.
+    virtual SpriteFrame getSpriteFrame() const {
+        return m_hasSprite ? m_animatedSprite.getFrame() : SpriteFrame{};
+    }
+    // 1 = fully solid; less while the entity is still being constructed.
+    virtual float getVisualOpacity() const { return 1.0f; }
     
     // Setters
     void setPosition(sf::Vector2f position) { m_position = position; }

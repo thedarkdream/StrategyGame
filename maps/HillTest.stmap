@@ -73,9 +73,11 @@ tile    3 1 Water 1
 tile    4 1 Water 1
 tile    5 1 Water 1
 tile    6 1 Grass 4
+tile    7 1 Grass 4
 tile    8 1 Grass 8
 tile    10 1 Grass 8
 tile    11 1 Grass 2
+tile    12 1 Grass 4
 tile    13 1 Grass 6
 tile    14 1 Grass 8
 tile    15 1 Grass 5
@@ -119,6 +121,8 @@ tile    53 1 Grass 8
 tile    54 1 Grass 5
 tile    55 1 Grass 4
 tile    56 1 Grass 4
+tile    57 1 Grass 5
+tile    58 1 Grass 3
 tile    59 1 Grass 7
 tile    60 1 Grass 8
 tile    61 1 Water 1
@@ -157,6 +161,7 @@ tile    29 2 Water 1
 tile    30 2 Water 1
 tile    31 2 Grass 8
 tile    32 2 Grass 5
+tile    33 2 Grass 4
 tile    34 2 Grass 3
 tile    35 2 Grass 8
 tile    36 2 Water 1
@@ -169,6 +174,7 @@ tile    42 2 Grass 6
 tile    43 2 Grass 8
 tile    44 2 Grass 5
 tile    46 2 Grass 2
+tile    47 2 Grass 4
 tile    48 2 Grass 7
 tile    49 2 Grass 2
 tile    50 2 Grass 5
@@ -180,6 +186,7 @@ tile    55 2 Grass 6
 tile    56 2 Grass 4
 tile    57 2 Grass 5
 tile    58 2 Grass 6
+tile    59 2 Grass 2
 tile    60 2 Grass 7
 tile    61 2 Water 1
 tile    62 2 Water 1
@@ -196,6 +203,7 @@ tile    8 3 Grass 5
 tile    9 3 Grass 8
 tile    11 3 Grass 8
 tile    12 3 Grass 7
+tile    13 3 Grass 3
 tile    14 3 Grass 8
 tile    15 3 Grass 5
 tile    16 3 Grass 5
@@ -206,6 +214,7 @@ tile    20 3 Grass 2
 tile    21 3 Grass 3
 tile    22 3 Grass 6
 tile    23 3 Grass 3
+tile    24 3 Grass 4
 tile    25 3 Grass 4
 tile    26 3 Grass 7
 tile    27 3 Grass 4
@@ -214,6 +223,7 @@ tile    29 3 Water 1
 tile    30 3 Water 1
 tile    31 3 Grass 8
 tile    32 3 Grass 6
+tile    33 3 Grass 7
 tile    34 3 Grass 5
 tile    35 3 Grass 8
 tile    36 3 Grass 5
@@ -252,20 +262,25 @@ tile    4 4 Grass 3
 tile    5 4 Grass 4
 tile    6 4 Resource 1
 tile    7 4 Resource 1
+tile    8 4 Grass 6
 tile    9 4 Grass 2
 tile    10 4 Resource 1
 tile    11 4 Resource 1
+tile    12 4 Grass 5
 tile    13 4 Resource 1
 tile    14 4 Resource 1
 tile    15 4 Grass 7
 tile    16 4 Grass 7
+tile    17 4 Grass 5
 tile    18 4 Grass 4
 tile    19 4 Grass 5
+tile    20 4 Grass 7
 tile    21 4 Grass 4
 tile    22 4 Grass 2
 tile    23 4 Grass 2
 tile    24 4 Grass 8
 tile    25 4 Grass 7
+tile    26 4 Grass 5
 tile    27 4 Grass 4
 tile    28 4 Water 1
 tile    29 4 Water 1
@@ -275,8 +290,11 @@ tile    32 4 Grass 3
 tile    33 4 Grass 6
 tile    34 4 Grass 3
 tile    35 4 Grass 4
+tile    36 4 Grass 3
 tile    37 4 Grass 4
 tile    38 4 Grass 5
+tile    39 4 Grass 4
+tile    40 4 Grass 5
 tile    41 4 Grass 5
 tile    42 4 Grass 7
 tile    43 4 Grass 6
@@ -284,13 +302,17 @@ tile    45 4 Grass 6
 tile    46 4 Grass 5
 tile    47 4 Grass 8
 tile    48 4 Grass 6
+tile    49 4 Grass 4
 tile    50 4 Grass 2
 tile    51 4 Grass 7
 tile    52 4 Grass 2
 tile    53 4 Grass 3
 tile    54 4 Grass 3
 tile    55 4 Grass 2
+tile    56 4 Grass 8
 tile    57 4 Grass 8
+tile    58 4 Grass 4
+tile    59 4 Grass 4
 tile    60 4 Grass 5
 tile    61 4 Water 1
 tile    62 4 Water 1
@@ -317,13 +339,17 @@ tile    18 5 Grass 5
 tile    19 5 Grass 8
 tile    20 5 Grass 3
 tile    21 5 Grass 7
+tile    22 5 Grass 5
 tile    23 5 Grass 3
 tile    24 5 Grass 8
 tile    26 5 Grass 2
 tile    27 5 Grass 8
 tile    28 5 Grass 4
 tile    29 5 Water 1
+tile    30 5 Grass 5
 tile    31 5 Grass 6
+tile    32 5 Grass 3
+tile    33 5 Grass 5
 tile    34 5 Grass 6
 tile    35 5 Grass 5
 tile    36 5 Grass 2
@@ -331,6 +357,7 @@ tile    37 5 Grass 3
 tile    38 5 Grass 3
 tile    39 5 Grass 4
 tile    40 5 Grass 3
+tile    41 5 Grass 4
 tile    42 5 Grass 8
 tile    43 5 Grass 2
 tile    44 5 Grass 8
@@ -358,7 +385,9 @@ tile    2 6 Grass 6
 tile    3 6 Resource 1
 tile    4 6 Resource 1
 tile    5 6 Grass 6
+tile    6 6 Grass 6
 tile    7 6 Grass 6
+tile    8 6 Grass 3
 tile    9 6 Grass 3
 tile    10 6 Grass 8
 tile    11 6 Grass 5
@@ -368,12 +397,15 @@ tile    14 6 Grass 6
 tile    15 6 Resource 1
 tile    16 6 Resource 1
 tile    17 6 Grass 6
+tile    18 6 Grass 7
+tile    19 6 Grass 6
 tile    20 6 Grass 3
 tile    21 6 Grass 2
 tile    22 6 Grass 6
 tile    23 6 Grass 2
 tile    24 6 Grass 2
 tile    25 6 Grass 5
+tile    26 6 Grass 6
 tile    27 6 Grass 2
 tile    28 6 Water 1
 tile    29 6 Water 1
@@ -399,8 +431,11 @@ tile    49 6 Grass 8
 tile    50 6 Grass 7
 tile    51 6 Grass 4
 tile    52 6 Grass 2
+tile    53 6 Grass 6
 tile    54 6 Grass 3
+tile    55 6 Grass 3
 tile    56 6 Grass 4
+tile    57 6 Grass 6
 tile    58 6 Grass 2
 tile    59 6 Grass 3
 tile    60 6 Grass 8
@@ -428,6 +463,7 @@ tile    17 7 Grass 4
 tile    18 7 Grass 3
 tile    19 7 Grass 4
 tile    20 7 Grass 3
+tile    21 7 Grass 5
 tile    22 7 Grass 6
 tile    23 7 Grass 7
 tile    24 7 Grass 5
@@ -450,11 +486,14 @@ tile    40 7 Grass 8
 tile    41 7 Grass 2
 tile    42 7 Grass 7
 tile    43 7 Grass 5
+tile    44 7 Grass 5
 tile    45 7 Grass 8
 tile    46 7 Grass 8
 tile    47 7 Grass 3
 tile    48 7 Grass 4
 tile    49 7 Grass 8
+tile    50 7 Grass 5
+tile    51 7 Grass 4
 tile    52 7 Grass 8
 tile    53 7 Grass 5
 tile    54 7 Grass 8
@@ -489,15 +528,19 @@ tile    18 8 Grass 6
 tile    19 8 Grass 5
 tile    20 8 Grass 3
 tile    21 8 Grass 2
+tile    22 8 Grass 3
+tile    23 8 Grass 7
 tile    24 8 Grass 4
 tile    25 8 Grass 2
 tile    26 8 Grass 8
 tile    27 8 Grass 5
 tile    28 8 Water 1
 tile    29 8 Grass 2
+tile    30 8 Grass 3
 tile    31 8 Grass 2
 tile    32 8 Grass 3
 tile    33 8 Grass 4
+tile    34 8 Grass 2
 tile    35 8 Grass 6
 tile    36 8 Grass 4
 tile    37 8 Grass 2
@@ -514,10 +557,12 @@ tile    47 8 Grass 5
 tile    48 8 Grass 7
 tile    49 8 Grass 2
 tile    50 8 Grass 2
+tile    51 8 Grass 6
 tile    53 8 Grass 4
 tile    54 8 Grass 7
 tile    55 8 Grass 2
 tile    56 8 Grass 2
+tile    57 8 Grass 4
 tile    58 8 Grass 7
 tile    59 8 Grass 8
 tile    60 8 Grass 3
@@ -528,6 +573,7 @@ tile    0 9 Water 1
 tile    1 9 Grass 8
 tile    2 9 Grass 5
 tile    3 9 Grass 5
+tile    4 9 Grass 8
 tile    5 9 Grass 6
 tile    6 9 Grass 4
 tile    7 9 Grass 3
@@ -553,6 +599,7 @@ tile    26 9 Grass 5
 tile    27 9 Grass 7
 tile    28 9 Water 1
 tile    29 9 Grass 8
+tile    30 9 Grass 7
 tile    31 9 Grass 7
 tile    32 9 Grass 4
 tile    33 9 Grass 3
@@ -561,6 +608,7 @@ tile    35 9 Grass 4
 tile    36 9 Grass 5
 tile    37 9 Grass 5
 tile    38 9 Grass 2
+tile    39 9 Grass 2
 tile    40 9 Grass 2
 tile    41 9 Grass 5
 tile    42 9 Grass 4
@@ -581,6 +629,7 @@ tile    56 9 Grass 6
 tile    57 9 Grass 5
 tile    58 9 Grass 7
 tile    59 9 Grass 4
+tile    60 9 Grass 7
 tile    61 9 Grass 4
 tile    62 9 Water 1
 tile    63 9 Water 1
@@ -601,9 +650,11 @@ tile    13 10 Grass 7
 tile    14 10 Grass 4
 tile    15 10 Grass 3
 tile    16 10 Grass 4
+tile    17 10 Grass 5
 tile    18 10 Grass 2
 tile    19 10 Grass 4
 tile    20 10 Grass 5
+tile    21 10 Grass 7
 tile    22 10 Grass 3
 tile    23 10 Grass 4
 tile    24 10 Grass 8
@@ -611,9 +662,11 @@ tile    25 10 Grass 6
 tile    26 10 Grass 7
 tile    27 10 Water 1
 tile    28 10 Water 1
+tile    29 10 Grass 7
 tile    30 10 Grass 8
 tile    31 10 Grass 2
 tile    32 10 Grass 7
+tile    33 10 Grass 4
 tile    34 10 Grass 7
 tile    35 10 Grass 5
 tile    36 10 Grass 3
@@ -636,9 +689,11 @@ tile    52 10 Grass 2
 tile    53 10 Grass 7
 tile    54 10 Grass 8
 tile    55 10 Grass 2
+tile    56 10 Grass 7
 tile    57 10 Grass 8
 tile    58 10 Grass 7
 tile    59 10 Grass 4
+tile    60 10 Grass 5
 tile    61 10 Grass 8
 tile    62 10 Water 1
 tile    63 10 Water 1
@@ -653,6 +708,7 @@ tile    7 11 Grass 7
 tile    8 11 Grass 2
 tile    9 11 Grass 7
 tile    10 11 Grass 8
+tile    11 11 Grass 2
 tile    12 11 Grass 8
 tile    13 11 Grass 2
 tile    14 11 Grass 4
@@ -662,11 +718,15 @@ tile    17 11 Grass 3
 tile    18 11 Grass 6
 tile    19 11 Grass 3
 tile    20 11 Grass 8
+tile    21 11 Grass 5
+tile    22 11 Grass 8
 tile    23 11 Grass 8
 tile    24 11 Grass 4
 tile    25 11 Grass 3
+tile    26 11 Grass 7
 tile    27 11 Water 1
 tile    28 11 Grass 5
+tile    29 11 Grass 2
 tile    30 11 Grass 5
 tile    31 11 Grass 2
 tile    32 11 Grass 3
@@ -675,6 +735,7 @@ tile    34 11 Grass 4
 tile    36 11 Grass 3
 tile    37 11 Grass 6
 tile    38 11 Grass 2
+tile    39 11 Grass 7
 tile    40 11 Grass 7
 tile    41 11 Grass 8
 tile    42 11 Grass 7
@@ -693,7 +754,9 @@ tile    54 11 Grass 3
 tile    55 11 Grass 4
 tile    56 11 Grass 8
 tile    57 11 Grass 8
+tile    58 11 Grass 2
 tile    59 11 Grass 6
+tile    60 11 Grass 2
 tile    61 11 Grass 6
 tile    62 11 Water 1
 tile    63 11 Water 1
@@ -702,6 +765,7 @@ tile    1 12 Water 1
 tile    2 12 Grass 7
 tile    3 12 Grass 7
 tile    4 12 Grass 3
+tile    5 12 Grass 5
 tile    6 12 Grass 5
 tile    7 12 Grass 8
 tile    8 12 Grass 4
@@ -714,9 +778,11 @@ tile    14 12 Grass 8
 tile    15 12 Grass 4
 tile    16 12 Grass 5
 tile    17 12 Grass 2
+tile    18 12 Grass 8
 tile    19 12 Grass 5
 tile    20 12 Grass 3
 tile    21 12 Grass 4
+tile    22 12 Grass 4
 tile    23 12 Grass 7
 tile    24 12 Grass 3
 tile    25 12 Grass 4
@@ -746,13 +812,16 @@ tile    48 12 Grass 8
 tile    49 12 Grass 6
 tile    50 12 Grass 4
 tile    51 12 Grass 2
+tile    52 12 Grass 5
 tile    53 12 Grass 2
 tile    54 12 Grass 2
 tile    55 12 Grass 4
 tile    56 12 Grass 2
+tile    57 12 Grass 8
 tile    58 12 Grass 4
 tile    59 12 Grass 5
 tile    60 12 Grass 8
+tile    61 12 Grass 3
 tile    62 12 Water 1
 tile    63 12 Water 1
 tile    0 13 Water 1
@@ -761,6 +830,7 @@ tile    2 13 Grass 5
 tile    3 13 Grass 7
 tile    4 13 Grass 8
 tile    5 13 Grass 4
+tile    6 13 Grass 3
 tile    7 13 Grass 6
 tile    8 13 Grass 8
 tile    9 13 Grass 4
@@ -798,6 +868,7 @@ tile    40 13 Grass 7
 tile    41 13 Grass 6
 tile    42 13 Grass 2
 tile    43 13 Grass 7
+tile    44 13 Grass 4
 tile    45 13 Grass 5
 tile    46 13 Grass 7
 tile    47 13 Grass 2
@@ -821,6 +892,7 @@ tile    0 14 Water 1
 tile    1 14 Water 1
 tile    2 14 Water 1
 tile    3 14 Grass 4
+tile    5 14 Grass 3
 tile    6 14 Grass 7
 tile    7 14 Grass 6
 tile    8 14 Grass 5
@@ -863,10 +935,13 @@ tile    45 14 Grass 7
 tile    46 14 Grass 7
 tile    47 14 Grass 4
 tile    48 14 Grass 6
+tile    50 14 Grass 6
 tile    51 14 Grass 4
 tile    52 14 Grass 3
 tile    53 14 Grass 5
+tile    54 14 Grass 5
 tile    55 14 Grass 6
+tile    56 14 Grass 2
 tile    57 14 Grass 8
 tile    58 14 Grass 4
 tile    59 14 Grass 8
@@ -893,6 +968,8 @@ tile    16 15 Grass 5
 tile    17 15 Grass 3
 tile    18 15 Grass 7
 tile    19 15 Grass 3
+tile    20 15 Grass 3
+tile    21 15 Grass 7
 tile    22 15 Grass 2
 tile    23 15 Grass 8
 tile    24 15 Grass 4
@@ -901,6 +978,7 @@ tile    26 15 Water 1
 tile    27 15 Grass 6
 tile    28 15 Grass 5
 tile    29 15 Grass 5
+tile    30 15 Grass 4
 tile    31 15 Grass 5
 tile    32 15 Grass 8
 tile    33 15 Grass 5
@@ -917,6 +995,7 @@ tile    44 15 Grass 8
 tile    45 15 Grass 6
 tile    46 15 Grass 3
 tile    47 15 Grass 7
+tile    48 15 Grass 2
 tile    49 15 Grass 3
 tile    50 15 Grass 4
 tile    52 15 Grass 8
@@ -925,7 +1004,9 @@ tile    54 15 Grass 3
 tile    55 15 Grass 2
 tile    56 15 Grass 3
 tile    57 15 Grass 4
+tile    58 15 Grass 6
 tile    59 15 Grass 7
+tile    60 15 Grass 2
 tile    61 15 Grass 6
 tile    62 15 Water 1
 tile    63 15 Water 1
@@ -955,12 +1036,17 @@ tile    22 16 Grass 7
 tile    23 16 Grass 7
 tile    24 16 Water 1
 tile    25 16 Water 1
+tile    26 16 Grass 5
 tile    27 16 Grass 8
 tile    28 16 Grass 5
 tile    29 16 Grass 3
+tile    30 16 Grass 3
 tile    31 16 Grass 3
+tile    32 16 Grass 3
+tile    33 16 Grass 6
 tile    34 16 Grass 2
 tile    35 16 Grass 2
+tile    36 16 Grass 4
 tile    37 16 Grass 2
 tile    38 16 Grass 8
 tile    39 16 Grass 6
@@ -980,6 +1066,7 @@ tile    52 16 Grass 4
 tile    53 16 Grass 6
 tile    54 16 Grass 8
 tile    56 16 Grass 6
+tile    57 16 Grass 8
 tile    58 16 Grass 3
 tile    59 16 Grass 7
 tile    60 16 Grass 8
@@ -1003,6 +1090,7 @@ tile    13 17 Grass 3
 tile    14 17 Grass 5
 tile    15 17 Grass 5
 tile    16 17 Grass 4
+tile    17 17 Grass 3
 tile    18 17 Grass 6
 tile    19 17 Grass 5
 tile    20 17 Grass 6
@@ -1038,6 +1126,7 @@ tile    50 17 Grass 5
 tile    51 17 Grass 3
 tile    52 17 Grass 7
 tile    53 17 Grass 3
+tile    54 17 Grass 4
 tile    55 17 Grass 8
 tile    56 17 Grass 8
 tile    57 17 Grass 2
@@ -1092,6 +1181,7 @@ tile    41 18 Water 1
 tile    42 18 Grass 6
 tile    43 18 Grass 2
 tile    44 18 Grass 8
+tile    45 18 Grass 4
 tile    46 18 Grass 7
 tile    47 18 Grass 4
 tile    48 18 Grass 3
@@ -1106,6 +1196,7 @@ tile    56 18 Grass 4
 tile    57 18 Grass 7
 tile    58 18 Grass 5
 tile    59 18 Grass 3
+tile    60 18 Grass 7
 tile    61 18 Grass 3
 tile    62 18 Water 1
 tile    63 18 Water 1
@@ -1118,11 +1209,13 @@ tile    5 19 Grass 8
 tile    6 19 Grass 4
 tile    7 19 Grass 4
 tile    8 19 Grass 2
+tile    9 19 Grass 3
 tile    10 19 Grass 6
 tile    11 19 Grass 4
 tile    12 19 Grass 3
 tile    13 19 Grass 8
 tile    14 19 Grass 7
+tile    15 19 Grass 2
 tile    16 19 Grass 6
 tile    17 19 Grass 5
 tile    18 19 Grass 6
@@ -1131,6 +1224,7 @@ tile    20 19 Grass 7
 tile    21 19 Grass 7
 tile    22 19 Grass 5
 tile    23 19 Grass 8
+tile    24 19 Grass 3
 tile    25 19 Grass 4
 tile    26 19 Grass 5
 tile    27 19 Grass 4
@@ -1140,6 +1234,7 @@ tile    30 19 Grass 8
 tile    31 19 Grass 8
 tile    32 19 Grass 3
 tile    33 19 Grass 8
+tile    34 19 Grass 8
 tile    35 19 Grass 6
 tile    37 19 Grass 5
 tile    38 19 Grass 8
@@ -1176,7 +1271,9 @@ tile    7 20 Grass 3
 tile    8 20 Grass 4
 tile    9 20 Grass 3
 tile    10 20 Grass 5
+tile    11 20 Grass 8
 tile    12 20 Grass 7
+tile    13 20 Grass 5
 tile    14 20 Grass 3
 tile    15 20 Grass 2
 tile    16 20 Grass 4
@@ -1236,22 +1333,29 @@ tile    7 21 Grass 6
 tile    8 21 Grass 4
 tile    9 21 Grass 6
 tile    10 21 Grass 2
+tile    11 21 Grass 8
 tile    12 21 Grass 7
+tile    13 21 Grass 8
 tile    14 21 Grass 8
 tile    15 21 Grass 7
 tile    16 21 Grass 4
 tile    17 21 Grass 5
 tile    18 21 Grass 3
 tile    19 21 Grass 2
+tile    20 21 Grass 8
 tile    21 21 Grass 8
+tile    22 21 Grass 7
 tile    23 21 Grass 2
 tile    24 21 Grass 6
 tile    25 21 Grass 8
 tile    26 21 Grass 6
 tile    27 21 Grass 8
+tile    28 21 Grass 8
 tile    29 21 Grass 3
+tile    30 21 Grass 8
 tile    31 21 Grass 2
 tile    32 21 Grass 7
+tile    33 21 Grass 4
 tile    34 21 Grass 4
 tile    35 21 Grass 5
 tile    36 21 Grass 4
@@ -1277,17 +1381,20 @@ tile    55 21 Grass 7
 tile    56 21 Grass 7
 tile    57 21 Grass 5
 tile    58 21 Grass 5
+tile    59 21 Grass 2
 tile    60 21 Grass 2
 tile    61 21 Water 1
 tile    62 21 Water 1
 tile    63 21 Water 1
 tile    0 22 Grass 5
+tile    1 22 Grass 8
 tile    2 22 Grass 4
 tile    3 22 Grass 6
 tile    4 22 Grass 7
 tile    5 22 Grass 7
 tile    6 22 Grass 4
 tile    7 22 Grass 7
+tile    8 22 Grass 5
 tile    9 22 Grass 8
 tile    10 22 Grass 4
 tile    11 22 Grass 3
@@ -1303,6 +1410,7 @@ tile    20 22 Grass 7
 tile    21 22 Grass 6
 tile    22 22 Grass 8
 tile    23 22 Grass 2
+tile    24 22 Grass 4
 tile    25 22 Grass 6
 tile    26 22 Grass 4
 tile    27 22 Grass 4
@@ -1326,14 +1434,17 @@ tile    45 22 Grass 6
 tile    46 22 Grass 5
 tile    47 22 Grass 5
 tile    48 22 Grass 6
+tile    49 22 Grass 6
 tile    50 22 Grass 8
 tile    51 22 Grass 7
 tile    52 22 Grass 4
 tile    53 22 Grass 2
 tile    54 22 Grass 8
+tile    55 22 Grass 4
 tile    56 22 Grass 3
 tile    57 22 Grass 2
 tile    58 22 Grass 3
+tile    59 22 Grass 2
 tile    60 22 Water 1
 tile    61 22 Water 1
 tile    62 22 Water 1
@@ -1344,6 +1455,7 @@ tile    2 23 Grass 4
 tile    3 23 Grass 6
 tile    4 23 Grass 5
 tile    5 23 Grass 6
+tile    6 23 Grass 3
 tile    7 23 Grass 6
 tile    8 23 Grass 2
 tile    9 23 Grass 7
@@ -1357,11 +1469,13 @@ tile    16 23 Grass 7
 tile    17 23 Grass 7
 tile    18 23 Grass 6
 tile    19 23 Grass 6
+tile    20 23 Grass 2
 tile    21 23 Grass 3
 tile    22 23 Grass 4
 tile    23 23 Grass 4
 tile    24 23 Grass 2
 tile    25 23 Grass 6
+tile    26 23 Grass 6
 tile    27 23 Grass 5
 tile    28 23 Grass 4
 tile    29 23 Grass 3
@@ -1399,17 +1513,22 @@ tile    62 23 Water 1
 tile    63 23 Water 1
 tile    0 24 Grass 7
 tile    1 24 Grass 7
+tile    2 24 Grass 8
 tile    3 24 Grass 2
+tile    4 24 Grass 8
 tile    5 24 Grass 2
 tile    6 24 Grass 5
 tile    7 24 Grass 4
 tile    8 24 Grass 7
+tile    9 24 Grass 5
 tile    10 24 Grass 7
 tile    11 24 Grass 3
+tile    12 24 Grass 6
 tile    13 24 Grass 7
 tile    14 24 Grass 7
 tile    15 24 Grass 3
 tile    16 24 Grass 6
+tile    17 24 Grass 8
 tile    18 24 Grass 3
 tile    19 24 Grass 7
 tile    20 24 Grass 4
@@ -1419,7 +1538,9 @@ tile    23 24 Grass 3
 tile    24 24 Grass 7
 tile    25 24 Grass 3
 tile    26 24 Grass 2
+tile    27 24 Grass 7
 tile    28 24 Grass 4
+tile    29 24 Grass 4
 tile    30 24 Grass 4
 tile    31 24 Grass 8
 tile    32 24 Grass 6
@@ -1428,18 +1549,22 @@ tile    34 24 Water 1
 tile    35 24 Water 1
 tile    36 24 Water 1
 tile    37 24 Water 1
+tile    38 24 Grass 2
 tile    39 24 Grass 2
 tile    40 24 Grass 2
 tile    41 24 Grass 2
 tile    42 24 Grass 7
 tile    43 24 Grass 6
 tile    44 24 Grass 3
+tile    45 24 Grass 6
 tile    46 24 Grass 3
 tile    47 24 Grass 6
+tile    48 24 Grass 7
 tile    49 24 Grass 8
 tile    50 24 Grass 2
 tile    51 24 Grass 2
 tile    52 24 Grass 3
+tile    53 24 Grass 7
 tile    54 24 Grass 7
 tile    55 24 Water 1
 tile    56 24 Water 1
@@ -1462,6 +1587,7 @@ tile    8 25 Grass 6
 tile    9 25 Grass 4
 tile    10 25 Grass 2
 tile    11 25 Grass 7
+tile    12 25 Grass 6
 tile    13 25 Grass 8
 tile    14 25 Grass 4
 tile    16 25 Grass 4
@@ -1477,7 +1603,9 @@ tile    25 25 Grass 4
 tile    26 25 Grass 8
 tile    27 25 Grass 8
 tile    28 25 Grass 5
+tile    29 25 Grass 5
 tile    30 25 Grass 2
+tile    31 25 Grass 5
 tile    32 25 Grass 6
 tile    33 25 Water 1
 tile    34 25 Water 1
@@ -1488,11 +1616,14 @@ tile    38 25 Grass 4
 tile    39 25 Grass 2
 tile    40 25 Grass 4
 tile    41 25 Grass 8
+tile    42 25 Grass 2
 tile    43 25 Grass 2
 tile    44 25 Grass 2
 tile    45 25 Grass 7
 tile    46 25 Grass 6
 tile    47 25 Grass 6
+tile    48 25 Grass 7
+tile    49 25 Grass 2
 tile    50 25 Grass 8
 tile    51 25 Grass 8
 tile    52 25 Grass 5
@@ -1554,6 +1685,7 @@ tile    44 26 Grass 3
 tile    45 26 Grass 3
 tile    46 26 Grass 8
 tile    47 26 Grass 5
+tile    48 26 Grass 8
 tile    49 26 Grass 6
 tile    50 26 Grass 8
 tile    51 26 Grass 4
@@ -1570,19 +1702,24 @@ tile    61 26 Water 1
 tile    62 26 Water 1
 tile    63 26 Water 1
 tile    0 27 Water 1
-tile    1 27 Water 1
+tile    1 27 Water 3
 tile    2 27 Water 1
 tile    3 27 Water 1
 tile    4 27 Water 1
 tile    5 27 Water 1
+tile    6 27 Grass 4
 tile    7 27 Grass 8
 tile    8 27 Grass 4
 tile    10 27 Grass 7
 tile    11 27 Grass 7
 tile    12 27 Grass 7
+tile    13 27 Grass 6
+tile    14 27 Grass 4
+tile    15 27 Grass 2
 tile    16 27 Grass 6
 tile    17 27 Grass 6
 tile    18 27 Grass 8
+tile    19 27 Grass 6
 tile    20 27 Grass 7
 tile    21 27 Grass 5
 tile    22 27 Grass 2
@@ -1592,6 +1729,8 @@ tile    25 27 Grass 3
 tile    26 27 Grass 6
 tile    27 27 Grass 5
 tile    28 27 Grass 5
+tile    30 27 Grass 6
+tile    31 27 Grass 3
 tile    32 27 Water 1
 tile    33 27 Water 1
 tile    34 27 Water 1
@@ -1608,7 +1747,9 @@ tile    44 27 Grass 5
 tile    45 27 Grass 7
 tile    46 27 Grass 5
 tile    47 27 Grass 7
+tile    48 27 Grass 6
 tile    49 27 Grass 4
+tile    50 27 Grass 7
 tile    51 27 Water 1
 tile    52 27 Water 1
 tile    53 27 Water 1
@@ -1623,7 +1764,7 @@ tile    61 27 Water 1
 tile    62 27 Water 1
 tile    63 27 Water 1
 tile    0 28 Water 1
-tile    1 28 Water 1
+tile    1 28 Water 2
 tile    2 28 Water 1
 tile    3 28 Water 1
 tile    4 28 Water 1
@@ -1636,16 +1777,20 @@ tile    10 28 Grass 6
 tile    11 28 Grass 6
 tile    12 28 Grass 7
 tile    13 28 Grass 2
+tile    14 28 Grass 4
 tile    15 28 Grass 8
 tile    16 28 Grass 8
 tile    17 28 Grass 5
+tile    18 28 Grass 4
 tile    19 28 Grass 6
 tile    20 28 Grass 7
 tile    22 28 Grass 7
 tile    23 28 Grass 6
+tile    24 28 Grass 6
 tile    25 28 Grass 6
 tile    26 28 Grass 4
 tile    27 28 Grass 6
+tile    28 28 Grass 8
 tile    29 28 Grass 6
 tile    30 28 Grass 6
 tile    31 28 Water 1
@@ -1654,6 +1799,7 @@ tile    33 28 Water 1
 tile    34 28 Water 1
 tile    35 28 Grass 6
 tile    36 28 Grass 4
+tile    37 28 Grass 3
 tile    38 28 Grass 2
 tile    39 28 Grass 4
 tile    40 28 Grass 4
@@ -1702,6 +1848,7 @@ tile    18 29 Grass 4
 tile    19 29 Grass 7
 tile    20 29 Grass 4
 tile    21 29 Grass 4
+tile    22 29 Grass 6
 tile    23 29 Grass 6
 tile    24 29 Grass 2
 tile    25 29 Grass 2
@@ -1713,6 +1860,7 @@ tile    30 29 Water 1
 tile    31 29 Water 1
 tile    32 29 Water 1
 tile    33 29 Water 1
+tile    34 29 Grass 2
 tile    35 29 Grass 7
 tile    36 29 Grass 2
 tile    37 29 Grass 8
@@ -1761,12 +1909,14 @@ tile    15 30 Grass 7
 tile    16 30 Grass 2
 tile    17 30 Grass 4
 tile    18 30 Grass 7
+tile    19 30 Grass 3
 tile    20 30 Grass 8
 tile    21 30 Grass 3
 tile    22 30 Grass 5
 tile    23 30 Grass 5
 tile    24 30 Grass 4
 tile    25 30 Grass 6
+tile    26 30 Grass 4
 tile    27 30 Grass 5
 tile    28 30 Grass 2
 tile    29 30 Water 1
@@ -1775,6 +1925,7 @@ tile    31 30 Water 1
 tile    32 30 Water 1
 tile    33 30 Grass 3
 tile    34 30 Grass 7
+tile    35 30 Grass 5
 tile    36 30 Grass 2
 tile    37 30 Grass 6
 tile    38 30 Grass 6
@@ -1825,6 +1976,7 @@ tile    18 31 Grass 8
 tile    19 31 Grass 7
 tile    20 31 Grass 2
 tile    21 31 Grass 6
+tile    22 31 Grass 8
 tile    23 31 Grass 3
 tile    24 31 Grass 3
 tile    25 31 Grass 5
@@ -1836,7 +1988,9 @@ tile    30 31 Water 1
 tile    31 31 Water 1
 tile    32 31 Grass 5
 tile    33 31 Grass 3
+tile    34 31 Grass 5
 tile    35 31 Grass 2
+tile    36 31 Grass 4
 tile    37 31 Grass 3
 tile    38 31 Grass 6
 tile    39 31 Grass 5
@@ -1848,6 +2002,7 @@ tile    44 31 Grass 6
 tile    45 31 Grass 5
 tile    46 31 Grass 5
 tile    47 31 Grass 5
+tile    48 31 Grass 2
 tile    49 31 Grass 5
 tile    50 31 Grass 5
 tile    51 31 Grass 7
@@ -1866,7 +2021,7 @@ tile    63 31 Water 1
 tile    0 32 Water 1
 tile    1 32 Water 1
 tile    2 32 Water 1
-tile    3 32 Water 1
+tile    3 32 Water 4
 tile    4 32 Water 1
 tile    5 32 Water 1
 tile    6 32 Water 1
@@ -1911,6 +2066,7 @@ tile    44 32 Grass 6
 tile    45 32 Grass 8
 tile    46 32 Grass 6
 tile    47 32 Grass 7
+tile    48 32 Grass 6
 tile    49 32 Grass 5
 tile    50 32 Grass 3
 tile    51 32 Grass 4
@@ -1942,7 +2098,9 @@ tile    12 33 Grass 8
 tile    13 33 Grass 4
 tile    14 33 Grass 2
 tile    15 33 Grass 6
+tile    16 33 Grass 6
 tile    17 33 Grass 7
+tile    18 33 Grass 8
 tile    19 33 Grass 6
 tile    20 33 Grass 4
 tile    21 33 Grass 4
@@ -1973,6 +2131,7 @@ tile    45 33 Grass 8
 tile    46 33 Grass 7
 tile    47 33 Grass 6
 tile    48 33 Grass 4
+tile    49 33 Grass 3
 tile    50 33 Grass 4
 tile    51 33 Grass 6
 tile    52 33 Grass 2
@@ -1998,6 +2157,8 @@ tile    7 34 Water 1
 tile    8 34 Water 1
 tile    9 34 Grass 3
 tile    10 34 Grass 8
+tile    11 34 Grass 8
+tile    12 34 Grass 5
 tile    13 34 Grass 6
 tile    14 34 Grass 6
 tile    15 34 Grass 6
@@ -2005,6 +2166,7 @@ tile    16 34 Grass 6
 tile    17 34 Grass 2
 tile    18 34 Grass 5
 tile    19 34 Grass 4
+tile    20 34 Grass 6
 tile    21 34 Grass 8
 tile    22 34 Grass 8
 tile    23 34 Grass 7
@@ -2026,8 +2188,10 @@ tile    38 34 Grass 4
 tile    39 34 Grass 2
 tile    40 34 Grass 3
 tile    41 34 Grass 6
+tile    42 34 Grass 5
 tile    43 34 Grass 7
 tile    44 34 Grass 5
+tile    45 34 Grass 2
 tile    46 34 Grass 7
 tile    47 34 Grass 6
 tile    49 34 Grass 3
@@ -2075,6 +2239,7 @@ tile    27 35 Grass 6
 tile    28 35 Grass 3
 tile    29 35 Grass 6
 tile    30 35 Grass 4
+tile    31 35 Grass 5
 tile    32 35 Grass 3
 tile    33 35 Grass 2
 tile    34 35 Grass 5
@@ -2128,13 +2293,16 @@ tile    17 36 Grass 6
 tile    18 36 Grass 7
 tile    19 36 Grass 5
 tile    20 36 Grass 4
+tile    21 36 Grass 6
 tile    22 36 Water 1
 tile    23 36 Water 1
 tile    24 36 Water 1
 tile    25 36 Grass 8
 tile    26 36 Grass 4
 tile    27 36 Grass 6
+tile    28 36 Grass 7
 tile    29 36 Grass 6
+tile    30 36 Grass 6
 tile    31 36 Grass 3
 tile    32 36 Grass 2
 tile    33 36 Grass 5
@@ -2144,14 +2312,18 @@ tile    36 36 Grass 8
 tile    37 36 Grass 8
 tile    38 36 Grass 8
 tile    39 36 Grass 4
+tile    40 36 Grass 7
 tile    41 36 Grass 8
+tile    42 36 Grass 7
 tile    43 36 Grass 5
+tile    44 36 Grass 6
 tile    45 36 Grass 8
 tile    46 36 Grass 4
 tile    47 36 Grass 7
 tile    48 36 Grass 3
 tile    49 36 Grass 2
 tile    50 36 Grass 8
+tile    51 36 Grass 3
 tile    52 36 Grass 3
 tile    53 36 Grass 5
 tile    54 36 Grass 7
@@ -2173,7 +2345,9 @@ tile    5 37 Water 1
 tile    6 37 Water 1
 tile    7 37 Water 1
 tile    8 37 Water 1
+tile    9 37 Grass 7
 tile    10 37 Grass 6
+tile    11 37 Grass 7
 tile    12 37 Grass 8
 tile    13 37 Grass 2
 tile    14 37 Grass 4
@@ -2188,8 +2362,10 @@ tile    22 37 Water 1
 tile    23 37 Water 1
 tile    24 37 Grass 2
 tile    25 37 Grass 2
+tile    26 37 Grass 5
 tile    27 37 Grass 7
 tile    28 37 Grass 5
+tile    29 37 Grass 8
 tile    30 37 Grass 3
 tile    31 37 Grass 3
 tile    32 37 Grass 3
@@ -2201,14 +2377,17 @@ tile    37 37 Grass 7
 tile    38 37 Grass 4
 tile    39 37 Grass 5
 tile    40 37 Grass 2
+tile    41 37 Grass 3
 tile    42 37 Grass 5
 tile    43 37 Grass 6
 tile    44 37 Grass 8
 tile    45 37 Grass 5
 tile    46 37 Grass 5
+tile    47 37 Grass 2
 tile    48 37 Grass 8
 tile    49 37 Grass 2
 tile    50 37 Grass 8
+tile    51 37 Grass 6
 tile    52 37 Grass 8
 tile    53 37 Grass 4
 tile    54 37 Grass 8
@@ -2236,6 +2415,7 @@ tile    11 38 Grass 4
 tile    12 38 Grass 8
 tile    13 38 Grass 4
 tile    14 38 Grass 6
+tile    15 38 Grass 7
 tile    16 38 Grass 4
 tile    17 38 Grass 3
 tile    18 38 Grass 7
@@ -2247,6 +2427,8 @@ tile    23 38 Grass 3
 tile    24 38 Grass 2
 tile    25 38 Grass 2
 tile    26 38 Grass 8
+tile    27 38 Grass 2
+tile    28 38 Grass 4
 tile    29 38 Grass 7
 tile    30 38 Grass 8
 tile    31 38 Grass 8
@@ -2263,13 +2445,16 @@ tile    41 38 Grass 4
 tile    42 38 Grass 2
 tile    43 38 Grass 2
 tile    44 38 Grass 8
+tile    45 38 Grass 3
 tile    46 38 Grass 5
 tile    47 38 Grass 6
 tile    48 38 Grass 4
+tile    49 38 Grass 4
 tile    50 38 Grass 3
 tile    51 38 Grass 8
 tile    52 38 Grass 5
 tile    54 38 Grass 5
+tile    55 38 Grass 7
 tile    56 38 Grass 6
 tile    57 38 Grass 6
 tile    58 38 Grass 2
@@ -2287,11 +2472,13 @@ tile    5 39 Water 1
 tile    6 39 Water 1
 tile    7 39 Grass 4
 tile    8 39 Grass 7
+tile    9 39 Grass 8
 tile    10 39 Grass 8
 tile    11 39 Grass 5
 tile    12 39 Grass 6
 tile    13 39 Grass 8
 tile    14 39 Grass 2
+tile    15 39 Grass 7
 tile    16 39 Grass 4
 tile    17 39 Grass 4
 tile    18 39 Grass 3
@@ -2307,14 +2494,19 @@ tile    28 39 Grass 2
 tile    30 39 Grass 4
 tile    31 39 Grass 8
 tile    32 39 Grass 8
+tile    33 39 Grass 3
 tile    34 39 Grass 8
 tile    35 39 Grass 6
+tile    36 39 Grass 3
 tile    37 39 Grass 2
+tile    38 39 Grass 5
 tile    39 39 Grass 2
 tile    40 39 Grass 4
+tile    41 39 Grass 2
 tile    42 39 Grass 3
 tile    43 39 Grass 3
 tile    44 39 Grass 5
+tile    45 39 Grass 2
 tile    46 39 Grass 8
 tile    47 39 Grass 5
 tile    48 39 Grass 8
@@ -2326,7 +2518,10 @@ tile    53 39 Grass 7
 tile    54 39 Grass 2
 tile    55 39 Grass 6
 tile    56 39 Grass 6
+tile    58 39 Grass 6
+tile    59 39 Grass 5
 tile    60 39 Grass 5
+tile    61 39 Grass 8
 tile    62 39 Grass 6
 tile    63 39 Water 1
 tile    0 40 Water 1
@@ -2342,16 +2537,21 @@ tile    9 40 Grass 3
 tile    10 40 Grass 4
 tile    11 40 Grass 4
 tile    12 40 Grass 2
+tile    13 40 Grass 5
 tile    14 40 Grass 5
 tile    15 40 Grass 6
 tile    16 40 Grass 4
 tile    17 40 Grass 5
+tile    18 40 Grass 7
 tile    19 40 Water 1
 tile    20 40 Water 1
+tile    22 40 Grass 6
 tile    23 40 Grass 8
 tile    24 40 Grass 3
+tile    25 40 Grass 4
 tile    26 40 Grass 3
 tile    27 40 Grass 7
+tile    28 40 Grass 6
 tile    29 40 Grass 5
 tile    30 40 Grass 7
 tile    31 40 Grass 6
@@ -2360,6 +2560,7 @@ tile    33 40 Grass 5
 tile    34 40 Grass 4
 tile    35 40 Grass 8
 tile    36 40 Grass 4
+tile    37 40 Grass 4
 tile    38 40 Grass 8
 tile    39 40 Grass 5
 tile    40 40 Grass 3
@@ -2367,6 +2568,7 @@ tile    41 40 Grass 3
 tile    42 40 Grass 2
 tile    43 40 Grass 4
 tile    44 40 Grass 7
+tile    45 40 Grass 2
 tile    46 40 Grass 4
 tile    47 40 Grass 6
 tile    48 40 Grass 5
@@ -2414,11 +2616,13 @@ tile    25 41 Grass 7
 tile    26 41 Grass 8
 tile    27 41 Grass 7
 tile    28 41 Grass 3
+tile    29 41 Grass 7
 tile    30 41 Grass 7
 tile    31 41 Grass 8
 tile    32 41 Grass 7
 tile    33 41 Grass 5
 tile    34 41 Grass 3
+tile    35 41 Grass 2
 tile    36 41 Grass 7
 tile    37 41 Grass 3
 tile    38 41 Grass 5
@@ -2426,8 +2630,11 @@ tile    39 41 Grass 2
 tile    40 41 Grass 5
 tile    41 41 Grass 5
 tile    42 41 Grass 4
+tile    43 41 Grass 7
 tile    44 41 Grass 4
 tile    45 41 Grass 3
+tile    46 41 Grass 6
+tile    47 41 Grass 2
 tile    48 41 Grass 2
 tile    49 41 Grass 7
 tile    50 41 Grass 7
@@ -2437,8 +2644,11 @@ tile    53 41 Grass 4
 tile    54 41 Grass 3
 tile    55 41 Grass 3
 tile    56 41 Grass 2
+tile    57 41 Grass 7
 tile    58 41 Grass 5
 tile    59 41 Grass 4
+tile    60 41 Grass 4
+tile    61 41 Grass 4
 tile    62 41 Grass 4
 tile    63 41 Water 1
 tile    0 42 Water 1
@@ -2479,7 +2689,10 @@ tile    35 42 Grass 5
 tile    36 42 Grass 6
 tile    37 42 Grass 8
 tile    38 42 Grass 3
+tile    39 42 Grass 5
 tile    40 42 Grass 3
+tile    41 42 Grass 5
+tile    42 42 Grass 3
 tile    43 42 Grass 6
 tile    44 42 Grass 2
 tile    45 42 Grass 7
@@ -2488,9 +2701,11 @@ tile    47 42 Grass 8
 tile    48 42 Grass 8
 tile    49 42 Grass 3
 tile    50 42 Grass 8
+tile    51 42 Grass 5
 tile    52 42 Grass 5
 tile    53 42 Grass 5
 tile    54 42 Grass 7
+tile    55 42 Grass 4
 tile    56 42 Grass 6
 tile    57 42 Grass 3
 tile    58 42 Grass 6
@@ -2508,6 +2723,7 @@ tile    5 43 Grass 4
 tile    6 43 Grass 6
 tile    7 43 Grass 7
 tile    8 43 Grass 2
+tile    9 43 Grass 5
 tile    10 43 Grass 5
 tile    11 43 Grass 7
 tile    12 43 Grass 2
@@ -2525,6 +2741,7 @@ tile    23 43 Grass 7
 tile    24 43 Grass 5
 tile    25 43 Grass 4
 tile    26 43 Grass 3
+tile    27 43 Grass 3
 tile    28 43 Grass 5
 tile    29 43 Grass 6
 tile    30 43 Grass 4
@@ -2535,17 +2752,20 @@ tile    34 43 Grass 3
 tile    35 43 Grass 5
 tile    36 43 Grass 5
 tile    37 43 Grass 2
+tile    38 43 Grass 8
 tile    39 43 Grass 4
 tile    40 43 Grass 6
 tile    41 43 Grass 3
 tile    42 43 Grass 4
 tile    43 43 Grass 2
 tile    44 43 Grass 6
+tile    45 43 Grass 6
 tile    46 43 Grass 7
 tile    47 43 Grass 5
 tile    48 43 Grass 6
 tile    49 43 Grass 4
 tile    50 43 Grass 7
+tile    51 43 Grass 3
 tile    52 43 Grass 4
 tile    53 43 Grass 2
 tile    54 43 Grass 5
@@ -2554,6 +2774,7 @@ tile    56 43 Grass 3
 tile    57 43 Grass 6
 tile    58 43 Grass 7
 tile    59 43 Grass 5
+tile    60 43 Grass 3
 tile    61 43 Grass 7
 tile    62 43 Grass 8
 tile    63 43 Water 1
@@ -2562,11 +2783,15 @@ tile    1 44 Water 1
 tile    2 44 Water 1
 tile    3 44 Grass 7
 tile    4 44 Grass 3
+tile    5 44 Grass 4
 tile    6 44 Grass 7
 tile    7 44 Grass 2
 tile    8 44 Grass 4
+tile    9 44 Grass 5
 tile    10 44 Grass 3
 tile    11 44 Grass 5
+tile    12 44 Grass 2
+tile    13 44 Grass 3
 tile    14 44 Grass 4
 tile    15 44 Grass 8
 tile    16 44 Grass 8
@@ -2575,15 +2800,20 @@ tile    18 44 Grass 6
 tile    19 44 Grass 5
 tile    20 44 Grass 2
 tile    21 44 Grass 3
+tile    22 44 Grass 5
 tile    23 44 Grass 4
 tile    24 44 Grass 5
 tile    25 44 Grass 3
 tile    26 44 Grass 6
+tile    27 44 Grass 2
 tile    28 44 Grass 2
 tile    29 44 Grass 6
+tile    30 44 Grass 7
 tile    32 44 Grass 4
+tile    33 44 Grass 3
 tile    34 44 Grass 4
 tile    35 44 Grass 7
+tile    36 44 Grass 8
 tile    37 44 Grass 8
 tile    38 44 Grass 7
 tile    39 44 Grass 5
@@ -2597,7 +2827,9 @@ tile    46 44 Grass 3
 tile    47 44 Grass 6
 tile    48 44 Grass 7
 tile    49 44 Grass 8
+tile    50 44 Grass 2
 tile    51 44 Grass 5
+tile    52 44 Grass 4
 tile    53 44 Grass 2
 tile    54 44 Grass 3
 tile    55 44 Grass 6
@@ -2624,10 +2856,12 @@ tile    11 45 Grass 8
 tile    12 45 Grass 8
 tile    13 45 Grass 6
 tile    14 45 Grass 2
+tile    15 45 Grass 2
 tile    16 45 Grass 3
 tile    17 45 Grass 3
 tile    18 45 Grass 2
 tile    19 45 Grass 6
+tile    20 45 Grass 2
 tile    21 45 Grass 8
 tile    22 45 Grass 6
 tile    24 45 Grass 6
@@ -2638,6 +2872,7 @@ tile    28 45 Grass 7
 tile    29 45 Grass 2
 tile    30 45 Grass 8
 tile    31 45 Grass 5
+tile    32 45 Grass 3
 tile    33 45 Grass 6
 tile    34 45 Grass 2
 tile    35 45 Grass 7
@@ -2652,6 +2887,7 @@ tile    43 45 Grass 4
 tile    44 45 Grass 4
 tile    45 45 Grass 8
 tile    46 45 Grass 5
+tile    47 45 Grass 7
 tile    48 45 Grass 8
 tile    49 45 Grass 4
 tile    50 45 Grass 7
@@ -2661,6 +2897,7 @@ tile    53 45 Grass 2
 tile    54 45 Grass 8
 tile    55 45 Grass 5
 tile    56 45 Grass 5
+tile    57 45 Grass 6
 tile    58 45 Grass 2
 tile    59 45 Water 1
 tile    60 45 Water 1
@@ -2682,12 +2919,14 @@ tile    12 46 Grass 5
 tile    13 46 Grass 5
 tile    14 46 Grass 4
 tile    15 46 Grass 5
+tile    16 46 Grass 7
 tile    18 46 Grass 3
 tile    19 46 Grass 7
 tile    20 46 Grass 8
 tile    21 46 Grass 4
 tile    22 46 Grass 2
 tile    23 46 Grass 6
+tile    24 46 Grass 8
 tile    25 46 Grass 4
 tile    26 46 Grass 4
 tile    27 46 Grass 5
@@ -2695,8 +2934,10 @@ tile    28 46 Grass 6
 tile    29 46 Grass 7
 tile    30 46 Grass 2
 tile    31 46 Grass 2
+tile    32 46 Grass 2
 tile    33 46 Grass 7
 tile    34 46 Grass 7
+tile    35 46 Grass 6
 tile    36 46 Grass 6
 tile    37 46 Grass 7
 tile    38 46 Grass 6
@@ -2713,8 +2954,10 @@ tile    49 46 Grass 7
 tile    50 46 Grass 4
 tile    51 46 Grass 3
 tile    52 46 Grass 2
+tile    53 46 Grass 4
 tile    54 46 Grass 3
 tile    55 46 Grass 6
+tile    57 46 Grass 2
 tile    58 46 Grass 6
 tile    59 46 Grass 6
 tile    60 46 Water 1
@@ -2724,10 +2967,12 @@ tile    63 46 Water 1
 tile    0 47 Water 1
 tile    1 47 Water 1
 tile    2 47 Water 1
+tile    3 47 Grass 4
 tile    4 47 Grass 2
 tile    5 47 Grass 6
 tile    6 47 Grass 7
 tile    7 47 Grass 3
+tile    8 47 Grass 3
 tile    9 47 Grass 2
 tile    10 47 Grass 2
 tile    11 47 Grass 8
@@ -2750,15 +2995,19 @@ tile    29 47 Grass 3
 tile    30 47 Grass 7
 tile    31 47 Grass 8
 tile    32 47 Grass 7
+tile    33 47 Grass 2
 tile    34 47 Grass 6
 tile    35 47 Grass 2
 tile    37 47 Grass 2
 tile    38 47 Grass 6
 tile    39 47 Water 1
 tile    40 47 Water 1
+tile    41 47 Water 3
 tile    42 47 Water 1
+tile    43 47 Grass 8
 tile    44 47 Grass 7
 tile    45 47 Grass 7
+tile    46 47 Grass 5
 tile    47 47 Grass 8
 tile    48 47 Grass 8
 tile    49 47 Grass 3
@@ -2769,6 +3018,7 @@ tile    53 47 Grass 3
 tile    54 47 Grass 7
 tile    55 47 Grass 4
 tile    56 47 Grass 3
+tile    57 47 Grass 2
 tile    58 47 Grass 8
 tile    59 47 Grass 8
 tile    60 47 Grass 7
@@ -2812,6 +3062,7 @@ tile    34 48 Grass 3
 tile    35 48 Grass 4
 tile    36 48 Grass 7
 tile    37 48 Grass 8
+tile    38 48 Grass 8
 tile    39 48 Water 1
 tile    40 48 Water 1
 tile    41 48 Water 1
@@ -2822,7 +3073,10 @@ tile    45 48 Grass 6
 tile    46 48 Grass 3
 tile    47 48 Grass 3
 tile    48 48 Grass 2
+tile    49 48 Grass 4
 tile    50 48 Grass 3
+tile    51 48 Grass 5
+tile    52 48 Grass 3
 tile    53 48 Grass 3
 tile    54 48 Grass 3
 tile    55 48 Grass 7
@@ -2849,6 +3103,7 @@ tile    13 49 Grass 6
 tile    14 49 Grass 3
 tile    15 49 Grass 4
 tile    16 49 Grass 2
+tile    17 49 Grass 3
 tile    18 49 Grass 3
 tile    19 49 Grass 3
 tile    20 49 Grass 6
@@ -2882,10 +3137,12 @@ tile    47 49 Grass 2
 tile    48 49 Grass 3
 tile    49 49 Grass 6
 tile    50 49 Grass 7
+tile    51 49 Grass 4
 tile    52 49 Grass 3
 tile    53 49 Grass 3
 tile    54 49 Grass 7
 tile    55 49 Grass 5
+tile    56 49 Grass 7
 tile    57 49 Grass 8
 tile    58 49 Grass 7
 tile    59 49 Grass 2
@@ -2908,6 +3165,8 @@ tile    11 50 Grass 2
 tile    12 50 Grass 3
 tile    13 50 Grass 7
 tile    14 50 Grass 6
+tile    15 50 Grass 6
+tile    16 50 Grass 8
 tile    17 50 Grass 4
 tile    18 50 Grass 7
 tile    19 50 Grass 2
@@ -2915,11 +3174,13 @@ tile    20 50 Grass 5
 tile    21 50 Grass 5
 tile    22 50 Grass 6
 tile    23 50 Grass 2
+tile    24 50 Grass 5
 tile    25 50 Grass 6
 tile    26 50 Grass 5
 tile    27 50 Grass 3
 tile    28 50 Grass 7
 tile    29 50 Grass 2
+tile    30 50 Grass 8
 tile    31 50 Grass 5
 tile    32 50 Grass 6
 tile    33 50 Grass 8
@@ -2932,6 +3193,7 @@ tile    39 50 Water 1
 tile    40 50 Water 1
 tile    41 50 Grass 4
 tile    42 50 Grass 4
+tile    43 50 Grass 2
 tile    44 50 Grass 5
 tile    45 50 Grass 2
 tile    46 50 Grass 7
@@ -2962,6 +3224,7 @@ tile    7 51 Grass 6
 tile    8 51 Grass 3
 tile    9 51 Grass 7
 tile    10 51 Grass 2
+tile    11 51 Grass 2
 tile    12 51 Grass 6
 tile    13 51 Grass 6
 tile    14 51 Grass 7
@@ -2976,6 +3239,9 @@ tile    22 51 Grass 3
 tile    23 51 Grass 5
 tile    24 51 Grass 8
 tile    25 51 Grass 2
+tile    26 51 Grass 5
+tile    27 51 Grass 5
+tile    28 51 Grass 5
 tile    29 51 Grass 7
 tile    30 51 Grass 8
 tile    31 51 Grass 2
@@ -3004,6 +3270,7 @@ tile    53 51 Grass 8
 tile    54 51 Grass 3
 tile    55 51 Grass 6
 tile    56 51 Grass 3
+tile    57 51 Grass 5
 tile    58 51 Grass 8
 tile    59 51 Grass 4
 tile    60 51 Grass 8
@@ -3015,18 +3282,21 @@ tile    1 52 Water 1
 tile    2 52 Grass 5
 tile    3 52 Grass 3
 tile    4 52 Grass 8
+tile    5 52 Grass 2
 tile    6 52 Grass 8
 tile    7 52 Grass 7
 tile    9 52 Grass 7
 tile    10 52 Grass 3
 tile    11 52 Grass 3
 tile    12 52 Grass 4
+tile    13 52 Grass 2
 tile    14 52 Grass 3
 tile    15 52 Grass 5
 tile    16 52 Grass 8
 tile    17 52 Grass 7
 tile    18 52 Grass 4
 tile    19 52 Grass 7
+tile    20 52 Grass 7
 tile    21 52 Grass 6
 tile    22 52 Grass 3
 tile    23 52 Grass 2
@@ -3034,6 +3304,7 @@ tile    24 52 Grass 4
 tile    25 52 Grass 7
 tile    26 52 Grass 8
 tile    27 52 Grass 5
+tile    28 52 Grass 5
 tile    29 52 Grass 5
 tile    30 52 Grass 6
 tile    31 52 Grass 5
@@ -3041,17 +3312,21 @@ tile    32 52 Grass 5
 tile    33 52 Grass 5
 tile    34 52 Grass 6
 tile    35 52 Grass 6
+tile    36 52 Grass 6
 tile    37 52 Water 1
 tile    38 52 Water 1
 tile    39 52 Water 1
 tile    40 52 Grass 4
 tile    41 52 Grass 7
+tile    42 52 Grass 8
 tile    43 52 Grass 5
 tile    44 52 Grass 5
 tile    45 52 Grass 8
 tile    46 52 Grass 2
 tile    47 52 Grass 7
+tile    48 52 Grass 5
 tile    49 52 Grass 8
+tile    50 52 Grass 6
 tile    51 52 Grass 8
 tile    52 52 Grass 6
 tile    53 52 Building 1
@@ -3084,6 +3359,7 @@ tile    17 53 Grass 5
 tile    18 53 Grass 3
 tile    19 53 Grass 5
 tile    20 53 Grass 3
+tile    21 53 Grass 5
 tile    22 53 Grass 8
 tile    23 53 Grass 2
 tile    24 53 Grass 3
@@ -3092,6 +3368,7 @@ tile    26 53 Grass 2
 tile    27 53 Grass 7
 tile    28 53 Grass 5
 tile    29 53 Grass 7
+tile    30 53 Grass 8
 tile    31 53 Grass 8
 tile    32 53 Grass 7
 tile    33 53 Grass 5
@@ -3100,15 +3377,19 @@ tile    35 53 Grass 6
 tile    36 53 Water 1
 tile    37 53 Water 1
 tile    38 53 Water 1
+tile    39 53 Grass 5
+tile    40 53 Grass 4
 tile    41 53 Grass 3
 tile    42 53 Grass 3
 tile    43 53 Grass 7
 tile    44 53 Grass 8
 tile    45 53 Grass 7
 tile    46 53 Grass 4
+tile    47 53 Grass 7
 tile    48 53 Grass 6
 tile    49 53 Grass 2
 tile    50 53 Grass 7
+tile    51 53 Grass 6
 tile    52 53 Grass 7
 tile    53 53 Building 1
 tile    54 53 Building 1
@@ -3126,6 +3407,7 @@ tile    1 54 Water 1
 tile    2 54 Grass 6
 tile    3 54 Grass 4
 tile    4 54 Grass 5
+tile    5 54 Grass 5
 tile    6 54 Grass 3
 tile    7 54 Grass 2
 tile    8 54 Grass 2
@@ -3160,6 +3442,7 @@ tile    36 54 Water 1
 tile    37 54 Water 1
 tile    38 54 Water 1
 tile    39 54 Grass 5
+tile    40 54 Grass 6
 tile    41 54 Grass 2
 tile    42 54 Grass 3
 tile    43 54 Grass 8
@@ -3178,11 +3461,14 @@ tile    55 54 Building 1
 tile    56 54 Grass 7
 tile    57 54 Grass 3
 tile    58 54 Grass 7
+tile    59 54 Grass 2
 tile    60 54 Grass 2
+tile    61 54 Grass 6
 tile    62 54 Water 1
 tile    63 54 Water 1
 tile    0 55 Water 1
 tile    1 55 Water 1
+tile    2 55 Grass 7
 tile    3 55 Grass 8
 tile    4 55 Grass 3
 tile    5 55 Grass 8
@@ -3193,6 +3479,7 @@ tile    9 55 Grass 4
 tile    10 55 Grass 7
 tile    11 55 Grass 8
 tile    12 55 Grass 5
+tile    14 55 Grass 5
 tile    15 55 Grass 8
 tile    16 55 Grass 7
 tile    17 55 Grass 7
@@ -3200,9 +3487,14 @@ tile    18 55 Grass 5
 tile    19 55 Grass 3
 tile    20 55 Grass 3
 tile    21 55 Grass 8
+tile    22 55 Grass 7
 tile    23 55 Grass 8
 tile    24 55 Grass 6
+tile    25 55 Grass 4
 tile    26 55 Grass 6
+tile    27 55 Grass 3
+tile    28 55 Grass 2
+tile    29 55 Grass 6
 tile    30 55 Grass 3
 tile    31 55 Grass 5
 tile    32 55 Grass 4
@@ -3240,10 +3532,12 @@ tile    63 55 Water 1
 tile    0 56 Water 1
 tile    1 56 Water 1
 tile    2 56 Grass 4
+tile    3 56 Grass 2
 tile    4 56 Grass 6
 tile    5 56 Grass 5
 tile    6 56 Grass 6
 tile    7 56 Grass 5
+tile    8 56 Grass 5
 tile    9 56 Grass 7
 tile    10 56 Grass 2
 tile    11 56 Grass 2
@@ -3264,8 +3558,10 @@ tile    25 56 Grass 6
 tile    26 56 Grass 4
 tile    27 56 Grass 6
 tile    28 56 Grass 2
+tile    29 56 Grass 5
 tile    30 56 Grass 3
 tile    31 56 Grass 6
+tile    32 56 Grass 4
 tile    33 56 Grass 8
 tile    34 56 Grass 2
 tile    35 56 Water 1
@@ -3285,10 +3581,13 @@ tile    48 56 Grass 6
 tile    49 56 Grass 8
 tile    50 56 Grass 6
 tile    51 56 Grass 5
+tile    52 56 Grass 8
 tile    53 56 Grass 4
+tile    54 56 Grass 8
 tile    55 56 Grass 3
 tile    56 56 Grass 5
 tile    57 56 Grass 7
+tile    58 56 Grass 3
 tile    59 56 Grass 8
 tile    60 56 Grass 8
 tile    61 56 Grass 3
@@ -3303,10 +3602,12 @@ tile    5 57 Grass 8
 tile    6 57 Grass 8
 tile    7 57 Grass 7
 tile    8 57 Grass 6
+tile    9 57 Grass 3
 tile    10 57 Grass 6
 tile    11 57 Grass 8
 tile    12 57 Grass 6
 tile    13 57 Grass 7
+tile    14 57 Grass 2
 tile    15 57 Grass 2
 tile    16 57 Grass 3
 tile    17 57 Grass 7
@@ -3325,11 +3626,14 @@ tile    29 57 Grass 2
 tile    30 57 Grass 6
 tile    32 57 Grass 2
 tile    33 57 Grass 8
+tile    34 57 Grass 5
 tile    35 57 Water 1
 tile    36 57 Water 1
 tile    37 57 Water 1
+tile    38 57 Grass 6
 tile    39 57 Grass 6
 tile    40 57 Grass 6
+tile    41 57 Grass 4
 tile    42 57 Grass 4
 tile    43 57 Grass 3
 tile    44 57 Grass 2
@@ -3347,6 +3651,7 @@ tile    55 57 Grass 7
 tile    56 57 Grass 3
 tile    57 57 Grass 6
 tile    58 57 Grass 5
+tile    59 57 Grass 3
 tile    60 57 Resource 1
 tile    61 57 Resource 1
 tile    62 57 Grass 4
@@ -3356,8 +3661,10 @@ tile    1 58 Water 1
 tile    2 58 Grass 4
 tile    3 58 Grass 2
 tile    4 58 Grass 8
+tile    5 58 Grass 3
 tile    6 58 Grass 6
 tile    7 58 Grass 4
+tile    8 58 Grass 2
 tile    9 58 Grass 2
 tile    10 58 Grass 8
 tile    11 58 Grass 5
@@ -3377,6 +3684,7 @@ tile    24 58 Grass 4
 tile    25 58 Grass 6
 tile    26 58 Grass 8
 tile    27 58 Grass 3
+tile    28 58 Grass 3
 tile    29 58 Grass 5
 tile    30 58 Grass 2
 tile    31 58 Grass 4
@@ -3414,10 +3722,13 @@ tile    62 58 Grass 3
 tile    63 58 Water 1
 tile    0 59 Water 1
 tile    1 59 Water 1
+tile    2 59 Grass 7
 tile    3 59 Grass 2
 tile    4 59 Grass 6
 tile    5 59 Grass 6
 tile    6 59 Grass 3
+tile    7 59 Grass 2
+tile    8 59 Grass 6
 tile    9 59 Grass 7
 tile    10 59 Grass 4
 tile    11 59 Grass 6
@@ -3430,8 +3741,11 @@ tile    17 59 Grass 4
 tile    18 59 Grass 8
 tile    19 59 Grass 8
 tile    20 59 Grass 5
+tile    21 59 Grass 5
+tile    22 59 Grass 4
 tile    23 59 Grass 8
 tile    24 59 Grass 8
+tile    25 59 Grass 8
 tile    26 59 Grass 3
 tile    27 59 Grass 7
 tile    28 59 Grass 3
@@ -3444,6 +3758,8 @@ tile    34 59 Grass 2
 tile    35 59 Water 1
 tile    36 59 Water 1
 tile    37 59 Grass 7
+tile    38 59 Grass 7
+tile    39 59 Grass 5
 tile    40 59 Grass 7
 tile    41 59 Grass 6
 tile    42 59 Grass 6
@@ -3464,6 +3780,7 @@ tile    56 59 Grass 7
 tile    57 59 Resource 1
 tile    58 59 Resource 1
 tile    59 59 Grass 2
+tile    60 59 Grass 3
 tile    61 59 Grass 2
 tile    62 59 Grass 6
 tile    63 59 Water 1
@@ -3505,21 +3822,28 @@ tile    34 60 Grass 7
 tile    35 60 Water 1
 tile    36 60 Water 1
 tile    37 60 Grass 8
+tile    38 60 Grass 7
 tile    39 60 Grass 3
+tile    40 60 Grass 8
+tile    41 60 Grass 7
 tile    42 60 Grass 5
 tile    43 60 Grass 7
 tile    44 60 Grass 7
 tile    45 60 Grass 3
 tile    46 60 Grass 5
 tile    47 60 Grass 6
+tile    48 60 Grass 7
+tile    49 60 Grass 3
 tile    50 60 Grass 5
 tile    51 60 Grass 5
 tile    52 60 Grass 3
+tile    53 60 Grass 3
 tile    54 60 Grass 8
 tile    55 60 Grass 4
 tile    56 60 Grass 5
 tile    57 60 Grass 5
 tile    58 60 Grass 2
+tile    59 60 Grass 2
 tile    60 60 Grass 6
 tile    61 60 Grass 8
 tile    62 60 Water 1
@@ -3582,6 +3906,7 @@ tile    56 61 Grass 8
 tile    57 61 Grass 5
 tile    58 61 Grass 7
 tile    59 61 Grass 2
+tile    60 61 Grass 8
 tile    61 61 Water 1
 tile    62 61 Water 1
 tile    63 61 Water 1
@@ -3596,6 +3921,7 @@ tile    7 62 Water 1
 tile    8 62 Water 1
 tile    9 62 Water 1
 tile    10 62 Water 1
+tile    11 62 Grass 2
 tile    12 62 Grass 8
 tile    13 62 Grass 4
 tile    14 62 Grass 7
@@ -3607,6 +3933,7 @@ tile    19 62 Grass 3
 tile    20 62 Grass 6
 tile    21 62 Grass 6
 tile    22 62 Grass 4
+tile    23 62 Grass 5
 tile    24 62 Grass 2
 tile    25 62 Grass 6
 tile    26 62 Grass 4
@@ -3624,6 +3951,7 @@ tile    37 62 Grass 6
 tile    38 62 Grass 8
 tile    39 62 Grass 6
 tile    40 62 Grass 2
+tile    41 62 Grass 6
 tile    42 62 Grass 5
 tile    43 62 Grass 7
 tile    44 62 Grass 8
@@ -3635,7 +3963,9 @@ tile    49 62 Grass 4
 tile    50 62 Grass 4
 tile    51 62 Grass 6
 tile    52 62 Grass 2
+tile    53 62 Grass 4
 tile    54 62 Grass 2
+tile    55 62 Grass 2
 tile    56 62 Grass 5
 tile    57 62 Grass 5
 tile    58 62 Grass 2
@@ -4589,6 +4919,7 @@ elev    49 48 2
 elev    50 48 2
 elev    51 48 2
 elev    52 48 2
+elev    53 48 2
 elev    55 48 2
 elev    57 48 2
 elev    58 48 2
@@ -4704,6 +5035,8 @@ elev    49 51 2
 elev    50 51 2
 elev    51 51 2
 elev    52 51 2
+elev    53 51 2
+elev    54 51 2
 elev    55 51 2
 elev    56 51 2
 elev    57 51 2
@@ -4744,6 +5077,11 @@ elev    43 52 2
 elev    46 52 2
 elev    47 52 2
 elev    50 52 2
+elev    51 52 2
+elev    52 52 2
+elev    53 52 2
+elev    54 52 2
+elev    55 52 2
 elev    56 52 2
 elev    57 52 2
 elev    59 52 2
@@ -4782,6 +5120,8 @@ elev    46 53 2
 elev    48 53 2
 elev    50 53 2
 elev    51 53 2
+elev    52 53 2
+elev    53 53 2
 elev    54 53 2
 elev    55 53 2
 elev    56 53 2
@@ -4827,6 +5167,7 @@ elev    49 54 2
 elev    50 54 2
 elev    51 54 2
 elev    52 54 2
+elev    53 54 2
 elev    54 54 2
 elev    55 54 2
 elev    56 54 2
@@ -4866,7 +5207,10 @@ elev    43 55 2
 elev    44 55 2
 elev    45 55 2
 elev    48 55 2
+elev    50 55 2
 elev    51 55 2
+elev    52 55 2
+elev    53 55 2
 elev    54 55 2
 elev    55 55 2
 elev    56 55 2
@@ -4910,6 +5254,11 @@ elev    45 56 2
 elev    47 56 2
 elev    49 56 2
 elev    50 56 2
+elev    51 56 2
+elev    52 56 2
+elev    53 56 2
+elev    54 56 2
+elev    55 56 2
 elev    57 56 2
 elev    58 56 2
 elev    59 56 2
@@ -4947,9 +5296,14 @@ elev    43 57 2
 elev    44 57 2
 elev    45 57 2
 elev    47 57 2
+elev    48 57 2
+elev    49 57 2
+elev    50 57 2
+elev    51 57 2
 elev    52 57 2
 elev    53 57 2
 elev    54 57 2
+elev    55 57 2
 elev    56 57 2
 elev    57 57 2
 elev    58 57 2
@@ -4982,9 +5336,13 @@ elev    42 58 2
 elev    43 58 2
 elev    47 58 2
 elev    49 58 2
+elev    50 58 2
+elev    51 58 2
 elev    52 58 2
 elev    53 58 2
+elev    54 58 2
 elev    55 58 2
+elev    56 58 2
 elev    57 58 2
 elev    59 58 2
 elev    60 58 2
