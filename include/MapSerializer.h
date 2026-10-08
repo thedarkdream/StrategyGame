@@ -20,13 +20,19 @@ struct MapEntityData {
     int        tileX, tileY;
 };
 
+struct MapElevationData {
+    int x, y;
+    int level = 0;          // 0..Constants::MAX_ELEVATION
+};
+
 struct MapData {
-    int                      version     = 1;
+    int                      version     = 2;
     std::string              name        = "untitled";
     int                      width       = 0;
     int                      height      = 0;
     int                      playerCount = 2;   // number of player slots on this map
     std::vector<MapTileData>   tiles;    // sparse – Ground is default
+    std::vector<MapElevationData> elevations;  // sparse – level 0 is default (version 2+)
     std::vector<MapEntityData> entities;
 };
 
@@ -37,6 +43,7 @@ struct MapData {
 //   name    untitled
 //   size    40 30
 //   tile    5  3  Blocked
+//   elev    12 8  3          (version 2: tile elevation level)
 //   entity  MineralPatch  Neutral  10  5
 //
 // Lines starting with '#' are ignored.

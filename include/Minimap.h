@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Types.h"
+#include "Camera.h"
 #include <SFML/Graphics.hpp>
 
 class Game;
@@ -25,7 +26,7 @@ public:
 
     // Draw the full minimap (terrain, fog, entity dots, camera viewport rect)
     // to the render target in screen-space coordinates.
-    void render(sf::RenderTarget& target, const Game& game, const sf::View& camera);
+    void render(sf::RenderTarget& target, const Game& game, const Camera& camera);
 
     // Returns the minimap's screen-space bounding rectangle for the given window.
     static sf::FloatRect screenBounds(sf::Vector2u windowSize);

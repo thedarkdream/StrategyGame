@@ -9,7 +9,6 @@ public:
     static void preload();  // Preload textures for all resource variants
     
     void update(float deltaTime) override;
-    void render(sf::RenderTarget& target) override;
     
     // Resource harvesting
     int harvestResource();

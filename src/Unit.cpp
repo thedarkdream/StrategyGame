@@ -7,7 +7,6 @@
 #include "MathUtil.h"
 #include "Animation.h"
 #include "EffectsManager.h"
-#include "EntityDrawing.h"
 #include <cmath>
 
 Unit::Unit(EntityType type, Team team, sf::Vector2f position)
@@ -33,8 +32,6 @@ Unit::Unit(EntityType type, Team team, sf::Vector2f position)
         m_autoAttackRangeBonus = unitDef->autoAttackRangeBonus;
         m_isCombatUnit = unitDef->isCombatUnit;
     }
-    
-    updateShape();
 }
 
 void Unit::update(float deltaTime) {
@@ -107,23 +104,6 @@ void Unit::update(float deltaTime) {
             }
         }
     }
-    
-    updateShape();
-}
-
-void Unit::render(sf::RenderTarget& target) {
-    // Draw animated sprite if available, otherwise fallback to colored shape
-    if (m_hasSprite) {
-        m_animatedSprite.render(target, m_position);
-    } else {
-        target.draw(m_shape);
-    }
-
-    // Draw selection indicator
-    EntityDrawing::drawSelectionIndicator(target, *this);
-
-    // Draw health bar
-    EntityDrawing::drawHealthBar(target, *this);
 }
 
 void Unit::moveTo(sf::Vector2f target) {
@@ -583,11 +563,16 @@ void Unit::moveTowardsTarget(float deltaTime) {
     // for small units to squeeze diagonally between two corner-touching
     // buildings, because the unit center briefly enters the corner tile
     // (which belongs to one of the buildings) during the traverse.
+    const bool startedOnCliff = m_map && m_map->isCliffTile(
+        m_map->worldToTile(m_position).x, m_map->worldToTile(m_position).y);
     auto onWaterTile = [&](sf::Vector2f pos) -> bool {
         if (!m_map) return false;
         sf::Vector2i t = m_map->worldToTile(pos);
         if (!m_map->isValidTile(t.x, t.y)) return true; // out of bounds = blocked
-        return m_map->getTile(t.x, t.y).type == TileType::Water;
+        if (m_map->getTile(t.x, t.y).type == TileType::Water) return true;
+        // Cliffs are impassable, but a unit already standing on one (pushed
+        // there by crowding or a map edit) may still walk off it.
+        return m_map->isCliffTile(t.x, t.y) && !startedOnCliff;
     };
 
     // Still check for static obstacles (buildings, resources) AND water tiles.

@@ -17,7 +17,12 @@ public:
     static void preload();  // Preload all 16 direction textures
 
     void update(float deltaTime) override;
-    void render(sf::RenderTarget& target) override;
+
+    // Texture for the current facing / firing state (null if not loaded).
+    // Consumed by the render layer.
+    const sf::Texture* getCurrentTexture() const {
+        return (m_fireTimer > 0.f ? m_fireTextures : m_idleTextures)[m_dirIndex];
+    }
 
 private:
     // 8 directions — assets are named turret_1.png … turret_8.png
@@ -30,10 +35,6 @@ private:
     // Per-direction textures: idle + fire
     std::array<sf::Texture*, DIR_COUNT> m_idleTextures{};
     std::array<sf::Texture*, DIR_COUNT> m_fireTextures{};
-
-    // SFML 3: Sprite requires a texture argument — stored in optional so it
-    // can be default-constructed and then swapped per direction.
-    std::optional<sf::Sprite> m_sprite;
 
     // Current direction index (persists after target dies)
     int  m_dirIndex   = 3;  // default SW
@@ -48,6 +49,4 @@ private:
     float m_attackTimer    = 0.f;
     float m_fireTimer      = 0.f;  // counts down while showing fire sprite
     std::weak_ptr<Entity> m_currentTarget;
-
-    void updateSprite();
 };

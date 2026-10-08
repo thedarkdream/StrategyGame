@@ -1,4 +1,7 @@
 #include "Game.h"
+#include "Renderer2D.h"
+#include "Renderer3D.h"
+#include "CameraSFML.h"
 #include "Unit.h"
 #include "Worker.h"
 #include "Building.h"
@@ -28,6 +31,14 @@ Game::Game(sf::RenderWindow& window, const std::string& mapFile, int localPlayer
 void Game::handleEvent(const sf::Event& event) {
     if (const auto* resized = event.getIf<sf::Event::Resized>()) {
         m_input->onWindowResize(resized->size);
+    }
+
+    // F9 toggles between the 2D and the (experimental) 3D renderer.
+    if (const auto* key = event.getIf<sf::Event::KeyPressed>()) {
+        if (key->code == sf::Keyboard::Key::F9) {
+            toggleRenderer();
+            return;
+        }
     }
 
     // Debug console gets first refusal; if it consumes the event, stop here.
@@ -78,13 +89,27 @@ void Game::update(float deltaTime) {
     checkVictoryConditions();
 }
 
+void Game::toggleRenderer() {
+    if (m_use3D) {
+        m_renderer = std::make_unique<Renderer2D>(m_window);
+        m_use3D = false;
+        return;
+    }
+    try {
+        m_renderer = std::make_unique<Renderer3D>(m_window);
+        m_use3D = true;
+    } catch (const std::exception& e) {
+        std::cerr << "3D renderer unavailable: " << e.what() << std::endl;
+    }
+}
+
 void Game::render() {
     m_renderer->setCamera(m_input->getCamera());
     m_renderer->render(*this);  // ends with UI view active on the window
 
     if (m_debugConsole) {
         // World-space overlays (waypoints + IDs)
-        m_window.setView(m_input->getCamera());
+        m_window.setView(toSfView(m_input->getCamera()));
         m_debugConsole->renderWaypoints(m_window);
         m_debugConsole->renderIds(m_window);
 
@@ -139,7 +164,7 @@ void Game::initialize() {
 
     // Create input handler, renderer, and debug console
     m_input        = std::make_unique<InputHandler>(m_window, *this);
-    m_renderer     = std::make_unique<Renderer>(m_window);
+    m_renderer     = std::make_unique<Renderer2D>(m_window);
     m_debugConsole = std::make_unique<DebugConsole>(m_window, *this);
 
     // Assign controllers: human for the local slot, AI for all other occupied slots
@@ -290,6 +315,8 @@ void Game::setupFromMapData(const MapData& data) {
     // Apply saved tile types
     for (const auto& t : data.tiles)
         m_map.setTileType(t.x, t.y, t.type, t.variant);
+    for (const auto& el : data.elevations)
+        m_map.setTileElevation(el.x, el.y, el.level);
 
     // Spawn all saved entities
     const float TS = static_cast<float>(Constants::TILE_SIZE);

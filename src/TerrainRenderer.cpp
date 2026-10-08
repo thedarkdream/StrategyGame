@@ -9,16 +9,16 @@ TerrainRenderer::TerrainRenderer() {
     loadTransitionTextures();
 }
 
-void TerrainRenderer::render(sf::RenderTarget& target, const sf::View& camera, const Map& map) {
-    // Only draw tiles visible within the current camera view.
-    sf::Vector2f topLeft = camera.getCenter() - camera.getSize() / 2.f;
+void TerrainRenderer::render(sf::RenderTarget& target, const sf::FloatRect& visibleRect, const Map& map) {
+    // Only draw tiles visible within the given world rectangle.
+    sf::Vector2f topLeft = visibleRect.position;
     const float ts    = static_cast<float>(Constants::TILE_SIZE);
     const float scale = ts / 64.f;  // source textures are 64×64, tiles are 32×32
 
     int startX = std::max(0, static_cast<int>(topLeft.x / ts));
     int startY = std::max(0, static_cast<int>(topLeft.y / ts));
-    int endX   = std::min(map.getWidth(),  static_cast<int>((topLeft.x + camera.getSize().x) / ts) + 2);
-    int endY   = std::min(map.getHeight(), static_cast<int>((topLeft.y + camera.getSize().y) / ts) + 2);
+    int endX   = std::min(map.getWidth(),  static_cast<int>((topLeft.x + visibleRect.size.x) / ts) + 2);
+    int endY   = std::min(map.getHeight(), static_cast<int>((topLeft.y + visibleRect.size.y) / ts) + 2);
 
     auto drawTex = [&](const sf::Texture& tex, int x, int y) {
         sf::Sprite sp(tex);

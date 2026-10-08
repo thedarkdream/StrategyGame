@@ -3,7 +3,6 @@
 #include "EntityData.h"
 #include "Constants.h"
 #include "MathUtil.h"
-#include "EntityDrawing.h"
 #include <cmath>
 #include <cstdint>
 #include <string>
@@ -31,7 +30,6 @@ Turret::Turret(Team team, sf::Vector2f position)
     }
 
     m_dirIndex = 3;  // default SW (index 3)
-    updateSprite();
 }
 
 void Turret::preload() {
@@ -48,22 +46,6 @@ int Turret::directionIndex(sf::Vector2f delta) {
     float angle = std::atan2(delta.y, delta.x) * 180.f / MathUtil::PI;
     if (angle < 0.f) angle += 360.f;
     return static_cast<int>((angle + 22.5f) / 45.f) % 8;
-}
-
-void Turret::updateSprite() {
-    bool firing = (m_fireTimer > 0.f);
-    sf::Texture* tex = firing ? m_fireTextures[m_dirIndex] : m_idleTextures[m_dirIndex];
-    if (!tex) return;
-
-    if (!m_sprite.has_value())
-        m_sprite.emplace(*tex);
-    else
-        m_sprite->setTexture(*tex, /*resetRect=*/true);
-
-    sf::FloatRect bounds = m_sprite->getLocalBounds();
-    m_sprite->setOrigin({bounds.size.x / 2.f, bounds.size.y / 2.f});
-    m_sprite->setScale({0.25f, 0.25f});
-    m_sprite->setPosition(m_position);
 }
 
 void Turret::update(float deltaTime) {
@@ -103,25 +85,4 @@ void Turret::update(float deltaTime) {
             m_fireTimer   = m_fireDisplayTime;
         }
     }
-
-    updateSprite();
-}
-
-void Turret::render(sf::RenderTarget& target) {
-    if (!m_sprite.has_value()) return;
-
-    // Draw tinted sprite while under construction
-    if (!isConstructed()) {
-        sf::Color c = m_sprite->getColor();
-        c.a = static_cast<uint8_t>(128 + static_cast<int>(127 * getConstructionProgress()));
-        m_sprite->setColor(c);
-    } else {
-        m_sprite->setColor(sf::Color::White);
-    }
-
-    m_sprite->setPosition(m_position);
-    target.draw(*m_sprite);
-
-    EntityDrawing::drawSelectionIndicator(target, *this);
-    EntityDrawing::drawHealthBar(target, *this);
 }

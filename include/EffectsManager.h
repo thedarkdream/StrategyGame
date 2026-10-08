@@ -1,13 +1,12 @@
 #pragma once
 
 #include "Effect.h"
-#include <SFML/Graphics/RenderTarget.hpp>
 #include <SFML/System/Vector2.hpp>
 #include <vector>
 #include <memory>
 #include <string>
 
-// Manages visual effects - spawning, updating, and rendering
+// Manages visual effects - spawning and updating (drawing is done by the renderers)
 class EffectsManager {
 public:
     static EffectsManager& instance();
@@ -18,7 +17,8 @@ public:
     // animationPath: path to effect animation (e.g., "effects/explosion.png")
     // position: world position to spawn at
     // scale: size multiplier (1.0 = original size)
-    void spawn(const std::string& animationPath, sf::Vector2f position, float scale = 1.0f);
+    // Returns the new effect, or nullptr when its animation could not be loaded.
+    Effect* spawn(const std::string& animationPath, sf::Vector2f position, float scale = 1.0f);
     
     // Convenience methods for common effects
     void spawnExplosion(sf::Vector2f position, float scale = 1.0f);
@@ -29,14 +29,14 @@ public:
     // Update all active effects (call once per frame)
     void update(float deltaTime);
     
-    // Render all active effects
-    void render(sf::RenderTarget& target);
-    
     // Clear all effects
     void clear();
     
     // Get count of active effects (for debugging)
     size_t getActiveCount() const { return m_effects.size(); }
+
+    // Read-only access for renderers other than SFML.
+    const std::vector<std::unique_ptr<Effect>>& all() const { return m_effects; }
     
 private:
     EffectsManager() = default;

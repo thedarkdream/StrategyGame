@@ -11,8 +11,6 @@ public:
     
     static void preload();  // Preload textures and sounds for this unit type
     
-    void render(sf::RenderTarget& target) override;
-    
     // Worker-specific commands
     void gather(EntityPtr resource);
     void returnResources();

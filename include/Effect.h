@@ -1,7 +1,6 @@
 #pragma once
 
 #include "AnimatedSprite.h"
-#include <SFML/Graphics/RenderTarget.hpp>
 #include <SFML/System/Vector2.hpp>
 #include <string>
 
@@ -13,9 +12,6 @@ public:
     // Update - returns true when effect is finished and should be removed
     bool update(float deltaTime);
     
-    // Render the effect
-    void render(sf::RenderTarget& target);
-    
     // Check if finished
     bool isFinished() const { return m_finished; }
     
@@ -25,6 +21,15 @@ public:
     
     // Optional: attach to an entity position (effect follows entity)
     void setOffset(sf::Vector2f offset) { m_offset = offset; }
+
+    // Read-only visual state for renderers other than SFML.
+    sf::Vector2f getWorldPosition() const { return m_position + m_offset; }
+    const AnimatedSprite& getSprite() const { return m_sprite; }
+
+    // Ground markers (e.g. move-command pings) lie flat on the terrain instead of
+    // standing up as billboards in a 3D view.
+    void setGroundMarker(bool onGround) { m_groundMarker = onGround; }
+    bool isGroundMarker() const { return m_groundMarker; }
     
 private:
     sf::Vector2f m_position;
@@ -32,4 +37,5 @@ private:
     AnimatedSprite m_sprite;
     bool m_finished = false;
     bool m_initialized = false;
+    bool m_groundMarker = false;
 };

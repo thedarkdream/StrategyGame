@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Types.h"
+#include "Camera.h"
 #include <SFML/Graphics.hpp>
 #include <functional>
 #include <memory>
@@ -26,8 +27,8 @@ public:
     void update(float deltaTime);
     
     // Camera
-    sf::View& getCamera() { return m_camera; }
-    const sf::View& getCamera() const { return m_camera; }
+    Camera& getCamera() { return m_camera; }
+    const Camera& getCamera() const { return m_camera; }
     sf::Vector2f screenToWorld(sf::Vector2i screenPos) const;
     void onWindowResize(sf::Vector2u newSize);
     
@@ -54,6 +55,8 @@ public:
     // Selection box
     bool isSelecting() const { return m_isSelecting; }
     sf::FloatRect getSelectionBox() const;
+    // Same rubber-band in window pixels (what the player actually drags).
+    sf::FloatRect getSelectionBoxScreen() const;
 
     // Camera control
     void centerCameraAt(sf::Vector2f worldPos);
@@ -61,20 +64,21 @@ public:
 private:
     sf::RenderWindow& m_window;
     Game& m_game;
-    sf::View m_camera;
+    Camera m_camera;
     
     // Selection box
     bool m_isSelecting = false;
     sf::Vector2f m_selectionStart;
     sf::Vector2f m_selectionEnd;
+    sf::Vector2i m_selectionStartPx;
+    sf::Vector2i m_selectionEndPx;
     
     // Minimap dragging
     bool m_isDraggingMinimap = false;
     
     // Middle-click map dragging
     bool m_isDraggingMap = false;
-    sf::Vector2i m_dragStartScreenPos;
-    sf::Vector2f m_dragStartCameraPos;
+    sf::Vector2f m_dragAnchorWorld;   // ground point that stays under the cursor
     
     // Build mode
     bool m_buildMode = false;
@@ -111,7 +115,7 @@ private:
     std::string keyToHotkey(sf::Keyboard::Key code);
     
     // Selection
-    void performSelection(sf::Vector2f worldPos);
+    void performSelection(sf::Vector2i pixel);
     void performBoxSelection();
     void selectAllOfTypeOnScreen(EntityType type);
     

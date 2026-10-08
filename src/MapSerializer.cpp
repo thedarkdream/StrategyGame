@@ -114,6 +114,12 @@ bool MapSerializer::save(const MapData& data, const std::string& filePath) {
             << tileTypeToString(t.type) << " " << static_cast<int>(t.variant) << "\n";
     }
 
+    // Sparse elevation list – level 0 is the default
+    for (const auto& el : data.elevations) {
+        if (el.level <= 0) continue;
+        out << "elev    " << el.x << " " << el.y << " " << el.level << "\n";
+    }
+
     for (const auto& e : data.entities) {
         if (e.type == EntityType::None) continue;
         out << "entity  "
@@ -172,6 +178,11 @@ std::optional<MapData> MapSerializer::load(const std::string& filePath) {
             ss >> variant;  // Optional – defaults to 1 if absent (legacy maps)
             t.variant = static_cast<uint8_t>(variant);
             data.tiles.push_back(t);
+        } else if (key == "elev") {
+            MapElevationData el;
+            ss >> el.x >> el.y >> el.level;
+            if (!ss.fail())
+                data.elevations.push_back(el);
         } else if (key == "entity") {
             MapEntityData e;
             std::string typeStr, teamStr;

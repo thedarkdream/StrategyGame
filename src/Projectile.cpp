@@ -15,13 +15,7 @@ Projectile::Projectile(EntityPtr source, EntityPtr target, int damage, float spe
     m_size = {6.0f, 6.0f};
     m_health = 1;
     m_maxHealth = 1;
-    
-    // Visual circle
-    m_circle.setRadius(3.0f);
-    m_circle.setOrigin({3.0f, 3.0f});
-    m_circle.setFillColor(color);
-    m_circle.setOutlineColor(sf::Color(200, 150, 0));
-    m_circle.setOutlineThickness(1.0f);
+    m_color = color;
 }
 
 void Projectile::update(float deltaTime) {
@@ -58,14 +52,6 @@ void Projectile::update(float deltaTime) {
     } else {
         m_position += direction * step;
     }
-    
-    m_circle.setPosition(m_position);
-}
-
-void Projectile::render(sf::RenderTarget& target) {
-    if (m_health <= 0) return;
-    m_circle.setPosition(m_position);
-    target.draw(m_circle);
 }
 
 void Projectile::preload() {

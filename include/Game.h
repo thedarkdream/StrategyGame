@@ -4,7 +4,7 @@
 #include "Map.h"
 #include "Player.h"
 #include "InputHandler.h"
-#include "Renderer.h"
+#include "IRenderer.h"
 #include "PlayerController.h"
 #include "ActionBar.h"
 #include "MapSerializer.h"
@@ -49,6 +49,8 @@ public:
     // First non-local occupied slot (convenience for 2-player games)
     Player& getEnemy();
     InputHandler& getInput() { return *m_input; }
+    IRenderer& getRenderer() { return *m_renderer; }
+    const IRenderer& getRenderer() const { return *m_renderer; }
     ActionBar& getActionBar() { return m_actionBar; }
     
     // Statistics tracking
@@ -119,7 +121,8 @@ private:
     std::array<std::unique_ptr<PlayerController>, MAX_PLAYERS> m_controllers;
     std::array<std::unique_ptr<PlayerActions>,    MAX_PLAYERS> m_actions;
     std::unique_ptr<InputHandler>    m_input;
-    std::unique_ptr<Renderer>          m_renderer;
+    std::unique_ptr<IRenderer>         m_renderer;
+    bool                               m_use3D = false;
     std::unique_ptr<DebugConsole>      m_debugConsole;
     
     // All entities in game
@@ -129,6 +132,7 @@ private:
     
     // Initialization
     void initialize();
+    void toggleRenderer();  // F9: switch between Renderer2D and Renderer3D
     void preloadAssets();   // Load all sounds & textures upfront to avoid mid-game hitches
     void setupFromMapData(const MapData& data);  // Initialize from editor-saved map
     void cleanupDeadEntities();

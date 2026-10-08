@@ -1,5 +1,7 @@
 ﻿#include "Map.h"
 #include "Constants.h"
+#include <algorithm>
+#include <cmath>
 #include <random>
 
 Map::Map(int width, int height)
@@ -16,11 +18,12 @@ Map::Map(int width, int height)
         for (int x = 0; x < width; ++x)
             m_tiles[y][x].variant = static_cast<uint8_t>(grassDist(m_rng));
     }
+    resetTerrainCache();
 }
 
 // Delegates to TerrainRenderer.
-void Map::render(sf::RenderTarget& target, const sf::View& camera) {
-    m_terrainRenderer.render(target, camera, *this);
+void Map::render(sf::RenderTarget& target, const sf::FloatRect& visibleRect) {
+    m_terrainRenderer.render(target, visibleRect, *this);
 }
 
 // ---- Tile access -----------------------------------------------------------
@@ -48,12 +51,14 @@ bool Map::isValidTile(int x, int y) const {
 
 bool Map::isWalkable(int x, int y) const {
     if (!isValidTile(x, y)) return false;
-    return m_tiles[y][x].walkable;
+    const Tile& t = m_tiles[y][x];
+    return t.walkable && !t.cliff;
 }
 
 bool Map::isBuildable(int x, int y) const {
     if (!isValidTile(x, y)) return false;
-    return m_tiles[y][x].buildable;
+    const Tile& t = m_tiles[y][x];
+    return t.buildable && t.flat;
 }
 
 // ---- Coordinate conversion -------------------------------------------------
@@ -124,6 +129,106 @@ std::vector<sf::Vector2f> Map::findPath(sf::Vector2f start, sf::Vector2f end,
     return m_pathfinder.findPath(*this, start, end, unitRadius, extraTileCosts);
 }
 
+// ---- Elevation (heightmap) -------------------------------------------------
+
+int Map::getTileElevation(int x, int y) const {
+    return isValidTile(x, y) ? m_tiles[y][x].elevation : 0;
+}
+
+void Map::setTileElevation(int x, int y, int level) {
+    if (!isValidTile(x, y)) return;
+    m_tiles[y][x].elevation = static_cast<uint8_t>(std::clamp(level, 0, Constants::MAX_ELEVATION));
+    if (m_tiles[y][x].elevation > 0) m_hasElevation = true;
+    recomputeTerrainAround(x, y);
+}
+
+void Map::resetTerrainCache() {
+    m_vertexLevels.assign(static_cast<size_t>((m_width + 1) * (m_height + 1)), 0);
+    m_hasElevation = false;
+    for (auto& row : m_tiles)
+        for (Tile& t : row) { t.cliff = false; t.flat = true; }
+}
+
+// Refreshes the cached vertex levels around tile (x, y) and the slope flags of
+// every tile that touches one of those vertices.
+void Map::recomputeTerrainAround(int tileX, int tileY) {
+    for (int vy = tileY; vy <= tileY + 1; ++vy) {
+        for (int vx = tileX; vx <= tileX + 1; ++vx) {
+            int level = 0;
+            for (int dy = -1; dy <= 0; ++dy)
+                for (int dx = -1; dx <= 0; ++dx)
+                    level = std::max(level, getTileElevation(vx + dx, vy + dy));
+            m_vertexLevels[static_cast<size_t>(vy * (m_width + 1) + vx)] = static_cast<std::uint8_t>(level);
+        }
+    }
+    for (int ty = tileY - 1; ty <= tileY + 1; ++ty) {
+        for (int tx = tileX - 1; tx <= tileX + 1; ++tx) {
+            if (!isValidTile(tx, ty)) continue;
+            const int a = getVertexLevel(tx,     ty);
+            const int b = getVertexLevel(tx + 1, ty);
+            const int c = getVertexLevel(tx,     ty + 1);
+            const int d = getVertexLevel(tx + 1, ty + 1);
+            const int spread = std::max(std::max(a, b), std::max(c, d))
+                             - std::min(std::min(a, b), std::min(c, d));
+            m_tiles[ty][tx].cliff = spread >= Constants::CLIFF_LEVEL_DELTA;
+            m_tiles[ty][tx].flat  = (spread == 0);
+        }
+    }
+}
+
+// Vertex (vx, vy) is the top-left corner of tile (vx, vy); it touches tiles
+// (vx-1..vx, vy-1..vy).  Served from the cache maintained by recomputeTerrainAround.
+int Map::getVertexLevel(int vx, int vy) const {
+    vx = std::clamp(vx, 0, m_width);
+    vy = std::clamp(vy, 0, m_height);
+    return m_vertexLevels[static_cast<size_t>(vy * (m_width + 1) + vx)];
+}
+
+float Map::getVertexHeight(int vx, int vy) const {
+    return static_cast<float>(getVertexLevel(vx, vy)) * Constants::ELEVATION_STEP;
+}
+
+float Map::getHeightAt(sf::Vector2f worldPos) const {
+    const float ts = static_cast<float>(Constants::TILE_SIZE);
+    const float fx = std::clamp(worldPos.x / ts, 0.0f, static_cast<float>(m_width));
+    const float fy = std::clamp(worldPos.y / ts, 0.0f, static_cast<float>(m_height));
+    const int   tx = std::min(static_cast<int>(fx), m_width  - 1);
+    const int   ty = std::min(static_cast<int>(fy), m_height - 1);
+    const float u  = fx - static_cast<float>(tx);
+    const float v  = fy - static_cast<float>(ty);
+
+    const float h00 = getVertexHeight(tx,     ty);
+    const float h10 = getVertexHeight(tx + 1, ty);
+    const float h01 = getVertexHeight(tx,     ty + 1);
+    const float h11 = getVertexHeight(tx + 1, ty + 1);
+    return (h00 * (1.0f - u) + h10 * u) * (1.0f - v)
+         + (h01 * (1.0f - u) + h11 * u) * v;
+}
+
+bool Map::isCliffTile(int x, int y) const {
+    return isValidTile(x, y) && m_tiles[y][x].cliff;
+}
+
+bool Map::hasLineOfSight(sf::Vector2f from, sf::Vector2f to) const {
+    if (!m_hasElevation) return true;
+
+    const float eye     = getHeightAt(from) + Constants::ELEVATION_STEP * 0.75f;
+    const float target  = getHeightAt(to);
+    const float slack   = Constants::ELEVATION_STEP * 0.5f;   // one level of relief never blocks
+    const float dx = to.x - from.x;
+    const float dy = to.y - from.y;
+    const float dist = std::sqrt(dx * dx + dy * dy);
+    const int steps = static_cast<int>(dist / static_cast<float>(Constants::TILE_SIZE));
+
+    for (int i = 1; i < steps; ++i) {
+        const float t = static_cast<float>(i) / static_cast<float>(steps);
+        const sf::Vector2f p(from.x + dx * t, from.y + dy * t);
+        const float sightLine = eye + (target - eye) * t;
+        if (getHeightAt(p) > sightLine + slack) return false;
+    }
+    return true;
+}
+
 // ---- Editor ----------------------------------------------------------------
 
 void Map::initEmpty() {
@@ -134,6 +239,7 @@ void Map::initEmpty() {
             m_tiles[y][x].variant = static_cast<uint8_t>(grassDist(m_rng));
         }
     }
+    resetTerrainCache();
 }
 
 void Map::setTileType(int x, int y, TileType type) {

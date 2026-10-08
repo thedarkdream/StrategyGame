@@ -1,4 +1,5 @@
 #include "AnimatedSprite.h"
+#include <cmath>
 
 void AnimatedSprite::setAnimationSet(const AnimationSet* animSet) {
     m_animationSet = animSet;
@@ -6,7 +7,6 @@ void AnimatedSprite::setAnimationSet(const AnimationSet* animSet) {
     m_currentAnimationName.clear();
     m_currentFrame = 0;
     m_frameTime = 0.0f;
-    m_sprite.reset();
 }
 
 void AnimatedSprite::play(const std::string& animationName, bool force) {
@@ -20,9 +20,6 @@ void AnimatedSprite::play(const std::string& animationName, bool force) {
     const Animation* anim = m_animationSet->getAnimation(animationName);
     if (!anim) return;
     
-    // Check if we need to switch textures
-    bool textureChanged = (!m_currentAnimation || m_currentAnimation->getTexture() != anim->getTexture());
-    
     m_currentAnimation = anim;
     m_currentAnimationName = animationName;
     m_currentFrame = 0;
@@ -30,23 +27,6 @@ void AnimatedSprite::play(const std::string& animationName, bool force) {
     m_playing = true;
     m_paused = false;
     m_finished = false;
-    
-    // Update texture if changed
-    if (textureChanged) {
-        updateSpriteTexture();
-    }
-    
-    updateSprite();
-}
-
-void AnimatedSprite::updateSpriteTexture() {
-    if (!m_currentAnimation || !m_currentAnimation->getTexture()) {
-        m_sprite.reset();
-        return;
-    }
-    
-    // Create new sprite with the animation's texture
-    m_sprite.emplace(*m_currentAnimation->getTexture());
 }
 
 void AnimatedSprite::stop() {
@@ -91,51 +71,27 @@ void AnimatedSprite::update(float deltaTime) {
             }
         }
     }
-    
-    updateSprite();
-}
-
-void AnimatedSprite::render(sf::RenderTarget& target, sf::Vector2f position) {
-    if (!m_sprite) return;
-    m_sprite->setPosition(position);
-    target.draw(*m_sprite);
 }
 
 void AnimatedSprite::setOrigin(sf::Vector2f origin) {
     m_customOrigin = origin;
     m_useCustomOrigin = true;
-    if (m_sprite) m_sprite->setOrigin(origin);
 }
 
 void AnimatedSprite::centerOrigin() {
     m_useCustomOrigin = false;
-    if (!m_sprite) return;
-    sf::Vector2f size = getFrameSize();
-    m_sprite->setOrigin(sf::Vector2f(size.x / 2.0f, size.y / 2.0f));
 }
 
 void AnimatedSprite::setScale(sf::Vector2f scale) {
     m_scale = scale;
-    if (m_sprite) m_sprite->setScale(m_scale);
 }
 
 void AnimatedSprite::setScale(float uniformScale) {
     setScale(sf::Vector2f(uniformScale, uniformScale));
 }
 
-void AnimatedSprite::setRotation(float degrees) {
-    if (m_sprite) m_sprite->setRotation(sf::degrees(degrees));
-}
-
-void AnimatedSprite::setColor(sf::Color color) {
-    if (m_sprite) m_sprite->setColor(color);
-}
-
 void AnimatedSprite::setDirection(Direction dir) {
-    if (m_direction != dir) {
-        m_direction = dir;
-        updateSprite();
-    }
+    m_direction = dir;
 }
 
 void AnimatedSprite::setDirectionFromMovement(sf::Vector2f movement) {
@@ -155,32 +111,24 @@ sf::Vector2f AnimatedSprite::getFrameSize() const {
     );
 }
 
-void AnimatedSprite::updateSprite() {
-    if (!m_sprite || !m_currentAnimation) return;
-    
-    const AnimationFrame& frame = m_currentAnimation->getFrame(m_currentFrame);
-    
-    // Apply texture rect with direction row offset (if directional)
-    sf::IntRect rect = frame.textureRect;
-    
-    // Offset Y position based on direction (each direction is a row)
-    if (m_currentAnimation->isDirectional()) {
-        int frameHeight = m_currentAnimation->getFrameHeight();
-        rect.position.y = static_cast<int>(m_direction) * frameHeight;
-    }
-    
-    m_sprite->setTextureRect(rect);
-    
-    // Handle origin
-    if (m_useCustomOrigin) {
-        m_sprite->setOrigin(m_customOrigin);
-    } else {
-        // Center origin based on frame size
-        float halfWidth = static_cast<float>(std::abs(rect.size.x)) / 2.0f;
-        float halfHeight = static_cast<float>(std::abs(rect.size.y)) / 2.0f;
-        m_sprite->setOrigin(sf::Vector2f(halfWidth, halfHeight));
-    }
-    
-    // Apply scale
-    m_sprite->setScale(m_scale);
+const sf::Texture* AnimatedSprite::getCurrentTexture() const {
+    return m_currentAnimation ? m_currentAnimation->getTexture() : nullptr;
+}
+
+sf::IntRect AnimatedSprite::getCurrentTextureRect() const {
+    if (!m_currentAnimation || m_currentAnimation->getFrameCount() == 0) return sf::IntRect();
+
+    sf::IntRect rect = m_currentAnimation->getFrame(m_currentFrame).textureRect;
+
+    // Each direction of a directional animation is a row of the sheet.
+    if (m_currentAnimation->isDirectional())
+        rect.position.y = static_cast<int>(m_direction) * m_currentAnimation->getFrameHeight();
+    return rect;
+}
+
+sf::Vector2f AnimatedSprite::getOrigin() const {
+    if (m_useCustomOrigin) return m_customOrigin;
+    const sf::IntRect rect = getCurrentTextureRect();
+    return sf::Vector2f(static_cast<float>(std::abs(rect.size.x)) / 2.0f,
+                        static_cast<float>(std::abs(rect.size.y)) / 2.0f);
 }

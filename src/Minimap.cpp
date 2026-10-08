@@ -65,7 +65,7 @@ void Minimap::rebuildTerrain(const Map& map) {
 
 // ---- Render ----------------------------------------------------------------
 
-void Minimap::render(sf::RenderTarget& target, const Game& game, const sf::View& camera) {
+void Minimap::render(sf::RenderTarget& target, const Game& game, const Camera& camera) {
     sf::Vector2u windowSize = target.getSize();
     sf::FloatRect bounds    = screenBounds(windowSize);
     const float mmX = bounds.position.x;

@@ -97,6 +97,9 @@ struct Tile {
     bool     walkable  = true;
     bool     buildable = true;
     uint8_t  variant   = 1;   // Which texture variant (1-8 for Grass, 1-4 for Water)
+    uint8_t  elevation = 0;   // Terrain level (0..Constants::MAX_ELEVATION)
+    bool     cliff     = false; // Derived by Map from elevations: slope too steep to walk
+    bool     flat      = true;  // Derived by Map from elevations: all four corners at one level
 };
 
 struct Command {

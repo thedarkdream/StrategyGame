@@ -3,6 +3,7 @@
 #include "Constants.h"
 #include "ResourceManager.h"
 #include "MapSerializer.h"
+#include "Camera3D.h"
 #include <iostream>
 #include <sstream>
 #include <cmath>
@@ -58,6 +59,8 @@ EditorPanel::State MapEditorScreen::makePanelState() const {
     s.mapName      = m_mapName;
     s.nameActive   = m_nameActive;
     s.eraseMode    = m_eraseMode;
+    s.elevationMode  = m_elevationMode;
+    s.elevationLevel = m_elevationBrush;
     s.pendingType  = m_pendingEntityType;
     s.pendingTeam  = m_pendingTeam;
     s.bldTeam      = m_bldTeam;
@@ -179,12 +182,35 @@ bool MapEditorScreen::inMapArea(sf::Vector2i px) const {
     return px.x >= static_cast<int>(PANEL_WIDTH);
 }
 
+Camera MapEditorScreen::makeCamera3D() const {
+    Camera cam;
+    cam.setCenter(m_camera.getCenter());
+    cam.setSize(m_camera.getSize());
+    return cam;
+}
+
+// Ground position under a window pixel in the 3D view (the map area is its own viewport).
+sf::Vector2f MapEditorScreen::pixelToWorld3D(sf::Vector2i pixel) const {
+    const sf::Vector2u areaSize(m_lastWinSize.x - static_cast<unsigned>(PANEL_WIDTH), m_lastWinSize.y);
+    const sf::Vector2i local(pixel.x - static_cast<int>(PANEL_WIDTH), pixel.y);
+    return Camera3D::screenToWorld(makeCamera3D(), local, areaSize, m_map);
+}
+
 sf::Vector2i MapEditorScreen::screenToTile(sf::Vector2i pixel) const
 {
     if (m_lastWinSize.x == 0) return { -1, -1 };
     float aW = static_cast<float>(m_lastWinSize.x) - PANEL_WIDTH;
     float aH = static_cast<float>(m_lastWinSize.y);
     if (aW <= 0.f || aH <= 0.f) return { -1, -1 };
+    if (view3DActive()) {
+        if (pixel.x < static_cast<int>(PANEL_WIDTH)) return { -1, -1 };
+        const sf::Vector2f w = pixelToWorld3D(pixel);
+        if (w.x < 0.f || w.y < 0.f) return { -1, -1 };
+        int tx = static_cast<int>(std::floor(w.x / Constants::TILE_SIZE));
+        int ty = static_cast<int>(std::floor(w.y / Constants::TILE_SIZE));
+        if (tx < 0 || tx >= m_mapW || ty < 0 || ty >= m_mapH) return { -1, -1 };
+        return { tx, ty };
+    }
     float localX = static_cast<float>(pixel.x) - PANEL_WIDTH;
     float localY = static_cast<float>(pixel.y);
     sf::Vector2f cSz = m_camera.getSize();
@@ -202,6 +228,7 @@ sf::Vector2i MapEditorScreen::screenToTile(sf::Vector2i pixel) const
 // ===========================================================================
 void MapEditorScreen::selectPendingEntity(EntityType type, Team team) {
     m_eraseMode         = false;
+    m_elevationMode     = false;
     m_pendingEntityType = type;
     m_pendingTeam       = team;
 
@@ -242,6 +269,7 @@ void MapEditorScreen::tryEraseAt(sf::Vector2i pixel) {
                 m_map.setTileType(it->tileX + dx, it->tileY + dy, TileType::Grass);
     }
 
+    m_terrain3DDirty = true;
     m_placedEntities.erase(it);
 }
 
@@ -282,6 +310,7 @@ void MapEditorScreen::tryPlaceEntity(sf::Vector2i pixel) {
             for (int dx = 0; dx < tileSize.x; ++dx)
                 m_map.setTileType(t.x + dx, t.y + dy, tt);
     }
+    m_terrain3DDirty = true;
 }
 
 // ===========================================================================
@@ -337,7 +366,11 @@ ScreenResult MapEditorScreen::handleEvent(const sf::Event& event) {
         }
 
         // Camera pan (right-drag)
-        if (m_isPanning && m_lastWinSize.x > 0) {
+        if (m_isPanning && m_lastWinSize.x > 0 && view3DActive()) {
+            // Keep the ground point grabbed on button press under the cursor.
+            const sf::Vector2f under = pixelToWorld3D(mm->position);
+            m_camera.setCenter(m_camera.getCenter() + (m_panAnchor3D - under));
+        } else if (m_isPanning && m_lastWinSize.x > 0) {
             float aW = static_cast<float>(m_lastWinSize.x) - PANEL_WIDTH;
             float aH = static_cast<float>(m_lastWinSize.y);
             float sx = m_camera.getSize().x / aW;
@@ -442,11 +475,22 @@ ScreenResult MapEditorScreen::handleEvent(const sf::Event& event) {
                         m_statusTimer = 4.f;
                     } else if constexpr (std::is_same_v<T, EditorPanel::EvEraseToggle>) {
                         m_eraseMode = !m_eraseMode;
-                        if (m_eraseMode) clearPendingEntity();
+                        if (m_eraseMode) { clearPendingEntity(); m_elevationMode = false; }
+                        rebuildPanel();
+                    } else if constexpr (std::is_same_v<T, EditorPanel::EvElevationToggle>) {
+                        m_elevationMode = !m_elevationMode;
+                        if (m_elevationMode) { clearPendingEntity(); m_eraseMode = false; }
+                        rebuildPanel();
+                    } else if constexpr (std::is_same_v<T, EditorPanel::EvElevationLevel>) {
+                        m_elevationBrush = std::clamp(e.level, 0, Constants::MAX_ELEVATION);
+                        m_elevationMode  = true;
+                        m_eraseMode      = false;
+                        clearPendingEntity();
                         rebuildPanel();
                     } else if constexpr (std::is_same_v<T, EditorPanel::EvSelectTile>) {
                         m_selectedTile = e.type;
                         m_eraseMode    = false;
+                        m_elevationMode = false;
                         clearPendingEntity();
                         rebuildPanel();
                     } else if constexpr (std::is_same_v<T, EditorPanel::EvSelectEntity>) {
@@ -511,6 +555,7 @@ ScreenResult MapEditorScreen::handleEvent(const sf::Event& event) {
                 m_isPanning      = true;
                 m_panStart       = mb->position;
                 m_panCameraStart = m_camera.getCenter();
+                if (view3DActive()) m_panAnchor3D = pixelToWorld3D(mb->position);
             } else {
                 m_eraseMode = false;
                 clearPendingEntity();
@@ -529,6 +574,12 @@ ScreenResult MapEditorScreen::handleEvent(const sf::Event& event) {
 
     // ---- Keyboard ----------------------------------------------------------
     if (const auto* kp = event.getIf<sf::Event::KeyPressed>()) {
+        if (kp->code == sf::Keyboard::Key::F9) {
+            m_use3D = !m_use3D;
+            m_isPanning = false;
+            showStatus(m_use3D ? "3D view (F9: back to 2D)" : "2D view");
+            return {};
+        }
         if (kp->code == sf::Keyboard::Key::Escape) {
             if (m_showNewMapDialog) {
                 m_showNewMapDialog = false;
@@ -539,6 +590,9 @@ ScreenResult MapEditorScreen::handleEvent(const sf::Event& event) {
                 rebuildPanel();
             } else if (m_eraseMode) {
                 m_eraseMode = false;
+                rebuildPanel();
+            } else if (m_elevationMode) {
+                m_elevationMode = false;
                 rebuildPanel();
             } else if (m_nameActive) {
                 m_nameActive = false;
@@ -562,6 +616,15 @@ ScreenResult MapEditorScreen::handleEvent(const sf::Event& event) {
             if (kp->code == sf::Keyboard::Key::Up)    c.y -= PAN;
             if (kp->code == sf::Keyboard::Key::Down)  c.y += PAN;
             m_camera.setCenter(c);
+
+            if (kp->code == sf::Keyboard::Key::PageUp && m_elevationBrush < Constants::MAX_ELEVATION) {
+                showStatus("Elevation brush: " + std::to_string(++m_elevationBrush));
+                rebuildPanel();
+            }
+            if (kp->code == sf::Keyboard::Key::PageDown && m_elevationBrush > 0) {
+                showStatus("Elevation brush: " + std::to_string(--m_elevationBrush));
+                rebuildPanel();
+            }
         }
     }
 
@@ -594,6 +657,13 @@ ScreenResult MapEditorScreen::update(float dt) {
 // ===========================================================================
 static constexpr const char* MAPS_DIR = "maps";
 
+void MapEditorScreen::showStatus(const std::string& text, bool ok) {
+    if (!m_font) return;
+    m_statusText.emplace(*m_font, text, 12u);
+    m_statusText->setFillColor(ok ? sf::Color(80, 220, 80) : sf::Color(220, 80, 80));
+    m_statusTimer = 2.f;
+}
+
 bool MapEditorScreen::saveCurrentMap() {
     namespace fs = std::filesystem;
     MapData data;
@@ -607,6 +677,8 @@ bool MapEditorScreen::saveCurrentMap() {
             const Tile& tile = m_map.getTile(x, y);
             if (tile.type != TileType::Grass || tile.variant != 1)
                 data.tiles.push_back({ x, y, tile.type, tile.variant });
+            if (tile.elevation > 0)
+                data.elevations.push_back({ x, y, tile.elevation });
         }
     }
 
@@ -641,10 +713,14 @@ void MapEditorScreen::applyMapData(const MapData& data) {
     for (const auto& t : data.tiles)
         m_map.setTileType(t.x, t.y, t.type, t.variant);
 
+    for (const auto& el : data.elevations)
+        m_map.setTileElevation(el.x, el.y, el.level);
+
     for (const auto& e : data.entities)
         m_placedEntities.push_back({ e.type, e.team, e.tileX, e.tileY });
 
     m_gridDirty = true;
+    m_terrain3DDirty = true;
     buildLayout(m_lastWinSize);
 }
 
@@ -768,6 +844,7 @@ void MapEditorScreen::confirmNewMap() {
     m_map            = Map(m_mapW, m_mapH);
     m_placedEntities.clear();
     m_gridDirty      = true;
+    m_terrain3DDirty = true;
     buildLayout(m_lastWinSize);
     resetCamera(m_lastWinSize);
     m_showNewMapDialog = false;
@@ -890,6 +967,45 @@ void MapEditorScreen::renderPanel(sf::RenderWindow& window) {
     m_panel.render(window);
 }
 
+// Tints elevated tiles (brighter = higher) and prints their level.
+void MapEditorScreen::renderElevationOverlay(sf::RenderWindow& window) {
+    const float ts = static_cast<float>(Constants::TILE_SIZE);
+    const sf::Vector2f topLeft = m_camera.getCenter() - m_camera.getSize() / 2.f;
+    const int x0 = std::max(0, static_cast<int>(topLeft.x / ts));
+    const int y0 = std::max(0, static_cast<int>(topLeft.y / ts));
+    const int x1 = std::min(m_mapW, static_cast<int>((topLeft.x + m_camera.getSize().x) / ts) + 1);
+    const int y1 = std::min(m_mapH, static_cast<int>((topLeft.y + m_camera.getSize().y) / ts) + 1);
+
+    sf::VertexArray tint(sf::PrimitiveType::Triangles);
+    std::vector<std::pair<sf::Vector2f, int>> labels;
+    for (int y = y0; y < y1; ++y) {
+        for (int x = x0; x < x1; ++x) {
+            const int level = m_map.getTileElevation(x, y);
+            if (level <= 0) continue;
+            const auto a = static_cast<std::uint8_t>(30 + level * 22);
+            const sf::Color c(255, 255, 255, a);
+            const sf::Vector2f p(x * ts, y * ts);
+            tint.append({ p,                       c });
+            tint.append({ p + sf::Vector2f(ts, 0), c });
+            tint.append({ p + sf::Vector2f(ts, ts), c });
+            tint.append({ p,                       c });
+            tint.append({ p + sf::Vector2f(ts, ts), c });
+            tint.append({ p + sf::Vector2f(0, ts), c });
+            labels.push_back({ p, level });
+        }
+    }
+    window.draw(tint);
+
+    if (!m_font) return;
+    sf::Text label(*m_font, "", 11u);
+    label.setFillColor(sf::Color(20, 20, 20));
+    for (const auto& [pos, level] : labels) {
+        label.setString(std::to_string(level));
+        label.setPosition(pos + sf::Vector2f(3.f, 1.f));
+        window.draw(label);
+    }
+}
+
 // ===========================================================================
 // Render
 // ===========================================================================
@@ -902,6 +1018,106 @@ void MapEditorScreen::render(sf::RenderWindow& window) {
     }
     if (m_gridDirty) buildGridLines();
 
+    // Create the 3D view on demand; fall back to 2D when GL is unusable.
+    if (m_use3D && !m_view3d) {
+        try {
+            m_view3d = std::make_unique<EditorView3D>(window);
+            m_terrain3DDirty = true;
+        } catch (const std::exception& e) {
+            std::cerr << "3D editor view unavailable: " << e.what() << std::endl;
+            m_use3D = false;
+            showStatus("3D view unavailable", false);
+        }
+    }
+
+    if (view3DActive()) {
+        renderMap3D(window);
+    } else {
+        render2DMap(window, winSize);
+    }
+
+    // ---- Panel (on top of everything) -------------------------------------
+    renderPanel(window);
+
+    // ---- Load overlay (modal) ---------------------------------------------
+    renderLoadOverlay(window);
+
+    // ---- New-map dialog (modal) -------------------------------------------
+    renderNewMapDialog(window);
+
+    // ---- Status toast (bottom-left of panel) ------------------------------
+    if (m_statusText && m_statusTimer > 0.f) {
+        sf::Vector2u ws = window.getSize();
+        sf::View uiView(sf::FloatRect({ 0.f, 0.f },
+            { static_cast<float>(ws.x), static_cast<float>(ws.y) }));
+        window.setView(uiView);
+
+        sf::RectangleShape toast({ PANEL_WIDTH - 16.f, 24.f });
+        toast.setPosition({ 8.f, static_cast<float>(ws.y) - 32.f });
+        toast.setFillColor(sf::Color(20, 22, 30, 210));
+        toast.setOutlineColor(sf::Color(60, 65, 80));
+        toast.setOutlineThickness(1.f);
+        window.draw(toast);
+
+        m_statusText->setPosition({ 12.f, static_cast<float>(ws.y) - 29.f });
+        window.draw(*m_statusText);
+    }
+}
+
+// 3D map area: terrain, placed entities and the hover / placement highlight are
+// drawn by EditorView3D; painting and erasing mirror the 2D path.
+void MapEditorScreen::renderMap3D(sf::RenderWindow& window) {
+    const sf::Vector2u winSize = window.getSize();
+
+    std::optional<EditorHighlight> highlight;
+    if (m_hoveredTile.x >= 0) {
+        const sf::Vector2i tile = screenToTile(m_hoveredTile);
+        if (tile.x >= 0) {
+            if (m_pendingEntityType != EntityType::None) {
+                const sf::Vector2i size = ENTITY_DATA.getBuildingTileSize(m_pendingEntityType);
+                const sf::Color tc = teamColor(m_pendingTeam);
+                highlight = EditorHighlight{ tile.x, tile.y, size.x, size.y, tc };
+            } else if (m_eraseMode) {
+                highlight = EditorHighlight{ tile.x, tile.y, 1, 1, sf::Color(255, 60, 60) };
+                if (m_isPainting)
+                    tryEraseAt(m_hoveredTile);
+            } else {
+                highlight = EditorHighlight{ tile.x, tile.y, 1, 1,
+                    m_elevationMode ? sf::Color(120, 190, 255) : sf::Color(255, 255, 120) };
+                if (m_isPainting) {
+                    if (m_elevationMode || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::H))
+                        m_map.setTileElevation(tile.x, tile.y, m_elevationBrush);
+                    else
+                        m_map.setTileType(tile.x, tile.y, m_selectedTile);
+                    m_terrain3DDirty = true;
+                }
+            }
+        }
+    }
+
+    std::vector<EditorBox> boxes;
+    boxes.reserve(m_placedEntities.size());
+    for (const auto& pe : m_placedEntities) {
+        const sf::Vector2i size = ENTITY_DATA.getBuildingTileSize(pe.type);
+        const EntityDef* def = ENTITY_DATA.get(pe.type);
+        float height = 0.9f;
+        if (pe.type == EntityType::StartPosition)      height = 0.25f;
+        else if (def && def->isResource())             height = 0.6f;
+        else if (def && def->isBuilding())             height = std::max(0.8f, 0.8f * static_cast<float>(std::min(size.x, size.y)));
+        boxes.push_back({ pe.tileX, pe.tileY, size.x, size.y, height, teamColor(pe.team) });
+    }
+
+    if (m_terrain3DDirty) {
+        m_view3d->invalidateTerrain();
+        m_terrain3DDirty = false;
+    }
+    const sf::IntRect area({ static_cast<int>(PANEL_WIDTH), 0 },
+                           { static_cast<int>(winSize.x) - static_cast<int>(PANEL_WIDTH),
+                             static_cast<int>(winSize.y) });
+    m_view3d->render(m_map, makeCamera3D(), area, boxes, highlight);
+}
+
+void MapEditorScreen::render2DMap(sf::RenderWindow& window, sf::Vector2u winSize) {
     // ---- Map area bg -------------------------------------------------------
     {
         sf::View uiView(sf::FloatRect({ 0.f, 0.f },
@@ -916,8 +1132,9 @@ void MapEditorScreen::render(sf::RenderWindow& window) {
 
     // ---- Map + grid --------------------------------------------------------
     window.setView(m_camera);
-    m_map.render(window, m_camera);
+    m_map.render(window, sf::FloatRect(m_camera.getCenter() - m_camera.getSize() / 2.f, m_camera.getSize()));
     window.draw(m_gridLines);
+    renderElevationOverlay(window);
 
     // ---- Placed entities ---------------------------------------------------
     renderPlacedEntities(window);
@@ -947,36 +1164,13 @@ void MapEditorScreen::render(sf::RenderWindow& window) {
                 m_hoverRect.setPosition({ wx, wy });
                 window.draw(m_hoverRect);
 
-                if (m_isPainting)
-                    m_map.setTileType(tile.x, tile.y, m_selectedTile);
+                if (m_isPainting) {
+                    if (m_elevationMode || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::H))
+                        m_map.setTileElevation(tile.x, tile.y, m_elevationBrush);
+                    else
+                        m_map.setTileType(tile.x, tile.y, m_selectedTile);
+                }
             }
         }
-    }
-
-    // ---- Panel (on top of everything) -------------------------------------
-    renderPanel(window);
-
-    // ---- Load overlay (modal) ---------------------------------------------
-    renderLoadOverlay(window);
-
-    // ---- New-map dialog (modal) -------------------------------------------
-    renderNewMapDialog(window);
-
-    // ---- Status toast (bottom-left of panel) ------------------------------
-    if (m_statusText && m_statusTimer > 0.f) {
-        sf::Vector2u ws = window.getSize();
-        sf::View uiView(sf::FloatRect({ 0.f, 0.f },
-            { static_cast<float>(ws.x), static_cast<float>(ws.y) }));
-        window.setView(uiView);
-
-        sf::RectangleShape toast({ PANEL_WIDTH - 16.f, 24.f });
-        toast.setPosition({ 8.f, static_cast<float>(ws.y) - 32.f });
-        toast.setFillColor(sf::Color(20, 22, 30, 210));
-        toast.setOutlineColor(sf::Color(60, 65, 80));
-        toast.setOutlineThickness(1.f);
-        window.draw(toast);
-
-        m_statusText->setPosition({ 12.f, static_cast<float>(ws.y) - 29.f });
-        window.draw(*m_statusText);
     }
 }

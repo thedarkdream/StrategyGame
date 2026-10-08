@@ -14,7 +14,7 @@ public:
     
     // Core methods
     virtual void update(float deltaTime) = 0;
-    virtual void render(sf::RenderTarget& target) = 0;
+    // NOTE: entities no longer draw themselves; see EntityRenderer2D.
     
     // Getters
     uint32_t     getId()     const { return m_id; }
@@ -29,6 +29,11 @@ public:
     bool isDying() const { return m_isDying; }
     bool isReadyForRemoval() const { return m_health <= 0 && !m_isDying; }
     bool isSelected() const { return m_selected; }
+
+    // Visual state consumed by the render layer (no drawing happens in Entity).
+    sf::Color       getColor() const { return m_color; }
+    bool            hasSprite() const { return m_hasSprite; }
+    AnimatedSprite& getAnimatedSprite() { return m_animatedSprite; }
     
     // Setters
     void setPosition(sf::Vector2f position) { m_position = position; }
@@ -101,14 +106,11 @@ protected:
     static constexpr float HIGHLIGHT_BLINK_PERIOD = 1.0f;  // Once per second
     
     // Visual
-    sf::RectangleShape m_shape;
     sf::Color m_color;
     
     // Animation system - AnimatedSprite holds reference to shared AnimationSet
     AnimatedSprite m_animatedSprite;
     bool m_hasSprite = false;
-    
-    void updateShape();
     
     // Animation helpers
     void loadAnimations(const std::string& basePath);  // e.g., "units/worker"

@@ -137,6 +137,37 @@ void EditorPanel::rebuild(const State& s, sf::Vector2u winSize) {
     m_btnErase.shape.setFillColor(s.eraseMode ? sf::Color(160, 50, 50) : COL_BTN_NORMAL);
     y += 34.f;
 
+    // ---- Elevation ---------------------------------------------------------
+    makeDivider(m_dividerElev, y); y += 9.f;
+    makeSectionLabel(m_lblElev, "ELEVATION", y); y += 20.f;
+
+    m_btnElevation = makePanelButton(s.elevationMode ? "[Elevation brush ON]" : "Elevation brush",
+                                     { PAD, y }, { IW, 26.f });
+    m_btnElevation.selected = s.elevationMode;
+    m_btnElevation.shape.setFillColor(s.elevationMode ? COL_BTN_SEL : COL_BTN_NORMAL);
+    y += 32.f;
+
+    m_elevLevelButtons.clear();
+    {
+        constexpr int   LEVELS = Constants::MAX_ELEVATION + 1;
+        const float     gap = 3.f;
+        const float     bW  = (IW - gap * (LEVELS - 1)) / LEVELS;
+        for (int i = 0; i < LEVELS; ++i) {
+            PanelButton btn = makePanelButton(std::to_string(i),
+                { PAD + i * (bW + gap), y }, { bW, 26.f }, 12u);
+            btn.selected = (i == s.elevationLevel);
+            btn.shape.setFillColor(btn.selected ? COL_BTN_SEL : COL_BTN_NORMAL);
+            m_elevLevelButtons.push_back(std::move(btn));
+        }
+    }
+    y += 30.f;
+    if (m_font) {
+        m_lblElevHint.emplace(*m_font, "Left-click paints the level (PgUp/PgDn)", 10u);
+        m_lblElevHint->setFillColor(COL_LABEL);
+        m_lblElevHint->setPosition({ PAD, y - m_scrollY });
+    }
+    y += 18.f;
+
     makeDivider(m_dividerPalette, y); y += 9.f;
 
     // ---- Tile Palette ------------------------------------------------------
@@ -189,6 +220,8 @@ void EditorPanel::handleHover(sf::Vector2f pm) {
     updateButtonHover(m_btnSave,  pm);
     updateButtonHover(m_btnBack,  pm);
     updateButtonHover(m_btnErase, pm);
+    updateButtonHover(m_btnElevation, pm);
+    for (auto& btn : m_elevLevelButtons) updateButtonHover(btn, pm);
 
     for (auto& btn : m_bldTeamButtons)  updateButtonHover(btn, pm);
     for (auto& btn : m_unitTeamButtons) updateButtonHover(btn, pm);
@@ -211,6 +244,13 @@ EditorPanel::PanelEvent EditorPanel::handleClick(sf::Vector2f pm, const State& s
 
     // Erase toggle
     if (btnHit(m_btnErase, pm)) return EvEraseToggle{};
+
+    // Elevation brush
+    if (btnHit(m_btnElevation, pm)) return EvElevationToggle{};
+    for (int i = 0; i < static_cast<int>(m_elevLevelButtons.size()); ++i) {
+        if (btnHit(m_elevLevelButtons[i], pm))
+            return EvElevationLevel{ i };
+    }
 
     // Building team selector
     for (int i = 0; i < static_cast<int>(m_bldTeamButtons.size()); ++i) {
@@ -287,6 +327,7 @@ void EditorPanel::render(sf::RenderWindow& window) const {
 
     window.draw(m_panelBg);
     window.draw(m_divider1);
+    window.draw(m_dividerElev);
     window.draw(m_dividerPalette);
     window.draw(m_dividerNeutral);
     window.draw(m_dividerStartPos);
@@ -298,6 +339,8 @@ void EditorPanel::render(sf::RenderWindow& window) const {
     if (m_lblName)      window.draw(*m_lblName);
     if (m_lblSize)      window.draw(*m_lblSize);
     if (m_lblPalette)   window.draw(*m_lblPalette);
+    if (m_lblElev)      window.draw(*m_lblElev);
+    if (m_lblElevHint)  window.draw(*m_lblElevHint);
     if (m_lblNeutral)   window.draw(*m_lblNeutral);
     if (m_lblStartPos)  window.draw(*m_lblStartPos);
     if (m_lblBuildings) window.draw(*m_lblBuildings);
@@ -327,6 +370,8 @@ void EditorPanel::render(sf::RenderWindow& window) const {
     drawBtn(m_btnSave);
     drawBtn(m_btnBack);
     drawBtn(m_btnErase);
+    drawBtn(m_btnElevation);
+    for (const auto& btn : m_elevLevelButtons) drawBtn(btn);
     for (const auto& btn : m_bldTeamButtons)  drawBtn(btn);
     for (const auto& btn : m_unitTeamButtons) drawBtn(btn);
 

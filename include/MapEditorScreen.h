@@ -6,7 +6,10 @@
 #include "EntityData.h"
 #include "MapSerializer.h"
 #include "EditorPanel.h"
+#include "EditorView3D.h"
+#include "Camera.h"
 #include <SFML/Graphics.hpp>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -35,12 +38,24 @@ private:
     sf::Vector2i m_panStart;
     sf::Vector2f m_panCameraStart;
 
+    // ---- 3D view (F9) -------------------------------------------------------
+    // m_camera stays the single source of truth (centre + visible ground size);
+    // the 3D view derives its Camera from it.
+    std::unique_ptr<EditorView3D> m_view3d;
+    bool         m_use3D          = false;
+    bool         m_terrain3DDirty = true;
+    sf::Vector2f m_panAnchor3D;   // ground point grabbed by the right-drag
+
     // ---- Editor modes -------------------------------------------------------
     enum class EditorMode { Tile, Entity };
     EditorMode m_mode = EditorMode::Tile;
 
     // ---- Tile painting ------------------------------------------------------
     TileType m_selectedTile = TileType::Grass;
+
+    // ---- Elevation painting (brush mode in the panel, or hold H; PageUp/PageDown = level) ---
+    int  m_elevationBrush = 1;
+    bool m_elevationMode  = false;
 
     // ---- Entity placement ---------------------------------------------------
     EntityType m_pendingEntityType = EntityType::None;
@@ -121,6 +136,8 @@ private:
     void resetCamera(sf::Vector2u winSize);
     void updateCameraViewport(sf::Vector2u winSize);
     void buildGridLines();
+    void showStatus(const std::string& text, bool ok = true);
+    void renderElevationOverlay(sf::RenderWindow& window);
 
     // Dialog buttons (local PanelButton)
     static bool btnHit(const PanelButton& btn, sf::Vector2f pm);
@@ -134,6 +151,11 @@ private:
     void tryEraseAt(sf::Vector2i pixel);
 
     sf::Vector2i screenToTile(sf::Vector2i pixel) const;
+    bool         view3DActive() const { return m_use3D && m_view3d; }
+    Camera       makeCamera3D() const;
+    sf::Vector2f pixelToWorld3D(sf::Vector2i pixel) const;
+    void         renderMap3D(sf::RenderWindow& window);
+    void         render2DMap(sf::RenderWindow& window, sf::Vector2u winSize);
     bool         inMapArea(sf::Vector2i pixel) const;
     void         tryPlaceEntity(sf::Vector2i pixel);
     void         renderPlacedEntities(sf::RenderWindow& window);

@@ -15,7 +15,6 @@ public:
     virtual ~Unit() = default;
     
     void update(float deltaTime) override;
-    void render(sf::RenderTarget& target) override;
     
     // Commands
     virtual void moveTo(sf::Vector2f target);

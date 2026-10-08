@@ -2,7 +2,6 @@
 #include "EntityData.h"
 #include "Constants.h"
 #include "TextureManager.h"
-#include "EntityDrawing.h"
 #include <cmath>
 
 ResourceNode::ResourceNode(EntityType type, sf::Vector2f position, int resourceAmount, int visualVariant)
@@ -31,8 +30,6 @@ ResourceNode::ResourceNode(EntityType type, sf::Vector2f position, int resourceA
     m_maxHealth = 1;
     m_health = 1;
     
-    updateShape();
-    
     // Load static sprite for this resource type
     switch (type) {
         case EntityType::MineralPatch:
@@ -54,18 +51,6 @@ void ResourceNode::update(float deltaTime) {
     if (m_resourceAmount <= 0 && m_health > 0) {
         m_health = 0;
     }
-}
-
-void ResourceNode::render(sf::RenderTarget& target) {
-    // Draw sprite if available, otherwise draw shape fallback
-    if (m_hasSprite) {
-        m_animatedSprite.render(target, m_position);
-    } else {
-        target.draw(m_shape);
-    }
-    
-    // Draw selection indicator if selected
-    EntityDrawing::drawSelectionIndicator(target, *this);
 }
 
 int ResourceNode::harvestResource() {

@@ -13,6 +13,13 @@ namespace Constants {
     constexpr int MAP_WIDTH  = 64;  // tiles
     constexpr int MAP_HEIGHT = 64;  // tiles
 
+    // Terrain elevation (heightmap).  Each tile has an integer level; one level
+    // is ELEVATION_STEP world units high.  A tile whose corners differ by
+    // CLIFF_LEVEL_DELTA levels or more is a cliff.
+    constexpr int   MAX_ELEVATION      = 8;
+    constexpr float ELEVATION_STEP     = 14.0f;
+    constexpr int   CLIFF_LEVEL_DELTA  = 2;
+
     // Camera
     constexpr float CAMERA_SPEED       = 500.0f;  // pixels per second
     constexpr float CAMERA_EDGE_MARGIN = 20.0f;

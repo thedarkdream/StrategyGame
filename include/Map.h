@@ -13,8 +13,8 @@ class Map {
 public:
     Map(int width = Constants::MAP_WIDTH, int height = Constants::MAP_HEIGHT);
 
-    // Delegates to TerrainRenderer.
-    void render(sf::RenderTarget& target, const sf::View& camera);
+    // Delegates to TerrainRenderer.  `visibleRect` is the world-space area to draw.
+    void render(sf::RenderTarget& target, const sf::FloatRect& visibleRect);
 
     // ── Tile access ──────────────────────────────────────────────────────────
     Tile& getTile(int x, int y);
@@ -55,11 +55,34 @@ public:
     int getWidth()  const { return m_width;  }
     int getHeight() const { return m_height; }
 
+    // Elevation (heightmap).  Each tile has an integer elevation level.  The
+    // terrain surface is defined on the (width+1) x (height+1) vertex grid: a
+    // vertex takes the highest level of the (up to four) tiles touching it, so
+    // raised tiles form flat plateaus and the neighbouring lower tiles carry
+    // the slope.
+    int   getTileElevation(int x, int y) const;
+    void  setTileElevation(int x, int y, int level);      // clamped to 0..MAX_ELEVATION
+    int   getVertexLevel(int vx, int vy) const;
+    float getVertexHeight(int vx, int vy) const;          // world units
+    float getHeightAt(sf::Vector2f worldPos) const;       // bilinear terrain height
+    bool  isCliffTile(int x, int y) const;                // slope too steep to walk/build
+    bool  hasElevation() const { return m_hasElevation; } // false for completely flat maps
+
+    // Terrain-only line of sight between two world points (eye raised slightly
+    // above the ground at `from`).  Always true on flat maps.
+    bool  hasLineOfSight(sf::Vector2f from, sf::Vector2f to) const;
+
 private:
     int m_width;
     int m_height;
     std::vector<std::vector<Tile>> m_tiles;
     std::mt19937 m_rng;
+
+    // Terrain surface cache: level of each corner vertex ((width+1) x (height+1)).
+    std::vector<std::uint8_t> m_vertexLevels;
+    bool                      m_hasElevation = false;
+    void resetTerrainCache();
+    void recomputeTerrainAround(int tileX, int tileY);
 
     // Sub-objects that own pathfinding and terrain-rendering concerns.
     // Declared after the tile data so they are initialised last and can safely

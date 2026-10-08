@@ -7,6 +7,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Find SFML 3.0
 find_package(SFML 3.0 COMPONENTS Graphics Window System Audio REQUIRED)
 
+# 3D rendering: math (GLM), GL function loader (GLEW), system OpenGL
+find_package(glm CONFIG REQUIRED)
+find_package(GLEW REQUIRED)
+find_package(OpenGL REQUIRED)
+
 # Source files
 set(SOURCES
     src/main.cpp
@@ -32,7 +37,13 @@ set(SOURCES
     src/ResourceNode.cpp
     src/Player.cpp
     src/InputHandler.cpp
-    src/Renderer.cpp
+    src/Renderer2D.cpp
+    src/EntityRenderer2D.cpp
+    src/Renderer3D.cpp
+    src/Scene3D.cpp
+    src/EditorView3D.cpp
+    src/GLShader.cpp
+    src/GLMesh.cpp
     src/Minimap.cpp
     src/ResourceManager.cpp
     src/AIController.cpp
@@ -78,7 +89,17 @@ set(HEADERS
     include/ResourceNode.h
     include/Player.h
     include/InputHandler.h
-    include/Renderer.h
+    include/Renderer2D.h
+    include/IRenderer.h
+    include/Camera.h
+    include/Camera3D.h
+    include/CameraSFML.h
+    include/EntityRenderer2D.h
+    include/Renderer3D.h
+    include/Scene3D.h
+    include/EditorView3D.h
+    include/GLShader.h
+    include/GLMesh.h
     include/ResourceManager.h
     include/AIController.h
     include/AIScript.h
@@ -111,7 +132,8 @@ add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
 # Link SFML 3.0
-target_link_libraries(${PROJECT_NAME} PRIVATE SFML::Graphics SFML::Window SFML::System SFML::Audio)
+target_link_libraries(${PROJECT_NAME} PRIVATE SFML::Graphics SFML::Window SFML::System SFML::Audio
+    glm::glm GLEW::GLEW OpenGL::GL)
 
 # Debug flags
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")

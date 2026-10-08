@@ -8,7 +8,6 @@
 #include "Map.h"
 #include "TextureManager.h"
 #include "SoundManager.h"
-#include "EntityDrawing.h"
 #include "PlayerActions.h"
 #include <cmath>
 #include <limits>
@@ -59,45 +58,6 @@ void Worker::attackMoveTo(sf::Vector2f target) {
     escapeCollisionIfNeeded();
     if (PlayerCommandScope::isActive()) playVoiceLine(VoiceAction::Attack, m_position);
     Unit::attackMoveTo(target);
-}
-
-void Worker::render(sf::RenderTarget& target) {
-    // Draw animated sprite if available, otherwise fallback to shape
-    if (m_hasSprite) {
-        m_animatedSprite.render(target, m_position);
-    } else {
-        target.draw(m_shape);
-    }
-    
-    // Draw selection indicator
-    EntityDrawing::drawSelectionIndicator(target, *this);
-    
-    // Draw health bar
-    EntityDrawing::drawHealthBar(target, *this);
-    
-    // Draw carried resources indicator
-    if (m_carriedResources > 0) {
-        static sf::Texture* mineralTex = TextureManager::instance().loadTexture("resources/mineral_carried.png");
-        if (mineralTex) {
-            sf::Sprite indicator(*mineralTex);
-            // Display at a fixed 12×12 pixel size regardless of source resolution
-            float scale = 12.0f / static_cast<float>(std::max(mineralTex->getSize().x, mineralTex->getSize().y));
-            indicator.setScale(sf::Vector2f(scale, scale));
-            indicator.setOrigin(sf::Vector2f(mineralTex->getSize().x / 2.0f,
-                                             mineralTex->getSize().y / 2.0f));
-            indicator.setPosition(sf::Vector2f(m_position.x + m_size.x / 2.0f,
-                                               m_position.y - m_size.y / 2.0f));
-            target.draw(indicator);
-        } else {
-            // Fallback cyan dot if texture not found
-            sf::CircleShape resourceIndicator(4.0f);
-            resourceIndicator.setOrigin(sf::Vector2f(4.0f, 4.0f));
-            resourceIndicator.setPosition(sf::Vector2f(m_position.x + m_size.x / 2.0f,
-                                                       m_position.y - m_size.y / 2.0f));
-            resourceIndicator.setFillColor(sf::Color::Cyan);
-            target.draw(resourceIndicator);
-        }
-    }
 }
 
 void Worker::gather(EntityPtr resource) {

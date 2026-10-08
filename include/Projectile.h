@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Entity.h"
-#include <SFML/Graphics/CircleShape.hpp>
 
 // A lightweight homing projectile entity.
 // - Not selectable, not collidable (flies over terrain/units)
@@ -14,7 +13,6 @@ public:
     static void preload();  // Preload sounds for projectile impact
     
     void update(float deltaTime) override;
-    void render(sf::RenderTarget& target) override;
     
     // Projectiles are not interactable
     bool isSelectable() const { return false; }
@@ -30,6 +28,4 @@ private:
     float m_speed;
     
     static constexpr float IMPACT_RADIUS = 8.0f;  // Distance at which rocket detonates
-    
-    sf::CircleShape m_circle;
 };

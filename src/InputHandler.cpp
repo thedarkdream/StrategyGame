@@ -52,7 +52,7 @@ void InputHandler::update(float deltaTime) {
 }
 
 sf::Vector2f InputHandler::screenToWorld(sf::Vector2i screenPos) const {
-    return m_window.mapPixelToCoords(screenPos, m_camera);
+    return m_game.getRenderer().screenToWorld(m_camera, screenPos, m_game.getMap());
 }
 
 void InputHandler::onWindowResize(sf::Vector2u newSize) {
@@ -117,23 +117,40 @@ void InputHandler::updateCameraKeyScroll(float deltaTime) {
 }
 
 void InputHandler::clampCamera() {
+    const sf::Vector2u winSize = m_window.getSize();
+    if (winSize.x == 0 || winSize.y == 0) return;
+
     sf::Vector2f center = m_camera.getCenter();
-    sf::Vector2f halfSize = m_camera.getSize() / 2.0f;
     
     const Map& map = m_game.getMap();
     float mapWidth = static_cast<float>(map.getWidth() * Constants::TILE_SIZE);
     float mapHeight = static_cast<float>(map.getHeight() * Constants::TILE_SIZE);
+
+    // Ground distance from the camera centre to the edges of the screen, asked of
+    // the active renderer so the clamp follows its projection.  In 2D this is
+    // simply half the view size; in 3D the bottom of the screen is closer to the
+    // camera and covers less ground than the top, so the margins differ per side.
+    const IRenderer& renderer = m_game.getRenderer();
+    const int w = static_cast<int>(winSize.x);
+    const int h = static_cast<int>(winSize.y);
+    const sf::Vector2f bottomLeft  = renderer.screenToWorld(m_camera, { 0, h },     map);
+    const sf::Vector2f bottomRight = renderer.screenToWorld(m_camera, { w, h },     map);
+    const sf::Vector2f topCenter   = renderer.screenToWorld(m_camera, { w / 2, 0 }, map);
+    const float marginLeft   = std::max(0.0f, center.x - bottomLeft.x);
+    const float marginRight  = std::max(0.0f, bottomRight.x - center.x);
+    const float marginTop    = std::max(0.0f, center.y - topCenter.y);
+    const float marginBottom = std::max(0.0f, bottomLeft.y - center.y);
     
     // If the view is larger than the map, centre on the map instead of clamping
-    if (halfSize.x * 2.0f >= mapWidth)
-        center.x = mapWidth / 2.0f;
+    if (marginLeft + marginRight >= mapWidth)
+        center.x = (mapWidth + marginLeft - marginRight) / 2.0f;
     else
-        center.x = std::max(halfSize.x, std::min(center.x, mapWidth - halfSize.x));
+        center.x = std::max(marginLeft, std::min(center.x, mapWidth - marginRight));
 
-    if (halfSize.y * 2.0f >= mapHeight)
-        center.y = mapHeight / 2.0f;
+    if (marginTop + marginBottom >= mapHeight)
+        center.y = (mapHeight + marginTop - marginBottom) / 2.0f;
     else
-        center.y = std::max(halfSize.y, std::min(center.y, mapHeight - halfSize.y));
+        center.y = std::max(marginTop, std::min(center.y, mapHeight - marginBottom));
     
     m_camera.setCenter(center);
 }
@@ -194,7 +211,7 @@ void InputHandler::handleMousePress(sf::Vector2i position, sf::Mouse::Button but
     if (button == sf::Mouse::Button::Left) {
         if (m_targetingMode) {
             // Execute the targeted action
-            EntityPtr target = m_game.getWorld().getAt(worldPos);
+            EntityPtr target = m_game.getRenderer().pickEntity(m_camera, position, m_game);
             executeTargetingAction(worldPos, target, shift);
             exitTargetingMode();
         } else if (m_buildMode) {
@@ -206,6 +223,8 @@ void InputHandler::handleMousePress(sf::Vector2i position, sf::Mouse::Button but
             m_isSelecting = true;
             m_selectionStart = worldPos;
             m_selectionEnd = worldPos;
+            m_selectionStartPx = position;
+            m_selectionEndPx = position;
         }
     } else if (button == sf::Mouse::Button::Right) {
         if (m_targetingMode) {
@@ -215,14 +234,13 @@ void InputHandler::handleMousePress(sf::Vector2i position, sf::Mouse::Button but
             exitBuildMode();
         } else {
             // Smart right-click: delegate command dispatch to PlayerActions
-            EntityPtr target = m_game.getWorld().getAt(worldPos);
+            EntityPtr target = m_game.getRenderer().pickEntity(m_camera, position, m_game);
             m_game.getActions().issueSmartRightClick(worldPos, target, shift);
         }
     } else if (button == sf::Mouse::Button::Middle) {
-        // Start map drag scrolling
+        // Start map drag scrolling: the ground point under the cursor is pinned to it
         m_isDraggingMap = true;
-        m_dragStartScreenPos = position;
-        m_dragStartCameraPos = m_camera.getCenter();
+        m_dragAnchorWorld = worldPos;
     }
 }
 
@@ -242,8 +260,8 @@ void InputHandler::handleMouseRelease(sf::Vector2i position, sf::Mouse::Button b
         if (m_isSelecting) {
             m_isSelecting = false;
             
-            // Check if it was a click or drag
-            sf::FloatRect selectionBox = getSelectionBox();
+            // Check if it was a click or drag (measured in screen pixels)
+            sf::FloatRect selectionBox = getSelectionBoxScreen();
             if (selectionBox.size.x < 5.0f && selectionBox.size.y < 5.0f) {
                 // Check for double-click
                 float timeSinceLastClick = m_lastClickClock.getElapsedTime().asSeconds();
@@ -257,7 +275,7 @@ void InputHandler::handleMouseRelease(sf::Vector2i position, sf::Mouse::Button b
                 
                 if (isDoubleClick) {
                     // Double-click: select all units of same type on screen
-                    EntityPtr entity = m_game.getWorld().getAt(m_selectionStart);
+                    EntityPtr entity = m_game.getRenderer().pickEntity(m_camera, m_selectionStartPx, m_game);
                     if (entity && entity->getTeam() == m_game.getPlayer().getTeam()) {
                         if (entity->asUnit()) {
                             selectAllOfTypeOnScreen(entity->getType());
@@ -265,7 +283,7 @@ void InputHandler::handleMouseRelease(sf::Vector2i position, sf::Mouse::Button b
                     }
                 } else {
                     // Single click selection
-                    performSelection(m_selectionStart);
+                    performSelection(m_selectionStartPx);
                 }
                 
                 // Update last click tracking
@@ -282,19 +300,10 @@ void InputHandler::handleMouseRelease(sf::Vector2i position, sf::Mouse::Button b
 void InputHandler::handleMouseMove(sf::Vector2i position) {
     // Handle middle-click map dragging
     if (m_isDraggingMap) {
-        // Calculate how much mouse moved in screen pixels
-        sf::Vector2i delta = m_dragStartScreenPos - position;
-        
-        // Convert pixel delta to world units based on current camera zoom
-        sf::Vector2f viewSize = m_camera.getSize();
-        sf::Vector2u windowSize = m_window.getSize();
-        float scaleX = viewSize.x / static_cast<float>(windowSize.x);
-        float scaleY = viewSize.y / static_cast<float>(windowSize.y);
-        
-        sf::Vector2f worldDelta(delta.x * scaleX, delta.y * scaleY);
-        
-        // Move camera by the delta
-        m_camera.setCenter(m_dragStartCameraPos + worldDelta);
+        // Shift the camera so the pinned ground point is back under the cursor.
+        // Exact for the top-down view and for the perspective view alike.
+        sf::Vector2f under = screenToWorld(position);
+        m_camera.move(m_dragAnchorWorld - under);
         clampCamera();
         return;
     }
@@ -312,6 +321,7 @@ void InputHandler::handleMouseMove(sf::Vector2i position) {
     
     if (m_isSelecting) {
         m_selectionEnd = worldPos;
+        m_selectionEndPx = position;
     }
     
     if (m_buildMode) {
@@ -464,8 +474,8 @@ std::string InputHandler::keyToHotkey(sf::Keyboard::Key code) {
     }
 }
 
-void InputHandler::performSelection(sf::Vector2f worldPos) {
-    EntityPtr entity = m_game.getWorld().getAt(worldPos);
+void InputHandler::performSelection(sf::Vector2i pixel) {
+    EntityPtr entity = m_game.getRenderer().pickEntity(m_camera, pixel, m_game);
     
     Player& player = m_game.getPlayer();
     
@@ -497,10 +507,8 @@ void InputHandler::performSelection(sf::Vector2f worldPos) {
 }
 
 void InputHandler::performBoxSelection() {
-    sf::FloatRect selectionBox = getSelectionBox();
-    
-    std::vector<EntityPtr> selected = m_game.getWorld().getInRect(
-        selectionBox, m_game.getPlayer().getTeam());
+    std::vector<EntityPtr> selected = m_game.getRenderer().pickEntitiesInRect(
+        m_camera, m_selectionStartPx, m_selectionEndPx, m_game.getPlayer().getTeam(), m_game);
     
     // If we have both units and buildings, prefer units only
     bool hasUnits = false;
@@ -528,18 +536,14 @@ void InputHandler::performBoxSelection() {
 }
 
 void InputHandler::selectAllOfTypeOnScreen(EntityType type) {
-    // Get visible screen bounds in world coordinates
-    sf::Vector2f viewCenter = m_camera.getCenter();
-    sf::Vector2f viewSize = m_camera.getSize();
-    
-    sf::FloatRect screenBounds(
-        sf::Vector2f(viewCenter.x - viewSize.x / 2.0f, viewCenter.y - viewSize.y / 2.0f),
-        viewSize
-    );
+    // Everything currently on screen: the whole window as a rubber-band
+    const sf::Vector2u winSize = m_window.getSize();
+    const sf::Vector2i lastPixel(static_cast<int>(winSize.x) - 1, static_cast<int>(winSize.y) - 1);
     
     // Get all player entities in the visible area
     Player& player = m_game.getPlayer();
-    std::vector<EntityPtr> entitiesOnScreen = m_game.getWorld().getInRect(screenBounds, player.getTeam());
+    std::vector<EntityPtr> entitiesOnScreen = m_game.getRenderer().pickEntitiesInRect(
+        m_camera, sf::Vector2i(0, 0), lastPixel, player.getTeam(), m_game);
     
     // Filter to only units of the specified type
     std::vector<EntityPtr> unitsOfType;
@@ -567,6 +571,16 @@ sf::FloatRect InputHandler::getSelectionBox() const {
     float height = std::abs(m_selectionEnd.y - m_selectionStart.y);
     
     return sf::FloatRect(sf::Vector2f(left, top), sf::Vector2f(width, height));
+}
+
+sf::FloatRect InputHandler::getSelectionBoxScreen() const {
+    const int left   = std::min(m_selectionStartPx.x, m_selectionEndPx.x);
+    const int top    = std::min(m_selectionStartPx.y, m_selectionEndPx.y);
+    const int width  = std::abs(m_selectionEndPx.x - m_selectionStartPx.x);
+    const int height = std::abs(m_selectionEndPx.y - m_selectionStartPx.y);
+
+    return sf::FloatRect(sf::Vector2f(static_cast<float>(left), static_cast<float>(top)),
+                         sf::Vector2f(static_cast<float>(width), static_cast<float>(height)));
 }
 
 void InputHandler::enterTargetingMode(TargetingAction action) {

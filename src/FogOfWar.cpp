@@ -53,7 +53,8 @@ void FogOfWar::update(const UnitList& units, const BuildingList& buildings, cons
                 sf::Vector2f tileCentre = map.tileToWorldCenter(tx, ty);
                 float ddx = tileCentre.x - worldPos.x;
                 float ddy = tileCentre.y - worldPos.y;
-                if (ddx * ddx + ddy * ddy <= visionRadius * visionRadius) {
+                if (ddx * ddx + ddy * ddy <= visionRadius * visionRadius
+                    && map.hasLineOfSight(worldPos, tileCentre)) {
                     m_visible [ty * m_W + tx] = 1;
                     m_explored[ty * m_W + tx] = 1;   // Mark as discovered forever
                 }

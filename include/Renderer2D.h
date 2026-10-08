@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Types.h"
+#include "IRenderer.h"
 #include "Minimap.h"
 #include <SFML/Graphics.hpp>
 class Game;
@@ -8,19 +9,30 @@ class Map;
 class Player;
 class InputHandler;
 
-class Renderer {
+// SFML (2D) implementation of IRenderer.
+class Renderer2D : public IRenderer {
 public:
-    Renderer(sf::RenderWindow& window);
+    Renderer2D(sf::RenderWindow& window);
     
-    void render(Game& game);
-    void setCamera(const sf::View& camera) { m_camera = camera; }
+    void render(Game& game) override;
+    void setCamera(const Camera& camera) override { m_camera = camera; }
 
     // Call whenever the map tiles change so the minimap terrain is re-baked
-    void invalidateMinimapTerrain() { m_minimap.invalidate(); }
+    void invalidateMinimapTerrain() override { m_minimap.invalidate(); }
+
+    sf::Vector2f screenToWorld(const Camera& camera, sf::Vector2i pixel, const Map& map) const override;
+    EntityPtr pickEntity(const Camera& camera, sf::Vector2i pixel, Game& game) const override;
+    std::vector<EntityPtr> pickEntitiesInRect(const Camera& camera, sf::Vector2i cornerA,
+                                              sf::Vector2i cornerB, Team team,
+                                              Game& game) const override;
+
+    // Draws only the screen-space HUD (resource bar, minimap, action bar, unit
+    // panel).  Shared with Renderer3D, which draws its world through OpenGL.
+    void renderHud(Game& game);
     
 private:
     sf::RenderWindow& m_window;
-    sf::View m_camera;
+    Camera m_camera;
     const sf::Font* m_font{ nullptr };
 
     Minimap m_minimap;

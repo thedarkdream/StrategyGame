@@ -29,6 +29,8 @@ public:
         std::string  mapName;
         bool         nameActive    = false;
         bool         eraseMode     = false;
+        bool         elevationMode = false;
+        int          elevationLevel = 1;
         EntityType   pendingType   = EntityType::None;
         Team         pendingTeam   = Team::Player1;
         Team         bldTeam       = Team::Player1;
@@ -47,6 +49,8 @@ public:
     struct EvLoad   {};                         // "Load" clicked
     struct EvSave   {};                         // "Save" clicked
     struct EvEraseToggle {};                    // "Eraser" button clicked
+    struct EvElevationToggle {};                // "Elevation brush" button clicked
+    struct EvElevationLevel  { int level; };    // elevation level button clicked
     struct EvSelectTile   { TileType type; };   // tile swatch selected
     struct EvSelectEntity { EntityType type; Team team; }; // entity item selected
     struct EvCancelEntity {};                   // entity deselected (same item)
@@ -60,6 +64,7 @@ public:
         EvNone,
         EvBack, EvNew, EvLoad, EvSave,
         EvEraseToggle,
+        EvElevationToggle, EvElevationLevel,
         EvSelectTile, EvSelectEntity, EvCancelEntity,
         EvBldTeamChanged, EvUnitTeamChanged,
         EvNameFocused, EvNameUnfocused,
@@ -136,6 +141,7 @@ private:
     sf::RectangleShape      m_divider1;
     sf::RectangleShape      m_dividerProps;
     sf::RectangleShape      m_dividerPalette;
+    sf::RectangleShape      m_dividerElev;
     sf::RectangleShape      m_dividerNeutral;
     sf::RectangleShape      m_dividerStartPos;
     sf::RectangleShape      m_dividerBuildings;
@@ -146,6 +152,8 @@ private:
     std::optional<sf::Text> m_lblName;
     std::optional<sf::Text> m_lblSize;
     std::optional<sf::Text> m_lblPalette;
+    std::optional<sf::Text> m_lblElev;
+    std::optional<sf::Text> m_lblElevHint;
     std::optional<sf::Text> m_lblNeutral;
     std::optional<sf::Text> m_lblStartPos;
     std::optional<sf::Text> m_lblBuildings;
@@ -159,6 +167,8 @@ private:
     PanelButton m_btnSave;
     PanelButton m_btnBack;
     PanelButton m_btnErase;
+    PanelButton m_btnElevation;
+    std::vector<PanelButton> m_elevLevelButtons;
 
     std::vector<PanelButton> m_bldTeamButtons;
     std::vector<PanelButton> m_unitTeamButtons;

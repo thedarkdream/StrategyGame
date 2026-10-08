@@ -1,4 +1,6 @@
-#include "Renderer.h"
+#include "Renderer2D.h"
+#include "CameraSFML.h"
+#include "EntityRenderer2D.h"
 #include "FontManager.h"
 #include "Game.h"
 #include "Constants.h"
@@ -16,17 +18,17 @@
 #include <iomanip>
 #include <iostream>
 
-Renderer::Renderer(sf::RenderWindow& window)
+Renderer2D::Renderer2D(sf::RenderWindow& window)
     : m_window(window)
 {
     m_font = FontManager::instance().defaultFont();
 }
 
-void Renderer::render(Game& game) {
+void Renderer2D::render(Game& game) {
     m_window.clear(sf::Color(20, 20, 30));
     
     // Set camera view for world rendering
-    m_window.setView(m_camera);
+    m_window.setView(toSfView(m_camera));
     
     // ── World rendering order ───────────────────────────────────────────────
     // 1. Terrain
@@ -44,7 +46,10 @@ void Renderer::render(Game& game) {
     renderEntities(game);
 
     // 5. Visual effects (explosions, projectile trails …) above all entities.
-    EFFECTS.render(m_window);
+    for (const auto& effect : EFFECTS.all()) {
+        if (effect->isFinished()) continue;
+        EntityRenderer2D::drawAnimatedSprite(m_window, effect->getSprite(), effect->getWorldPosition());
+    }
     
     // 6. Rally-point lines / flags for selected buildings.
     renderRallyPoints(game);
@@ -59,6 +64,10 @@ void Renderer::render(Game& game) {
     }
     
     // ── Switch to pixel-perfect UI view ─────────────────────────────────────
+    renderHud(game);
+}
+
+void Renderer2D::renderHud(Game& game) {
     sf::Vector2u windowSize = m_window.getSize();
     sf::View uiView(sf::FloatRect(sf::Vector2f(0.f, 0.f), 
                     sf::Vector2f(static_cast<float>(windowSize.x), static_cast<float>(windowSize.y))));
@@ -68,8 +77,30 @@ void Renderer::render(Game& game) {
     renderUI(game);
 }
 
-void Renderer::renderMap(Map& map) {
-    map.render(m_window, m_camera);
+void Renderer2D::renderMap(Map& map) {
+    map.render(m_window, m_camera.getVisibleRect());
+}
+
+// ---------------------------------------------------------------------------
+// Picking – top-down view: pixels map linearly onto the ground plane.
+// ---------------------------------------------------------------------------
+sf::Vector2f Renderer2D::screenToWorld(const Camera& camera, sf::Vector2i pixel, const Map&) const {
+    return camera.screenToWorld(pixel, m_window.getSize());
+}
+
+EntityPtr Renderer2D::pickEntity(const Camera& camera, sf::Vector2i pixel, Game& game) const {
+    return game.getWorld().getAt(camera.screenToWorld(pixel, m_window.getSize()));
+}
+
+std::vector<EntityPtr> Renderer2D::pickEntitiesInRect(const Camera& camera, sf::Vector2i cornerA,
+                                                      sf::Vector2i cornerB, Team team,
+                                                      Game& game) const {
+    const sf::Vector2u size = m_window.getSize();
+    const sf::Vector2f a = camera.screenToWorld(cornerA, size);
+    const sf::Vector2f b = camera.screenToWorld(cornerB, size);
+    const sf::Vector2f topLeft(std::min(a.x, b.x), std::min(a.y, b.y));
+    const sf::Vector2f extent(std::abs(a.x - b.x), std::abs(a.y - b.y));
+    return game.getWorld().getInRect(sf::FloatRect(topLeft, extent), team);
 }
 
 // ---------------------------------------------------------------------------
@@ -87,7 +118,7 @@ void Renderer::renderMap(Map& map) {
 // Buildings that are currently visible are handled by renderEntities (the
 // post-fog pass) and therefore skipped here to avoid double-drawing.
 // ---------------------------------------------------------------------------
-void Renderer::renderGhosts(Game& game) {
+void Renderer2D::renderGhosts(Game& game) {
     const FogOfWar& fog = game.getPlayer().getFog();
     const Map&      map = game.getMap();
 
@@ -96,7 +127,7 @@ void Renderer::renderGhosts(Game& game) {
         if (!entity) continue;
         if (!entity->asResourceNode()) continue;
         if (entity->isAlive() || entity->isDying()) {
-            entity->render(m_window);
+            EntityRenderer2D::draw(m_window, *entity);
         }
     }
 
@@ -115,7 +146,7 @@ void Renderer::renderGhosts(Game& game) {
         // Draw the ghost.  For alive buildings this shows their sprite behind
         // the shroud; for destroyed buildings the EntityPtr keeps the object
         // in memory so the last-seen frame of the sprite is preserved.
-        entity->render(m_window);
+        EntityRenderer2D::draw(m_window, *entity);
     }
 }
 
@@ -125,7 +156,7 @@ void Renderer::renderGhosts(Game& game) {
 // been explored but are not currently seen are rendered with a dark shroud;
 // completely unexplored tiles are drawn fully black.
 // ---------------------------------------------------------------------------
-void Renderer::renderFogOverlay(Game& game) {
+void Renderer2D::renderFogOverlay(Game& game) {
     const FogOfWar& fog = game.getPlayer().getFog();
 
     const sf::Texture& fogTex = fog.getFogTexture();
@@ -149,7 +180,7 @@ void Renderer::renderFogOverlay(Game& game) {
 //   • Enemy units / buildings → only if the tile is currently in vision.
 //   • Resource nodes → handled by renderGhosts (before fog).
 // ---------------------------------------------------------------------------
-void Renderer::renderEntities(Game& game) {
+void Renderer2D::renderEntities(Game& game) {
     const FogOfWar& fog  = game.getPlayer().getFog();
     const Map&      map  = game.getMap();
     const Team      myTeam = game.getPlayer().getTeam();
@@ -167,11 +198,11 @@ void Renderer::renderEntities(Game& game) {
             if (!fog.isVisibleAtWorld(entity->getPosition(), map)) continue;
         }
 
-        entity->render(m_window);
+        EntityRenderer2D::draw(m_window, *entity);
     }
 }
 
-void Renderer::renderRallyPoints(Game& game) {
+void Renderer2D::renderRallyPoints(Game& game) {
     Player& player = game.getPlayer();
     
     for (const auto& entity : player.getSelection()) {
@@ -216,7 +247,7 @@ void Renderer::renderRallyPoints(Game& game) {
     }
 }
 
-void Renderer::renderUI(Game& game) {
+void Renderer2D::renderUI(Game& game) {
     renderResourceBar(game.getPlayer());
     renderMinimap(game);
     
@@ -234,7 +265,7 @@ void Renderer::renderUI(Game& game) {
     // Targeting mode is now shown via pressed button state in action bar
 }
 
-void Renderer::renderSelectionBox(const InputHandler& input) {
+void Renderer2D::renderSelectionBox(const InputHandler& input) {
     if (!input.isSelecting()) return;
     
     sf::FloatRect box = input.getSelectionBox();
@@ -247,7 +278,7 @@ void Renderer::renderSelectionBox(const InputHandler& input) {
     m_window.draw(selectionRect);
 }
 
-void Renderer::renderBuildPreview(const InputHandler& input, Map& map) {
+void Renderer2D::renderBuildPreview(const InputHandler& input, Map& map) {
     sf::Vector2f pos = input.getBuildPreviewPosition();
     EntityType buildType = input.getBuildingType();
     
@@ -276,17 +307,17 @@ void Renderer::renderBuildPreview(const InputHandler& input, Map& map) {
     // Create a temporary building to render its sprite preview
     Building previewBuilding(buildType, Team::Player1, pos);
     sf::Color tint = canPlace ? sf::Color(150, 255, 150, 180) : sf::Color(255, 150, 150, 180);
-    previewBuilding.renderPreview(m_window, tint);
+    EntityRenderer2D::drawBuildingPreview(m_window, previewBuilding, tint);
 }
 
 // ---------------------------------------------------------------------------
 // Minimap — delegated to Minimap class
 // ---------------------------------------------------------------------------
-void Renderer::renderMinimap(Game& game) {
+void Renderer2D::renderMinimap(Game& game) {
     m_minimap.render(m_window, game, m_camera);
 }
 
-void Renderer::renderResourceBar(Player& player) {
+void Renderer2D::renderResourceBar(Player& player) {
     sf::Vector2u windowSize = m_window.getSize();
     const float barHeight = 30.0f;
     
@@ -317,7 +348,7 @@ void Renderer::renderResourceBar(Player& player) {
     m_window.draw(unitText);
 }
 
-void Renderer::renderUnitPanel(Game& game) {
+void Renderer2D::renderUnitPanel(Game& game) {
     sf::Vector2u windowSize = m_window.getSize();
     Player& player = game.getPlayer();
     EntityPtr inspectedEnemy = game.getInput().getInspectedEnemy();
@@ -440,7 +471,7 @@ void Renderer::renderUnitPanel(Game& game) {
     }
 }
 
-void Renderer::renderTargetingModeIndicator(Game& game) {
+void Renderer2D::renderTargetingModeIndicator(Game& game) {
     InputHandler& input = game.getInput();
     if (!input.isInTargetingMode()) return;
     

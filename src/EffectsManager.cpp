@@ -8,11 +8,11 @@ EffectsManager& EffectsManager::instance() {
     return manager;
 }
 
-void EffectsManager::spawn(const std::string& animationPath, sf::Vector2f position, float scale) {
+Effect* EffectsManager::spawn(const std::string& animationPath, sf::Vector2f position, float scale) {
     auto effect = std::make_unique<Effect>(animationPath, position, scale);
-    if (!effect->isFinished()) {  // Only add if successfully initialized
-        m_effects.push_back(std::move(effect));
-    }
+    if (effect->isFinished()) return nullptr;  // Failed to initialise
+    m_effects.push_back(std::move(effect));
+    return m_effects.back().get();
 }
 
 void EffectsManager::spawnExplosion(sf::Vector2f position, float scale) {
@@ -21,7 +21,8 @@ void EffectsManager::spawnExplosion(sf::Vector2f position, float scale) {
 
 
 void EffectsManager::spawnMoveEffect(sf::Vector2f position, float scale) {
-    spawn("effects/move.png", position, scale);
+    if (Effect* effect = spawn("effects/move.png", position, scale))
+        effect->setGroundMarker(true);
 }
 
 void EffectsManager::update(float deltaTime) {
@@ -33,12 +34,6 @@ void EffectsManager::update(float deltaTime) {
             }),
         m_effects.end()
     );
-}
-
-void EffectsManager::render(sf::RenderTarget& target) {
-    for (auto& effect : m_effects) {
-        effect->render(target);
-    }
 }
 
 void EffectsManager::clear() {

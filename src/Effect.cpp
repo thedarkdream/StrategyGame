@@ -32,9 +32,3 @@ bool Effect::update(float deltaTime) {
     
     return false;  // Keep this effect
 }
-
-void Effect::render(sf::RenderTarget& target) {
-    if (m_finished || !m_initialized) return;
-    
-    m_sprite.render(target, m_position + m_offset);
-}

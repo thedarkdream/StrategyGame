@@ -20,8 +20,6 @@ Entity::Entity(EntityType type, Team team, sf::Vector2f position)
 {
     // Set color based on team using the central teamColor utility
     m_color = teamColor(m_team);
-    
-    updateShape();
 }
 
 sf::FloatRect Entity::getBounds() const {
@@ -56,15 +54,6 @@ void Entity::takeDamage(int damage, Team attackerTeam) {
     m_lastAttackerTeam = attackerTeam;
     // Apply damage
     takeDamage(damage);
-}
-
-void Entity::updateShape() {
-    m_shape.setSize(m_size);
-    m_shape.setOrigin(sf::Vector2f(m_size.x / 2.0f, m_size.y / 2.0f));
-    m_shape.setPosition(m_position);
-    m_shape.setFillColor(m_color);
-    m_shape.setOutlineThickness(1.0f);
-    m_shape.setOutlineColor(sf::Color::Black);
 }
 
 void Entity::startHighlight(float duration) {

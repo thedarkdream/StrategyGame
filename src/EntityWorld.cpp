@@ -141,6 +141,14 @@ EntityPtr EntityWorld::findHomeBase(Team team) const {
                 && entity->getType() == EntityType::Base)
             return entity;
     }
+    // Also search m_pending: during map load, buildings are added to m_pending
+    // but flush() hasn't run yet when the first workers call onSpawned().
+    for (const auto& entity : m_pending) {
+        if (entity && entity->isAlive()
+                && entity->getTeam() == team
+                && entity->getType() == EntityType::Base)
+            return entity;
+    }
     return nullptr;
 }
 

@@ -1,12 +1,14 @@
 #pragma once
 
 #include "Animation.h"
-#include <SFML/Graphics/Sprite.hpp>
-#include <SFML/Graphics/RenderTarget.hpp>
+#include <SFML/Graphics/Texture.hpp>
+#include <SFML/Graphics/Rect.hpp>
+#include <SFML/Graphics/Color.hpp>
 #include <string>
-#include <optional>
 
-// Renders an animated sprite using an AnimationSet
+// Animation playback state for an entity or effect.  It owns no drawable: a
+// renderer reads the current texture, source rectangle, origin and scale and
+// draws them however it likes.
 class AnimatedSprite {
 public:
     AnimatedSprite() = default;
@@ -36,9 +38,6 @@ public:
     // Update animation timing
     void update(float deltaTime);
     
-    // Render at position
-    void render(sf::RenderTarget& target, sf::Vector2f position);
-    
     // Set origin (center point for positioning)
     void setOrigin(sf::Vector2f origin);
     void centerOrigin();  // Center based on current frame size
@@ -47,17 +46,18 @@ public:
     void setScale(sf::Vector2f scale);
     void setScale(float uniformScale);
     
-    // Set rotation (degrees)
-    void setRotation(float degrees);
-    
-    // Set color tint
-    void setColor(sf::Color color);
-    
     // 8-directional facing
     void setDirection(Direction dir);
     Direction getDirection() const { return m_direction; }
     void setDirectionFromMovement(sf::Vector2f movement);
     
+    // What a renderer needs to draw the current frame.  The texture is null and
+    // the rectangle empty until an animation has been played.
+    const sf::Texture* getCurrentTexture() const;
+    sf::IntRect getCurrentTextureRect() const;   // includes the direction row
+    sf::Vector2f getOrigin() const;              // in unscaled frame pixels
+    sf::Vector2f getScale() const { return m_scale; }
+
     // Get current frame bounds (after scaling)
     sf::Vector2f getSize() const;
     
@@ -69,9 +69,6 @@ public:
     float getPlaybackSpeed() const { return m_playbackSpeed; }
     
 private:
-    void updateSprite();
-    void updateSpriteTexture();  // Switch texture when animation changes
-    
     const AnimationSet* m_animationSet = nullptr;
     const Animation* m_currentAnimation = nullptr;
     std::string m_currentAnimationName;
@@ -89,7 +86,4 @@ private:
     sf::Vector2f m_scale = {1.0f, 1.0f};
     sf::Vector2f m_customOrigin = {0.0f, 0.0f};
     bool m_useCustomOrigin = false;
-    
-    // Deferred sprite creation (SFML 3.0 requires texture in constructor)
-    std::optional<sf::Sprite> m_sprite;
 };

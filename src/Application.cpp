@@ -5,9 +5,22 @@
 #include "VictoryScreen.h"
 #include "Constants.h"
 
+namespace {
+// Depth/stencil buffers and an OpenGL 3.3 (compatibility) context so the 3D
+// renderer can run next to SFML's own 2D drawing.
+sf::ContextSettings makeContextSettings() {
+    sf::ContextSettings settings;
+    settings.depthBits    = 24;
+    settings.stencilBits  = 8;
+    settings.majorVersion = 3;
+    settings.minorVersion = 3;
+    return settings;
+}
+}
+
 Application::Application()
     : m_window(sf::VideoMode(sf::Vector2u(Constants::WINDOW_WIDTH, Constants::WINDOW_HEIGHT)),
-               "Strategy Game", sf::Style::Default)
+               "Strategy Game", sf::Style::Default, sf::State::Windowed, makeContextSettings())
 {
     m_window.setFramerateLimit(Constants::FRAME_RATE);
     switchToMenu();

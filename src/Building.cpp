@@ -3,7 +3,6 @@
 #include "Constants.h"
 #include "EffectsManager.h"
 #include "TextureManager.h"
-#include "EntityDrawing.h"
 
 #include <cmath>
 #include <cstdint>
@@ -17,7 +16,6 @@ Building::Building(EntityType type, Team team, sf::Vector2f position)
     m_health = m_maxHealth;
     
     m_rallyPoint = position + sf::Vector2f(m_size.x, 0.0f);
-    updateShape();
     
     // Load building sprite
     switch (type) {
@@ -74,71 +72,6 @@ void Building::update(float deltaTime) {
     
     if (isConstructed()) {
         updateProduction(deltaTime);
-    }
-}
-
-void Building::render(sf::RenderTarget& target) {
-    // Adjust alpha if under construction
-    sf::Color renderColor = m_color;
-    if (!isConstructed()) {
-        renderColor.a = static_cast<std::uint8_t>(128 + 127 * m_constructionProgress);
-    }
-    
-    // Convert to pixels for rendering
-    
-    
-    // Draw sprite if available, otherwise draw shape fallback
-    if (m_hasSprite) {
-        m_animatedSprite.render(target, m_position);
-    } else {
-        sf::RectangleShape shape = m_shape;
-        shape.setFillColor(renderColor);
-        target.draw(shape);
-    }
-    
-    // Draw selection indicator
-    EntityDrawing::drawSelectionIndicator(target, *this);
-    
-    // Draw health bar
-    EntityDrawing::drawHealthBar(target, *this);
-}
-
-void Building::renderPreview(sf::RenderTarget& target, sf::Color tint) {
-    // Convert to pixels for rendering
-    
-    
-    
-    if (m_hasSprite) {
-        m_animatedSprite.setColor(tint);
-        m_animatedSprite.render(target, m_position);
-        m_animatedSprite.setColor(sf::Color::White);  // Reset tint
-    } else {
-        sf::RectangleShape shape = m_shape;
-        shape.setFillColor(tint);
-        target.draw(shape);
-    }
-    
-    // Draw construction/production progress
-    if (!isConstructed() || m_isProducing) {
-        float progress = isConstructed() ? getProductionProgress() : m_constructionProgress;
-        
-        const float barWidth = m_size.x * 0.8f;
-        const float barHeight = 6.0f;
-        const float yOffset = m_size.y / 2.0f + 10.0f;
-        
-        // Background
-        sf::RectangleShape bgBar(sf::Vector2f(barWidth, barHeight));
-        bgBar.setOrigin(sf::Vector2f(barWidth / 2.0f, barHeight / 2.0f));
-        bgBar.setPosition(sf::Vector2f(m_position.x, m_position.y + yOffset));
-        bgBar.setFillColor(sf::Color(50, 50, 50));
-        target.draw(bgBar);
-        
-        // Progress
-        sf::RectangleShape progressBar(sf::Vector2f(barWidth * progress, barHeight));
-        progressBar.setOrigin(sf::Vector2f(barWidth / 2.0f, barHeight / 2.0f));
-        progressBar.setPosition(sf::Vector2f(m_position.x, m_position.y + yOffset));
-        progressBar.setFillColor(sf::Color(255, 200, 0));  // Yellow
-        target.draw(progressBar);
     }
 }
 

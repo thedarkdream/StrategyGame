@@ -24,8 +24,8 @@ public:
     // Loads all terrain textures on construction.
     TerrainRenderer();
 
-    // Draw all tiles visible inside [camera] onto [target].
-    void render(sf::RenderTarget& target, const sf::View& camera, const Map& map);
+    // Draw all tiles inside the world-space [visibleRect] onto [target].
+    void render(sf::RenderTarget& target, const sf::FloatRect& visibleRect, const Map& map);
 
 private:
     // ── Base terrain textures ────────────────────────────────────────────────
