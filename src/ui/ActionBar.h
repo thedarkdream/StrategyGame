@@ -2,7 +2,7 @@
 
 #include "core/Types.h"
 #include "entities/EntityData.h"
-#include "game/InputHandler.h"
+#include "ui/InputHandler.h"
 #include <SFML/Graphics.hpp>
 #include <vector>
 #include <unordered_map>

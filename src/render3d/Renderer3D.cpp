@@ -14,7 +14,7 @@
 #include "game/FogOfWar.h"
 #include "fx/EffectsManager.h"
 #include "game/Player.h"
-#include "game/InputHandler.h"
+#include "ui/InputHandler.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include <algorithm>
 #include <array>
@@ -213,7 +213,7 @@ void Renderer3D::drawSelectionRect(const InputHandler& input) {
     m_window.draw(rect);
 }
 
-void Renderer3D::render(Game& game) {
+void Renderer3D::render(Game& game, FrameContext& frame) {
     m_window.setActive(true);
 
     const sf::Vector2u size = m_window.getSize();
@@ -226,7 +226,7 @@ void Renderer3D::render(Game& game) {
     m_barMesh.upload(m_barData, true);
 
     m_previewData.clear();
-    Overlay3D::addBuildPreview(game, m_previewData);
+    Overlay3D::addBuildPreview(game, frame.input, m_previewData);
     const bool hasPreview = !m_previewData.indices.empty();
     if (hasPreview) m_previewMesh.upload(m_previewData, true);
 
@@ -277,6 +277,6 @@ void Renderer3D::render(Game& game) {
     // ── Hand the context back to SFML for the 2D HUD ───────────────────────
     Scene3D::endGLPass(m_window);
 
-    m_hud.renderHud(game);
-    drawSelectionRect(game.getInput());
+    m_hud.renderHud(game, frame);
+    drawSelectionRect(frame.input);
 }

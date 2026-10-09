@@ -1,7 +1,4 @@
 #include "game/Game.h"
-#include "render2d/Renderer2D.h"
-#include "render3d/Renderer3D.h"
-#include "render2d/CameraSFML.h"
 #include "entities/Unit.h"
 #include "entities/Worker.h"
 #include "entities/Building.h"
@@ -20,42 +17,14 @@
 #include <iostream>
 #include <cmath>
 
-Game::Game(sf::RenderWindow& window, const std::string& mapFile, int localPlayerSlot)
-    : m_window(window)
-    , m_mapFile(mapFile)
+Game::Game(const std::string& mapFile, int localPlayerSlot)
+    : m_mapFile(mapFile)
     , m_localSlot(localPlayerSlot)
 {
     initialize();
 }
 
-void Game::handleEvent(const sf::Event& event) {
-    if (const auto* resized = event.getIf<sf::Event::Resized>()) {
-        m_input->onWindowResize(resized->size);
-    }
-
-    // F9 toggles between the 2D and the (experimental) 3D renderer.
-    if (const auto* key = event.getIf<sf::Event::KeyPressed>()) {
-        if (key->code == sf::Keyboard::Key::F9) {
-            toggleRenderer();
-            return;
-        }
-    }
-
-    // Debug console gets first refusal; if it consumes the event, stop here.
-    if (m_debugConsole && m_debugConsole->handleEvent(event)) {
-        return;
-    }
-
-    m_input->handleEvent(event);
-}
-
 void Game::update(float deltaTime) {
-    // Update input (camera movement)
-    m_input->update(deltaTime);
-    
-    // Update sound listener position to camera center
-    SOUNDS.setListenerPosition(m_input->getCamera().getCenter());
-    
     // Update all entities (units, buildings, projectiles, etc.) regardless of owner
     // NOTE: new entities spawned mid-loop (e.g. rockets) are buffered in the world's
     // pending list and flushed after the loop to avoid iterator invalidation.
@@ -87,40 +56,6 @@ void Game::update(float deltaTime) {
 
     // Check victory/defeat
     checkVictoryConditions();
-}
-
-void Game::toggleRenderer() {
-    if (m_use3D) {
-        m_renderer = std::make_unique<Renderer2D>(m_window);
-        m_use3D = false;
-        return;
-    }
-    try {
-        m_renderer = std::make_unique<Renderer3D>(m_window);
-        m_use3D = true;
-    } catch (const std::exception& e) {
-        std::cerr << "3D renderer unavailable: " << e.what() << std::endl;
-    }
-}
-
-void Game::render() {
-    m_renderer->setCamera(m_input->getCamera());
-    m_renderer->render(*this);  // ends with UI view active on the window
-
-    if (m_debugConsole) {
-        // World-space overlays (waypoints + IDs)
-        m_window.setView(toSfView(m_input->getCamera()));
-        m_debugConsole->renderWaypoints(m_window);
-        m_debugConsole->renderIds(m_window);
-
-        // Console input bar / log is drawn in screen space
-        sf::Vector2u winSize = m_window.getSize();
-        sf::View uiView(sf::FloatRect(
-            sf::Vector2f(0.f, 0.f),
-            sf::Vector2f(static_cast<float>(winSize.x), static_cast<float>(winSize.y))));
-        m_window.setView(uiView);
-        m_debugConsole->render(m_window);
-    }
 }
 
 void Game::initialize() {
@@ -161,11 +96,6 @@ void Game::initialize() {
         m_actions[i] = std::make_unique<PlayerActions>(*m_players[i], *this);
         m_actions[i]->setLocalPlayer(i == m_localSlot);
     }
-
-    // Create input handler, renderer, and debug console
-    m_input        = std::make_unique<InputHandler>(m_window, *this);
-    m_renderer     = std::make_unique<Renderer2D>(m_window);
-    m_debugConsole = std::make_unique<DebugConsole>(m_window, *this);
 
     // Assign controllers: human for the local slot, AI for all other occupied slots
     for (int i = 0; i < MAX_PLAYERS; ++i) {
@@ -355,9 +285,10 @@ void Game::setupFromMapData(const MapData& data) {
         }
     }
 
-    // If the map defined a starting position for the local player, centre the camera there
-    if (cameraTarget.x >= 0.f && m_input)
-        m_input->centerCameraAt(cameraTarget);
+    // If the map defined a starting position for the local player, remember it so
+    // the screen can centre the camera there.
+    if (cameraTarget.x >= 0.f)
+        m_localStart = cameraTarget;
 }
 
 void Game::spawnUnit(EntityType type, Team team, sf::Vector2f position) {

@@ -10,7 +10,7 @@
 #include "entities/Building.h"
 #include "entities/ResourceNode.h"
 #include "game/Player.h"
-#include "game/InputHandler.h"
+#include "ui/InputHandler.h"
 #include "ui/ActionBar.h"
 #include "fx/EffectsManager.h"
 #include "game/FogOfWar.h"
@@ -24,7 +24,7 @@ Renderer2D::Renderer2D(sf::RenderWindow& window)
     m_font = FontManager::instance().defaultFont();
 }
 
-void Renderer2D::render(Game& game) {
+void Renderer2D::render(Game& game, FrameContext& frame) {
     m_window.clear(sf::Color(20, 20, 30));
     
     // Set camera view for world rendering
@@ -55,7 +55,7 @@ void Renderer2D::render(Game& game) {
     renderRallyPoints(game);
     
     // 7. Selection rubber-band.
-    InputHandler& input = game.getInput();
+    InputHandler& input = frame.input;
     renderSelectionBox(input);
     
     // 8. Build-placement preview.
@@ -64,17 +64,17 @@ void Renderer2D::render(Game& game) {
     }
     
     // ── Switch to pixel-perfect UI view ─────────────────────────────────────
-    renderHud(game);
+    renderHud(game, frame);
 }
 
-void Renderer2D::renderHud(Game& game) {
+void Renderer2D::renderHud(Game& game, FrameContext& frame) {
     sf::Vector2u windowSize = m_window.getSize();
     sf::View uiView(sf::FloatRect(sf::Vector2f(0.f, 0.f), 
                     sf::Vector2f(static_cast<float>(windowSize.x), static_cast<float>(windowSize.y))));
     m_window.setView(uiView);
     
     // Render UI elements
-    renderUI(game);
+    renderUI(game, frame);
 }
 
 void Renderer2D::renderMap(Map& map) {
@@ -247,21 +247,21 @@ void Renderer2D::renderRallyPoints(Game& game) {
     }
 }
 
-void Renderer2D::renderUI(Game& game) {
+void Renderer2D::renderUI(Game& game, FrameContext& frame) {
     renderResourceBar(game.getPlayer());
     renderMinimap(game);
     
     // Render action bar through ActionBar class
-    ActionBar& actionBar = game.getActionBar();
+    ActionBar& actionBar = frame.actionBar;
     actionBar.setWindowSize(m_window.getSize());
-    actionBar.setTargetingAction(game.getInput().getTargetingAction());
-    actionBar.setBuildModeType(game.getInput().getBuildingType());
+    actionBar.setTargetingAction(frame.input.getTargetingAction());
+    actionBar.setBuildModeType(frame.input.getBuildingType());
     if (m_font) {
         actionBar.setFont(m_font);
     }
     actionBar.render(m_window, game.getPlayer());
     
-    renderUnitPanel(game);
+    renderUnitPanel(game, frame.input);
     // Targeting mode is now shown via pressed button state in action bar
 }
 
@@ -348,10 +348,10 @@ void Renderer2D::renderResourceBar(Player& player) {
     m_window.draw(unitText);
 }
 
-void Renderer2D::renderUnitPanel(Game& game) {
+void Renderer2D::renderUnitPanel(Game& game, const InputHandler& input) {
     sf::Vector2u windowSize = m_window.getSize();
     Player& player = game.getPlayer();
-    EntityPtr inspectedEnemy = game.getInput().getInspectedEnemy();
+    EntityPtr inspectedEnemy = input.getInspectedEnemy();
     
     // Check if we have something to display
     if (!player.hasSelection() && !inspectedEnemy) return;
@@ -471,8 +471,7 @@ void Renderer2D::renderUnitPanel(Game& game) {
     }
 }
 
-void Renderer2D::renderTargetingModeIndicator(Game& game) {
-    InputHandler& input = game.getInput();
+void Renderer2D::renderTargetingModeIndicator(const InputHandler& input) {
     if (!input.isInTargetingMode()) return;
     
     if (!m_font) return;

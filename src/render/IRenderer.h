@@ -1,9 +1,9 @@
 #pragma once
 
 // ---------------------------------------------------------------------------
-// IRenderer — backend-agnostic entry point used by Game.
+// IRenderer — backend-agnostic entry point used by GameScreen.
 //
-// Game owns a std::unique_ptr<IRenderer> and never touches a concrete
+// GameScreen owns a std::unique_ptr<IRenderer> and never touches a concrete
 // backend.  Renderer2D is the SFML implementation, Renderer3D the OpenGL one;
 // F9 switches between them at runtime.
 //
@@ -17,6 +17,15 @@
 
 class Game;
 class Map;
+class InputHandler;
+class ActionBar;
+
+// Presentation state a frame needs besides the simulation (Game): what the player
+// is currently doing (selection rectangle, build mode, ...) and the HUD widget.
+struct FrameContext {
+    InputHandler& input;
+    ActionBar&    actionBar;
+};
 
 class IRenderer {
 public:
@@ -25,7 +34,7 @@ public:
     virtual void setCamera(const Camera& camera) = 0;
 
     // Draws the whole game frame (world + HUD).
-    virtual void render(Game& game) = 0;
+    virtual void render(Game& game, FrameContext& frame) = 0;
 
     // Call whenever the map tiles change so cached minimap terrain is re-baked.
     virtual void invalidateMinimapTerrain() = 0;

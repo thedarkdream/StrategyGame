@@ -40,7 +40,7 @@ public:
     explicit Renderer3D(sf::RenderWindow& window);
     ~Renderer3D() override;
 
-    void render(Game& game) override;
+    void render(Game& game, FrameContext& frame) override;
     void setCamera(const Camera& camera) override {
         m_camera = camera;
         m_hud.setCamera(camera);

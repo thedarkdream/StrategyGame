@@ -106,21 +106,21 @@ joc_strategie/
 +-- src/
     +-- main.cpp
     +-- app/        Application: window, GL context, screen switching
-    +-- screens/    Screen interface + Menu, Game, MapEditor, Victory screens
-    +-- game/       Game (session + composition root), Player, PlayerActions,
-    ¦               InputHandler, FogOfWar, GameStatistics, ResourceManager
+    +-- screens/    Screen interface + Menu, Game (presentation of a match), MapEditor, Victory screens
+    +-- game/       Game (the simulation of one match), Player, PlayerActions,
+    â”‚               FogOfWar, GameStatistics, ResourceManager
     +-- entities/   Entity, Unit/Worker/Soldier/..., Building, Turret, ResourceNode,
-    ¦               Projectile, EntityWorld, EntityData (registry), IGameContext
+    ï¿½               Projectile, EntityWorld, EntityData (registry), IGameContext
     +-- ai/         AIController, AIScript, PlayerController
     +-- world/      Map, Pathfinder, MapSerializer, TerrainTiling (no rendering)
-    +-- ui/         ActionBar, Minimap, DebugConsole, EditorPanel (2D HUD widgets)
+    +-- ui/         ActionBar, Minimap, DebugConsole, EditorPanel, InputHandler
     +-- fx/         Effect, EffectsManager
     +-- sprite/     Animation, AnimatedSprite (sprite animation state)
     +-- media/      TextureManager, SoundManager, FontManager
     +-- render/     Renderer-agnostic: IRenderer, Camera, EntityVisual
     +-- render2d/   SFML renderer: Renderer2D, EntityRenderer2D, TerrainRenderer
     +-- render3d/   OpenGL renderer: Renderer3D, Scene3D, terrain/sprite/model
-    ¦               batches, Camera3D, picking, glTF Model/ModelLoader, EditorView3D
+    ï¿½               batches, Camera3D, picking, glTF Model/ModelLoader, EditorView3D
     +-- gl/         GLShader, GLMesh
     +-- core/       Types, Constants, MathUtil, IdGenerator (no dependencies)
 ```

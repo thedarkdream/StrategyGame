@@ -1,5 +1,6 @@
-#include "game/InputHandler.h"
+#include "ui/InputHandler.h"
 #include "game/Game.h"
+#include "render/IRenderer.h"
 #include "core/Constants.h"
 #include "ui/Minimap.h"
 #include "entities/Entity.h"
@@ -12,9 +13,10 @@
 #include <cmath>
 #include <algorithm>
 
-InputHandler::InputHandler(sf::RenderWindow& window, Game& game)
+InputHandler::InputHandler(sf::RenderWindow& window, Game& game, ActionBar& actionBar)
     : m_window(window)
     , m_game(game)
+    , m_actionBar(actionBar)
 {
     // Initialize camera with reference game dimensions
     // This defines the visible area in game units (always the same regardless of window size)
@@ -52,7 +54,7 @@ void InputHandler::update(float deltaTime) {
 }
 
 sf::Vector2f InputHandler::screenToWorld(sf::Vector2i screenPos) const {
-    return m_game.getRenderer().screenToWorld(m_camera, screenPos, m_game.getMap());
+    return m_renderer->screenToWorld(m_camera, screenPos, m_game.getMap());
 }
 
 void InputHandler::onWindowResize(sf::Vector2u newSize) {
@@ -130,7 +132,7 @@ void InputHandler::clampCamera() {
     // the active renderer so the clamp follows its projection.  In 2D this is
     // simply half the view size; in 3D the bottom of the screen is closer to the
     // camera and covers less ground than the top, so the margins differ per side.
-    const IRenderer& renderer = m_game.getRenderer();
+    const IRenderer& renderer = *m_renderer;
     const int w = static_cast<int>(winSize.x);
     const int h = static_cast<int>(winSize.y);
     const sf::Vector2f bottomLeft  = renderer.screenToWorld(m_camera, { 0, h },     map);
@@ -211,7 +213,7 @@ void InputHandler::handleMousePress(sf::Vector2i position, sf::Mouse::Button but
     if (button == sf::Mouse::Button::Left) {
         if (m_targetingMode) {
             // Execute the targeted action
-            EntityPtr target = m_game.getRenderer().pickEntity(m_camera, position, m_game);
+            EntityPtr target = m_renderer->pickEntity(m_camera, position, m_game);
             executeTargetingAction(worldPos, target, shift);
             exitTargetingMode();
         } else if (m_buildMode) {
@@ -234,7 +236,7 @@ void InputHandler::handleMousePress(sf::Vector2i position, sf::Mouse::Button but
             exitBuildMode();
         } else {
             // Smart right-click: delegate command dispatch to PlayerActions
-            EntityPtr target = m_game.getRenderer().pickEntity(m_camera, position, m_game);
+            EntityPtr target = m_renderer->pickEntity(m_camera, position, m_game);
             m_game.getActions().issueSmartRightClick(worldPos, target, shift);
         }
     } else if (button == sf::Mouse::Button::Middle) {
@@ -275,7 +277,7 @@ void InputHandler::handleMouseRelease(sf::Vector2i position, sf::Mouse::Button b
                 
                 if (isDoubleClick) {
                     // Double-click: select all units of same type on screen
-                    EntityPtr entity = m_game.getRenderer().pickEntity(m_camera, m_selectionStartPx, m_game);
+                    EntityPtr entity = m_renderer->pickEntity(m_camera, m_selectionStartPx, m_game);
                     if (entity && entity->getTeam() == m_game.getPlayer().getTeam()) {
                         if (entity->asUnit()) {
                             selectAllOfTypeOnScreen(entity->getType());
@@ -475,7 +477,7 @@ std::string InputHandler::keyToHotkey(sf::Keyboard::Key code) {
 }
 
 void InputHandler::performSelection(sf::Vector2i pixel) {
-    EntityPtr entity = m_game.getRenderer().pickEntity(m_camera, pixel, m_game);
+    EntityPtr entity = m_renderer->pickEntity(m_camera, pixel, m_game);
     
     Player& player = m_game.getPlayer();
     
@@ -507,7 +509,7 @@ void InputHandler::performSelection(sf::Vector2i pixel) {
 }
 
 void InputHandler::performBoxSelection() {
-    std::vector<EntityPtr> selected = m_game.getRenderer().pickEntitiesInRect(
+    std::vector<EntityPtr> selected = m_renderer->pickEntitiesInRect(
         m_camera, m_selectionStartPx, m_selectionEndPx, m_game.getPlayer().getTeam(), m_game);
     
     // If we have both units and buildings, prefer units only
@@ -542,7 +544,7 @@ void InputHandler::selectAllOfTypeOnScreen(EntityType type) {
     
     // Get all player entities in the visible area
     Player& player = m_game.getPlayer();
-    std::vector<EntityPtr> entitiesOnScreen = m_game.getRenderer().pickEntitiesInRect(
+    std::vector<EntityPtr> entitiesOnScreen = m_renderer->pickEntitiesInRect(
         m_camera, sf::Vector2i(0, 0), lastPixel, player.getTeam(), m_game);
     
     // Filter to only units of the specified type
@@ -639,7 +641,7 @@ void InputHandler::executeTargetingAction(sf::Vector2f worldPos, EntityPtr targe
 }
 
 bool InputHandler::handleActionBarClick(sf::Vector2i screenPos) {
-    ActionBar& actionBar = m_game.getActionBar();
+    ActionBar& actionBar = m_actionBar;
     actionBar.setWindowSize(m_window.getSize());
     Player& player = m_game.getPlayer();
     

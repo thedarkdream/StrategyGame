@@ -5,7 +5,7 @@
 #include "entities/Building.h"
 #include "entities/EntityData.h"
 #include "game/Game.h"
-#include "game/InputHandler.h"
+#include "ui/InputHandler.h"
 #include "world/Map.h"
 #include "game/Player.h"
 #include <glm/gtc/constants.hpp>
@@ -95,8 +95,7 @@ void addRallyPoints(Game& game, MeshData& flat, MeshData& solid) {
     }
 }
 
-void addBuildPreview(Game& game, MeshData& solid) {
-    InputHandler& input = game.getInput();
+void addBuildPreview(Game& game, const InputHandler& input, MeshData& solid) {
     if (!input.isInBuildMode()) return;
 
     Map&               map  = game.getMap();

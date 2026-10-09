@@ -12,6 +12,7 @@
 #include <glm/glm.hpp>
 
 class Game;
+class InputHandler;
 class Map;
 
 namespace Overlay3D {
@@ -26,6 +27,6 @@ void addHealthBar(MeshData& flat, const glm::vec3& topPoint, float width, float 
 void addRallyPoints(Game& game, MeshData& flat, MeshData& solid);
 
 // Translucent box showing where the building being placed would go (green when it fits).
-void addBuildPreview(Game& game, MeshData& solid);
+void addBuildPreview(Game& game, const InputHandler& input, MeshData& solid);
 
 } // namespace Overlay3D

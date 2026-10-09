@@ -9,6 +9,8 @@
 
 class Game;
 class Entity;
+class ActionBar;
+class IRenderer;
 
 // Action type for targeting mode
 enum class TargetingAction {
@@ -21,7 +23,13 @@ enum class TargetingAction {
 
 class InputHandler {
 public:
-    InputHandler(sf::RenderWindow& window, Game& game);
+    // Translates mouse/keyboard input into commands on `game`.  The action bar is
+    // the HUD widget that is clicked; the renderer (set with setRenderer) projects
+    // mouse pixels onto the world.
+    InputHandler(sf::RenderWindow& window, Game& game, ActionBar& actionBar);
+
+    // The active renderer, used for picking.  Call again whenever it is swapped.
+    void setRenderer(const IRenderer* renderer) { m_renderer = renderer; }
     
     void handleEvent(const sf::Event& event);
     void update(float deltaTime);
@@ -64,6 +72,8 @@ public:
 private:
     sf::RenderWindow& m_window;
     Game& m_game;
+    ActionBar& m_actionBar;
+    const IRenderer* m_renderer = nullptr;
     Camera m_camera;
     
     // Selection box

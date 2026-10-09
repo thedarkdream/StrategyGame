@@ -3,35 +3,38 @@
 #include "core/Types.h"
 #include "world/Map.h"
 #include "game/Player.h"
-#include "game/InputHandler.h"
-#include "render/IRenderer.h"
 #include "ai/PlayerController.h"
-#include "ui/ActionBar.h"
 #include "world/MapSerializer.h"
 #include "entities/IGameContext.h"
 #include "game/PlayerActions.h"
 #include "game/GameStatistics.h"
-#include "ui/DebugConsole.h"
 #include "entities/EntityWorld.h"
 #include <SFML/Graphics.hpp>
 #include <memory>
+#include <optional>
 #include <vector>
 #include <array>
 #include <string>
 
+// ---------------------------------------------------------------------------
+// Game — one running match: the simulation and nothing else.
+//
+// Owns the map, the players, the entity world, the controllers (human/AI) and
+// the statistics, implements IGameContext for the entities, and advances
+// everything in update().  It knows no window, renderer, camera or widgets:
+// those belong to the screen that presents the match (see GameScreen).
+// ---------------------------------------------------------------------------
 class Game : public IGameContext {
 public:
     // localPlayerSlot: 0 = human controls Team::Player1,
     //                  1 = human controls Team::Player2, etc.
     static constexpr int MAX_PLAYERS = 4;
 
-    Game(sf::RenderWindow& window, const std::string& mapFile = "", int localPlayerSlot = 0);
+    Game(const std::string& mapFile = "", int localPlayerSlot = 0);
     ~Game() = default;
     
-    // Per-frame interface (called by GameScreen)
-    void handleEvent(const sf::Event& event);
+    // Advances the simulation by one tick.
     void update(float deltaTime);
-    void render();
     
     // Game state
     GameState getState() const { return m_state; }
@@ -48,10 +51,10 @@ public:
     const Player& getPlayer(int slot) const { return *m_players[slot]; }
     // First non-local occupied slot (convenience for 2-player games)
     Player& getEnemy();
-    InputHandler& getInput() { return *m_input; }
-    IRenderer& getRenderer() { return *m_renderer; }
-    const IRenderer& getRenderer() const { return *m_renderer; }
-    ActionBar& getActionBar() { return m_actionBar; }
+    
+    // Where the map places the local player's start (world units), if it defines one.
+    // The screen uses it to point the camera.
+    std::optional<sf::Vector2f> getLocalStartPosition() const { return m_localStart; }
     
     // Statistics tracking
     GameStatistics& getStatistics() { return m_statistics; }
@@ -104,26 +107,20 @@ public:
     void setRallyPoint(sf::Vector2f position, EntityPtr target = nullptr);
     
 private:
-    // Window (owned by Application, passed by reference)
-    sf::RenderWindow& m_window;
     std::string       m_mapFile;
     int               m_localSlot = 0;   // which m_players slot the human drives
+    std::optional<sf::Vector2f> m_localStart;   // from the map's StartPosition marker
 
     // Game state
     GameState m_state = GameState::Playing;
 
     // Core components
     Map m_map;
-    ActionBar m_actionBar;
     GameStatistics m_statistics;
     // Slots 0–3 correspond to Team::Player1–Player4; nullptr = slot unused
     std::array<std::unique_ptr<Player>,           MAX_PLAYERS> m_players;
     std::array<std::unique_ptr<PlayerController>, MAX_PLAYERS> m_controllers;
     std::array<std::unique_ptr<PlayerActions>,    MAX_PLAYERS> m_actions;
-    std::unique_ptr<InputHandler>    m_input;
-    std::unique_ptr<IRenderer>         m_renderer;
-    bool                               m_use3D = false;
-    std::unique_ptr<DebugConsole>      m_debugConsole;
     
     // All entities in game
     EntityWorld m_world;
@@ -132,7 +129,6 @@ private:
     
     // Initialization
     void initialize();
-    void toggleRenderer();  // F9: switch between Renderer2D and Renderer3D
     void preloadAssets();   // Load all sounds & textures upfront to avoid mid-game hitches
     void setupFromMapData(const MapData& data);  // Initialize from editor-saved map
     void cleanupDeadEntities();

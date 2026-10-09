@@ -15,7 +15,7 @@ class Renderer2D : public IRenderer {
 public:
     Renderer2D(sf::RenderWindow& window);
     
-    void render(Game& game) override;
+    void render(Game& game, FrameContext& frame) override;
     void setCamera(const Camera& camera) override { m_camera = camera; }
 
     // Call whenever the map tiles change so the minimap terrain is re-baked
@@ -29,7 +29,7 @@ public:
 
     // Draws only the screen-space HUD (resource bar, minimap, action bar, unit
     // panel).  Shared with Renderer3D, which draws its world through OpenGL.
-    void renderHud(Game& game);
+    void renderHud(Game& game, FrameContext& frame);
     
 private:
     sf::RenderWindow& m_window;
@@ -50,11 +50,11 @@ private:
     // Pass 2 – all other entities (units / buildings) filtered by fog visibility.
     void renderEntities(Game& game);
     void renderRallyPoints(Game& game);
-    void renderUI(Game& game);
+    void renderUI(Game& game, FrameContext& frame);
     void renderSelectionBox(const InputHandler& input);
     void renderBuildPreview(const InputHandler& input, Map& map);
     void renderMinimap(Game& game);
     void renderResourceBar(Player& player);
-    void renderUnitPanel(Game& game);
-    void renderTargetingModeIndicator(Game& game);
+    void renderUnitPanel(Game& game, const InputHandler& input);
+    void renderTargetingModeIndicator(const InputHandler& input);
 };
