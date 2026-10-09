@@ -44,10 +44,10 @@ void Building::takeDamage(int damage) {
         m_health = 0;
         
         // Spawn explosion effect when building is destroyed
-        if (wasAlive) {
+        if (wasAlive && m_context) {
             // Scale explosion based on building size
             float explosionScale = std::max(m_size.x, m_size.y) / 128.0f;
-            EFFECTS.spawnExplosion(m_position, explosionScale);
+            m_context->effectsManager().spawnExplosion(m_position, explosionScale);
         }
         
         // Buildings don't have death animations, so they are immediately removed

@@ -14,7 +14,9 @@
 #include <memory>
 
 class Player;
-class Game;
+class Map;
+class EntityWorld;
+class PlayerActions;
 
 // ---------------------------------------------------------------------------
 class PlayerController {
@@ -44,8 +46,8 @@ public:
 // ---------------------------------------------------------------------------
 class AIPlayerController : public PlayerController {
 public:
-    AIPlayerController(Player& player, Game& game)
-        : m_ai(player, game) {}
+    AIPlayerController(Player& player, Map& map, const EntityWorld& world, PlayerActions& actions)
+        : m_ai(player, map, world, actions) {}
 
     void update(float dt) override { m_ai.update(dt); }
     bool isLocalHuman() const override { return false; }

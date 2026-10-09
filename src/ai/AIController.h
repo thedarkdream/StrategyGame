@@ -9,13 +9,16 @@
 
 class Player;
 class Map;
-class Game;
+class EntityWorld;
 class Worker;
 class PlayerActions;
 
+// Drives one Player from scripts.  It sees the simulation only through the Map,
+// the EntityWorld (read-only) and the player's PlayerActions dispatcher, so it
+// does not depend on Game.
 class AIController {
 public:
-    AIController(Player& player, Game& game);
+    AIController(Player& player, Map& map, const EntityWorld& world, PlayerActions& actions);
 
     void update(float deltaTime);
     void loadScripts(const std::string& directory);
@@ -26,7 +29,7 @@ public:
 private:
     // ----- Core references ------------------------------------------------
     Player&        m_player;
-    Game&          m_game;
+    const EntityWorld& m_world;
     Map*           m_map     = nullptr;
     PlayerActions* m_actions = nullptr;
     std::mt19937   m_rng;

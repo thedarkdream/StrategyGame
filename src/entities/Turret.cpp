@@ -7,9 +7,6 @@
 #include <cstdint>
 #include <string>
 
-// shorthand
-#define TEXTURES TextureManager::instance()
-
 Turret::Turret(Team team, sf::Vector2f position)
     : Building(EntityType::Turret, team, position)
 {

@@ -1,12 +1,12 @@
 #include "ai/AIController.h"
 #include "ai/AIScript.h"
-#include "game/Game.h"
 #include "game/Player.h"
 #include "game/PlayerActions.h"
 #include "entities/Unit.h"
 #include "entities/Worker.h"
 #include "entities/Building.h"
 #include "world/Map.h"
+#include "entities/EntityWorld.h"
 #include "entities/EntityData.h"
 #include "core/Constants.h"
 #include "core/MathUtil.h"
@@ -15,11 +15,11 @@
 #include <chrono>
 #include <cmath>
 
-AIController::AIController(Player& player, Game& game)
+AIController::AIController(Player& player, Map& map, const EntityWorld& world, PlayerActions& actions)
     : m_player(player)
-    , m_game(game)
-    , m_map(&game.getMap())
-    , m_actions(&game.getActions(teamToIndex(player.getTeam())))
+    , m_world(world)
+    , m_map(&map)
+    , m_actions(&actions)
 {
     // std::random_device is broken on MinGW/Windows (always returns the same
     // value), so we combine a high-resolution timestamp with the object address
@@ -350,7 +350,7 @@ void AIController::checkAndRespondToAttack(float deltaTime) {
     // --- Find the nearest enemy unit to the triggered position -------------
     sf::Vector2f attackerPos = triggerPos;
     float bestDist = std::numeric_limits<float>::max();
-    for (const auto& entity : m_game.getWorld().all()) {
+    for (const auto& entity : m_world.all()) {
         if (!entity || !entity->isAlive()) continue;
         if (entity->getTeam() == myTeam || entity->getTeam() == Team::Neutral) continue;
         if (!entity->asUnit()) continue;
@@ -376,7 +376,7 @@ void AIController::checkAndRespondToAttack(float deltaTime) {
 void AIController::manageIdleWorkers() {
     // Pre-collect gatherable resource nodes once so we don't re-scan all entities per worker.
     std::vector<EntityPtr> minerals;
-    for (const auto& entity : m_game.getWorld().all()) {
+    for (const auto& entity : m_world.all()) {
         if (!entity || !entity->isAlive()) continue;
         const EntityDef* def = ENTITY_DATA.get(entity->getType());
         if (def && def->isResource())
@@ -593,7 +593,7 @@ sf::Vector2f AIController::findBuildLocation(EntityType buildingType) {
     // Compute the average direction from the base toward nearby mineral patches
     sf::Vector2f mineralDir(0.f, 0.f);
     int mineralCount = 0;
-    for (const auto& entity : m_game.getWorld().all()) {
+    for (const auto& entity : m_world.all()) {
         if (!entity || !entity->isAlive()) continue;
         const EntityDef* resDef = ENTITY_DATA.get(entity->getType());
         if (resDef && resDef->isResource()) {
@@ -669,7 +669,7 @@ Team AIController::pickEnemyTeam() {
         if (std::find(v.begin(), v.end(), t) == v.end()) v.push_back(t);
     };
 
-    for (const auto& entity : m_game.getWorld().all()) {
+    for (const auto& entity : m_world.all()) {
         if (!entity || !entity->isAlive()) continue;
         if (entity->getTeam() == myTeam || entity->getTeam() == Team::Neutral) continue;
         if (!entity->asBuilding()) continue;
@@ -695,7 +695,7 @@ sf::Vector2f AIController::findEnemyBuildingOfTeam(Team team) {
     std::vector<sf::Vector2f> targets;
     bool foundBase = false;
 
-    for (const auto& entity : m_game.getWorld().all()) {
+    for (const auto& entity : m_world.all()) {
         if (!entity || !entity->isAlive()) continue;
         if (entity->getTeam() != team) continue;
         if (!entity->asBuilding()) continue;

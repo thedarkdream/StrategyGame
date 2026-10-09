@@ -24,10 +24,10 @@ Code layout and conventions:
 - `Game` is the pure simulation (no window/renderer/input). `GameScreen` owns the presentation: renderer (F9 2D/3D), `InputHandler`, `ActionBar`, `DebugConsole`; renderers get them per frame via `FrameContext` (render/IRenderer.h).
 
 Known architecture debts (fix opportunistically, do not make worse):
-- Singleton macros (`TEXTURES`, `SOUNDS`, `EFFECTS`, `ENTITY_DATA`) are used all over `entities/` although `IGameContext` offers service accessors.
+- Singleton macros (`TEXTURES`, `SOUNDS`, `EFFECTS`, `ENTITY_DATA`) are still used in `entities/` for constructors, static `preload()` functions, `Entity` sprite loading and `Projectile`/`Worker::playVoiceLine`. Instance-level sounds/explosions (Unit, Building, Worker, Soldier, LightTank) already go through `m_context->soundManager()/effectsManager()`; keep new code on that path.
 - `Entity` depends on `sprite/` (AnimatedSprite), SFML Graphics types, `media/` (loads textures, plays voice lines) and `fx/`.
 - `PlayerCommandScope` (game/PlayerActions.h) is a global flag read by `Worker` to decide whether to play a voice line: a hidden channel between `game/` and `entities/`.
-- `ai/AIController` includes `game/Game.h` while `Game` owns the controllers (cycle); the AI should depend on a narrow interface.
+- `ai/` still includes `game/Player.h` and `game/PlayerActions.h` while `Game` owns the controllers (module-level cycle, no file-level cycle: `AIController` takes `Map`, `EntityWorld`, `PlayerActions`, never `Game`). `PlayerActions` itself still depends on `Game`.
 - `Renderer2D` contains HUD drawing (unit panel, resource bar) that duplicates `ui/` widgets; `Renderer3D` reuses it (render3d -> render2d). Fog-visibility rules are duplicated between `Renderer2D` and `FogOfWar::isEntityShown`.
 - Very long functions: `EntityRegistry::initializeDefaults` (~430 lines, should be data files), `MapEditorScreen::handleEvent` (~320), `ActionBar::renderButtons`, `EditorPanel::rebuild`. Very large files: `MapEditorScreen.cpp`, `AIController.cpp`, `Unit.cpp`.
 - `Types.h` is a grab bag (enums, Tile, Command, aliases); `Soldier`/`Brute`/`LightTank` are near-empty subclasses (data-driven candidates).

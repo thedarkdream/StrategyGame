@@ -103,7 +103,8 @@ void Game::initialize() {
         if (i == m_localSlot) {
             m_controllers[i] = std::make_unique<HumanController>();
         } else {
-            auto aiController = std::make_unique<AIPlayerController>(*m_players[i], *this);
+            auto aiController = std::make_unique<AIPlayerController>(
+                *m_players[i], m_map, m_world, *m_actions[i]);
             aiController->loadScripts("aiscripts");
             m_controllers[i] = std::move(aiController);
         }
