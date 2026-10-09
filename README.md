@@ -94,37 +94,45 @@ A simple 2D real-time strategy game inspired by StarCraft, built with C++ and SF
 
 ## Project Structure
 
+Headers and sources live together, one folder per module under `src/`.
+`src/` is the include root: `#include "entities/Unit.h"`. CMake globs `src/**`,
+so new files are picked up automatically (re-run the build).
+
 ```
 joc_strategie/
-├── CMakeLists.txt          # Build configuration
-├── README.md               # This file
-├── include/                # Header files
-│   ├── AIController.h      # AI logic
-│   ├── Building.h          # Building entities
-│   ├── Constants.h         # Game settings
-│   ├── Entity.h            # Base entity class
-│   ├── Game.h              # Main game class
-│   ├── InputHandler.h      # Input processing
-│   ├── Map.h               # Map/terrain system
-│   ├── Player.h            # Player state
-│   ├── Renderer.h          # Rendering system
-│   ├── ResourceManager.h   # Entity factory
-│   ├── Types.h             # Type definitions
-│   └── Unit.h              # Unit entities
-└── src/                    # Source files
-    ├── AIController.cpp
-    ├── Building.cpp
-    ├── Entity.cpp
-    ├── Game.cpp
-    ├── InputHandler.cpp
-    ├── main.cpp
-    ├── Map.cpp
-    ├── Player.cpp
-    ├── Renderer.cpp
-    ├── ResourceManager.cpp
-    └── Unit.cpp
++-- CMakeLists.txt
++-- assets/ maps/ sounds/ aiscripts/   # runtime data
++-- tools/                             # asset generators (e.g. make_soldier_glb.py)
++-- src/
+    +-- main.cpp
+    +-- app/        Application: window, GL context, screen switching
+    +-- screens/    Screen interface + Menu, Game, MapEditor, Victory screens
+    +-- game/       Game (session + composition root), Player, PlayerActions,
+    �               InputHandler, FogOfWar, GameStatistics, ResourceManager
+    +-- entities/   Entity, Unit/Worker/Soldier/..., Building, Turret, ResourceNode,
+    �               Projectile, EntityWorld, EntityData (registry), IGameContext
+    +-- ai/         AIController, AIScript, PlayerController
+    +-- world/      Map, Pathfinder, MapSerializer, TerrainTiling (no rendering)
+    +-- ui/         ActionBar, Minimap, DebugConsole, EditorPanel (2D HUD widgets)
+    +-- fx/         Effect, EffectsManager
+    +-- sprite/     Animation, AnimatedSprite (sprite animation state)
+    +-- media/      TextureManager, SoundManager, FontManager
+    +-- render/     Renderer-agnostic: IRenderer, Camera, EntityVisual
+    +-- render2d/   SFML renderer: Renderer2D, EntityRenderer2D, TerrainRenderer
+    +-- render3d/   OpenGL renderer: Renderer3D, Scene3D, terrain/sprite/model
+    �               batches, Camera3D, picking, glTF Model/ModelLoader, EditorView3D
+    +-- gl/         GLShader, GLMesh
+    +-- core/       Types, Constants, MathUtil, IdGenerator (no dependencies)
 ```
 
+Intended dependency direction (lower modules must not include higher ones):
+
+```
+app -> screens -> game/ui/ai -> entities -> world/fx/sprite/media -> core
+render2d, render3d -> game/entities/world (read-only);  gl <- render3d
+```
+
+Known violations are listed in the architecture notes in `copilot-instructions.md`.
 ## Future Improvements
 
 - [ ] Proper A* pathfinding

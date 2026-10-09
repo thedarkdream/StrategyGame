@@ -1,0 +1,549 @@
+#include "entities/EntityData.h"
+#include "core/Constants.h"
+#include "entities/Worker.h"
+#include "entities/Soldier.h"
+#include "entities/LightTank.h"
+#include "entities/Building.h"
+#include "entities/Turret.h"
+#include "entities/ResourceNode.h"
+
+const std::vector<ActionDef> EntityRegistry::s_emptyActions = {};
+
+EntityRegistry& EntityRegistry::instance() {
+    static EntityRegistry registry;
+    return registry;
+}
+
+EntityRegistry::EntityRegistry() {
+    initializeDefaults();
+}
+
+void EntityRegistry::registerEntity(EntityDef def) {
+    m_definitions[def.type] = std::move(def);
+}
+
+const EntityDef* EntityRegistry::get(EntityType type) const {
+    auto it = m_definitions.find(type);
+    return it != m_definitions.end() ? &it->second : nullptr;
+}
+
+int EntityRegistry::getMineralCost(EntityType type) const {
+    auto* def = get(type);
+    return def ? def->mineralCost : 0;
+}
+
+int EntityRegistry::getGasCost(EntityType type) const {
+    auto* def = get(type);
+    return def ? def->gasCost : 0;
+}
+
+int EntityRegistry::getHealth(EntityType type) const {
+    auto* def = get(type);
+    return def ? def->health : 0;
+}
+
+sf::Vector2f EntityRegistry::getSize(EntityType type) const {
+    auto* def = get(type);
+    return def ? def->size : sf::Vector2f{16.0f, 16.0f};
+}
+
+sf::Vector2i EntityRegistry::getBuildingTileSize(EntityType type) const {
+    auto* def = get(type);
+    if (def && def->building) {
+        return def->building->tileSize;
+    }
+    return {1, 1};
+}
+
+const std::vector<ActionDef>& EntityRegistry::getActions(EntityType type) const {
+    auto* def = get(type);
+    return def ? def->actions : s_emptyActions;
+}
+
+std::string EntityRegistry::getName(EntityType type) const {
+    auto* def = get(type);
+    return def ? def->name : "Unknown";
+}
+
+std::string EntityRegistry::getShortName(EntityType type) const {
+    auto* def = get(type);
+    return def ? def->shortName : "?";
+}
+
+const UnitDef* EntityRegistry::getUnitDef(EntityType type) const {
+    auto* def = get(type);
+    return (def && def->unit) ? &def->unit.value() : nullptr;
+}
+
+const BuildingDef* EntityRegistry::getBuildingDef(EntityType type) const {
+    auto* def = get(type);
+    return (def && def->building) ? &def->building.value() : nullptr;
+}
+
+const CombatBuildingDef* EntityRegistry::getCombatBuildingDef(EntityType type) const {
+    auto* bd = getBuildingDef(type);
+    return (bd && bd->combat) ? &bd->combat.value() : nullptr;
+}
+
+float EntityRegistry::getConstructionTime(EntityType type) const {
+    auto* buildingDef = getBuildingDef(type);
+    return buildingDef ? buildingDef->constructionTime : 10.0f;
+}
+
+float EntityRegistry::getTrainingTime(EntityType type) const {
+    auto* unitDef = getUnitDef(type);
+    return unitDef ? unitDef->trainingTime : 5.0f;
+}
+
+float EntityRegistry::getVisionRadius(EntityType type) const {
+    auto* def = get(type);
+    return def ? def->visionRadius : 0.0f;
+}
+
+const VisualDef& EntityRegistry::getVisual(EntityType type) const {
+    static const VisualDef kDefault;
+    auto* def = get(type);
+    return def ? def->visual : kDefault;
+}
+
+void EntityRegistry::preloadAll() const {
+    for (const auto& [type, def] : m_definitions) {
+        if (def.preloadFn)
+            def.preloadFn();
+    }
+}
+
+void EntityRegistry::initializeDefaults() {
+    // ==================== UNITS ====================
+    
+    // Worker
+    {
+        EntityDef def;
+        def.type = EntityType::Worker;
+        def.visual = VisualDef::unit();
+        def.name = "Worker";
+        def.shortName = "W";
+        def.mineralCost = 50;
+        def.gasCost = 0;
+        def.health = 40;
+        def.size = {24.0f, 24.0f};
+        def.visionRadius = 224.0f;  // 7 tiles
+        
+        UnitDef unit;
+        unit.speed = 100.0f;
+        unit.damage = 5;
+        unit.attackRange = 30.0f;
+        unit.attackCooldown = 1.5f;
+        unit.autoAttackRangeBonus = 0.0f;
+        unit.trainingTime = 3.0f;
+        unit.canGather = true;
+        unit.canBuild = true;
+        unit.isCombatUnit = false;
+        def.unit = unit;
+        def.preloadFn = &Worker::preload;
+
+        // Worker actions
+        ActionDef buildBarracks;
+        buildBarracks.label = "Build";
+        buildBarracks.hotkey = "B";
+        buildBarracks.type = ActionDef::Type::Build;
+        buildBarracks.producesType = EntityType::Barracks;
+        buildBarracks.row = 1;
+        
+        ActionDef buildBase;
+        buildBase.label = "Build";
+        buildBase.hotkey = "C";
+        buildBase.type = ActionDef::Type::Build;
+        buildBase.producesType = EntityType::Base;
+        buildBase.row = 1;
+        
+        ActionDef buildFactory;
+        buildFactory.label = "Build";
+        buildFactory.hotkey = "F";
+        buildFactory.type = ActionDef::Type::Build;
+        buildFactory.producesType = EntityType::Factory;
+        buildFactory.requires = EntityType::Barracks;  // Requires completed Barracks
+        buildFactory.row = 1;
+        
+        ActionDef buildTurret;
+        buildTurret.label = "Build";
+        buildTurret.hotkey = "T";
+        buildTurret.type = ActionDef::Type::Build;
+        buildTurret.producesType = EntityType::Turret;
+        buildTurret.requires = EntityType::Barracks;  // Requires completed Barracks
+        buildTurret.row = 1;
+
+        def.actions = {
+            {"Move", "M", ActionDef::Type::TargetMove},
+            {"Stop", "S", ActionDef::Type::Instant},
+            {"Attack", "A", ActionDef::Type::TargetAttack},
+            {"Gather", "G", ActionDef::Type::TargetGather},
+            buildBarracks,
+            buildBase,
+            buildFactory,
+            buildTurret
+        };
+        
+        registerEntity(std::move(def));
+    }
+    
+    // Soldier
+    {
+        EntityDef def;
+        def.type = EntityType::Soldier;
+        def.visual = VisualDef::unit();
+        def.visual.model      = "models/soldier.glb";
+        def.visual.modelScale = 16.0f;   // the model is about 1.8 m tall -> ~29 world units
+        def.name = "Soldier";
+        def.shortName = "S";
+        def.mineralCost = 75;
+        def.gasCost = 0;
+        def.health = 100;
+        def.size = {24.0f, 24.0f};
+        def.visionRadius = 256.0f;  // 8 tiles
+        
+        UnitDef unit;
+        unit.speed = 80.0f;
+        unit.damage = 10;
+        unit.attackRange = 150.0f;
+        unit.attackCooldown = 1.0f;
+        unit.autoAttackRangeBonus = 50.0f;
+        unit.trainingTime = 5.0f;
+        unit.canGather = false;
+        unit.canBuild = false;
+        unit.isCombatUnit = true;
+        def.unit = unit;
+        def.preloadFn = &Soldier::preload;
+
+        // Combat unit actions
+        def.actions = {
+            {"Move", "M", ActionDef::Type::TargetMove},
+            {"Stop", "S", ActionDef::Type::Instant},
+            {"Attack", "A", ActionDef::Type::TargetAttack}
+        };
+        
+        registerEntity(std::move(def));
+    }
+    
+    // LightTank
+    {
+        EntityDef def;
+        def.type = EntityType::LightTank;
+        def.visual = VisualDef::unit();
+        def.name = "Light Tank";
+        def.shortName = "LT";
+        def.mineralCost = 150;
+        def.gasCost = 0;
+        def.health = 120;
+        def.size = {40.0f, 40.0f};  // 40px diameter circle
+        def.visionRadius = 320.0f;  // 10 tiles – elevated line of sight
+        
+        UnitDef unit;
+        unit.speed = 150.0f;
+        unit.damage = 25;
+        unit.attackRange = 200.0f;  // Long range - fires rockets
+        unit.attackCooldown = 2.5f;
+        unit.autoAttackRangeBonus = 50.0f;
+        unit.trainingTime = 8.0f;
+        unit.canGather = false;
+        unit.canBuild = false;
+        unit.isCombatUnit = true;
+        def.unit = unit;
+        
+        def.preloadFn = &LightTank::preload;
+        def.actions = {
+            {"Move", "M", ActionDef::Type::TargetMove},
+            {"Stop", "S", ActionDef::Type::Instant},
+            {"Attack", "A", ActionDef::Type::TargetAttack}
+        };
+        
+        registerEntity(std::move(def));
+    }
+    
+    // Brute
+    {
+        EntityDef def;
+        def.type = EntityType::Brute;
+        def.visual = VisualDef::unit();
+        def.name = "Brute";
+        def.shortName = "B";
+        def.mineralCost = 90;
+        def.gasCost = 0;
+        def.health = 120;
+        def.size = {28.0f, 28.0f};
+        def.visionRadius = 224.0f;  // 7 tiles
+        
+        UnitDef unit;
+        unit.speed = 60.0f;
+        unit.damage = 12;
+        unit.attackRange = 30.0f;
+        unit.attackCooldown = 0.8f;
+        unit.autoAttackRangeBonus = 50.0f;
+        unit.trainingTime = 4.0f;
+        unit.canGather = false;
+        unit.canBuild = false;
+        unit.isCombatUnit = true;
+        def.unit = unit;
+        
+        // Combat unit actions
+        def.actions = {
+            {"Move", "M", ActionDef::Type::TargetMove},
+            {"Stop", "S", ActionDef::Type::Instant},
+            {"Attack", "A", ActionDef::Type::TargetAttack}
+        };
+        
+        registerEntity(std::move(def));
+    }
+    
+    // ==================== BUILDINGS ====================
+    
+    // Base
+    {
+        EntityDef def;
+        def.type = EntityType::Base;
+        def.visual = VisualDef::building();
+        def.name = "Command Center";
+        def.shortName = "CC";
+        def.mineralCost = 400;
+        def.gasCost = 0;
+        def.health = 1500;
+        def.size = {96.0f, 96.0f};
+        def.visionRadius = 320.0f;  // 10 tiles
+        
+        BuildingDef building;
+        building.tileSize = {3, 3};
+        building.producesUnits = {EntityType::Worker};
+        building.isResourceNode = false;
+        building.constructionTime = 30.0f;  // 30 seconds
+        def.building = building;
+        def.preloadFn = &Building::preload;  // Preloads assets for all building types
+        
+        // Base actions - train workers
+        ActionDef trainWorker;
+        trainWorker.label = "Train";
+        trainWorker.hotkey = "W";
+        trainWorker.type = ActionDef::Type::Train;
+        trainWorker.producesType = EntityType::Worker;
+        
+        ActionDef rallyPoint;
+        rallyPoint.label = "Rally";
+        rallyPoint.hotkey = "Y";
+        rallyPoint.type = ActionDef::Type::TargetRallyPoint;
+        rallyPoint.row = 1;  // Second row
+        
+        def.actions = {trainWorker, rallyPoint};
+        
+        registerEntity(std::move(def));
+    }
+    
+    // Barracks
+    {
+        EntityDef def;
+        def.type = EntityType::Barracks;
+        def.visual = VisualDef::building();
+        def.name = "Barracks";
+        def.shortName = "BK";
+        def.mineralCost = 150;
+        def.gasCost = 0;
+        def.health = 1000;
+        def.size = {96.0f, 64.0f};
+        def.visionRadius = 256.0f;  // 8 tiles
+        
+        BuildingDef building;
+        building.tileSize = {3, 2};
+        building.producesUnits = {EntityType::Soldier, EntityType::Brute};
+        building.isResourceNode = false;
+        building.constructionTime = 10.0f;  // 10 seconds
+        def.building = building;
+        
+        // Barracks actions - train combat units
+        ActionDef trainSoldier;
+        trainSoldier.label = "Train";
+        trainSoldier.hotkey = "S";
+        trainSoldier.type = ActionDef::Type::Train;
+        trainSoldier.producesType = EntityType::Soldier;
+        
+        ActionDef trainBrute;
+        trainBrute.label = "Train";
+        trainBrute.hotkey = "B";
+        trainBrute.type = ActionDef::Type::Train;
+        trainBrute.producesType = EntityType::Brute;
+        
+        ActionDef rallyPointBk;
+        rallyPointBk.label = "Rally";
+        rallyPointBk.hotkey = "Y";
+        rallyPointBk.type = ActionDef::Type::TargetRallyPoint;
+        rallyPointBk.row = 1;  // Second row
+        
+        def.actions = {trainSoldier, trainBrute, rallyPointBk};
+        
+        registerEntity(std::move(def));
+    }
+    
+    // Refinery
+    {
+        EntityDef def;
+        def.type = EntityType::Refinery;
+        def.visual = VisualDef::building();
+        def.name = "Refinery";
+        def.shortName = "RF";
+        def.mineralCost = 100;
+        def.gasCost = 0;
+        def.health = 500;
+        def.size = {64.0f, 64.0f};
+        def.visionRadius = 192.0f;  // 6 tiles
+        
+        BuildingDef building;
+        building.tileSize = {2, 2};
+        building.isResourceNode = false;
+        def.building = building;
+
+        registerEntity(std::move(def));
+    }
+
+    // Factory
+    {
+        EntityDef def;
+        def.type = EntityType::Factory;
+        def.visual = VisualDef::building();
+        def.name = "Factory";
+        def.shortName = "FC";
+        def.mineralCost = 150;
+        def.gasCost = 0;
+        def.health = 1200;
+        def.size = {96.0f, 64.0f};
+        def.visionRadius = 256.0f;  // 8 tiles
+        
+        BuildingDef building;
+        building.tileSize = {3, 2};
+        building.producesUnits = {EntityType::LightTank};
+        building.isResourceNode = false;
+        building.constructionTime = 15.0f;  // 15 seconds
+        def.building = building;
+        
+        // Factory actions - train Light Tank
+        ActionDef trainLightTank;
+        trainLightTank.label = "Build";
+        trainLightTank.hotkey = "T";
+        trainLightTank.type = ActionDef::Type::Train;
+        trainLightTank.producesType = EntityType::LightTank;
+        
+        ActionDef rallyPointFc;
+        rallyPointFc.label = "Rally";
+        rallyPointFc.hotkey = "Y";
+        rallyPointFc.type = ActionDef::Type::TargetRallyPoint;
+        rallyPointFc.row = 1;  // Second row
+        
+        def.actions = {trainLightTank, rallyPointFc};
+        
+        registerEntity(std::move(def));
+    }
+    
+    // Turret
+    {
+        EntityDef def;
+        def.type = EntityType::Turret;
+        def.visual = VisualDef::building();
+        def.visual.spriteAnchor = 0.25f;   // turret art sits a little higher in its image
+        def.name = "Turret";
+        def.shortName = "TU";
+        def.mineralCost = 75;
+        def.gasCost = 0;
+        def.health = 400;
+        def.size = {64.0f, 64.0f};
+        def.visionRadius = 224.0f;  // 7 tiles
+
+        BuildingDef building;
+        building.tileSize = {2, 2};
+        building.isResourceNode = false;
+        building.constructionTime = 10.0f;
+        building.combat = CombatBuildingDef{
+            .attackRange     = 200.f,
+            .attackDamage    = 20,
+            .attackCooldown  = 1.0f,
+            .projectileSpeed = 700.f,
+            .fireDisplayTime = 0.25f,
+        };
+        def.building = building;
+        def.preloadFn = &Turret::preload;
+
+        registerEntity(std::move(def));
+    }
+
+    {
+        EntityDef def;
+        def.type = EntityType::MineralPatch;
+        def.visual = VisualDef::resource();
+        def.name = "Mineral Patch";
+        def.shortName = "M";
+        def.mineralCost = 0;
+        def.health = 1;  // Immortal until depleted
+        def.size = {48.0f, 32.0f};
+        def.visionRadius = 0.0f;    // Resources do not contribute to vision
+        
+        BuildingDef building;
+        building.tileSize = {2, 1};
+        building.isResourceNode = true;
+        building.resourceAmount = 1500;
+        def.building = building;
+        def.preloadFn = &ResourceNode::preload;  // Preloads assets for all resource node types
+
+        registerEntity(std::move(def));
+    }
+    
+    // Gas Geyser
+    {
+        EntityDef def;
+        def.type = EntityType::GasGeyser;
+        def.visual = VisualDef::resource();
+        def.name = "Vespene Geyser";
+        def.shortName = "G";
+        def.mineralCost = 0;
+        def.health = 1;
+        def.size = {64.0f, 64.0f};
+        def.visionRadius = 0.0f;    // Resources do not contribute to vision
+        
+        BuildingDef building;
+        building.tileSize = {2, 2};
+        building.isResourceNode = true;
+        building.resourceAmount = 2500;
+        def.building = building;
+        
+        registerEntity(std::move(def));
+    }
+
+    // ==================== EDITOR-ONLY MARKERS ====================
+
+    // Start Position (same footprint as Base, editor-only, never spawned in game)
+    {
+        EntityDef def;
+        def.type = EntityType::StartPosition;
+        def.visual = VisualDef::building();
+        def.name = "Start Pos";
+        def.shortName = "SP";
+        def.mineralCost = 0;
+        def.health = 0;
+        def.size = {96.0f, 96.0f};  // matches Base visual size
+        BuildingDef building;
+        building.tileSize = {3, 3};  // same footprint as Base
+        building.isResourceNode = false;
+        def.building = building;
+        registerEntity(std::move(def));
+    }
+
+    // ==================== PROJECTILES ====================
+
+    // Homing rocket fired by the light tank and turret.  Never placed or trained;
+    // registered so its appearance comes from the same table as everything else.
+    {
+        EntityDef def;
+        def.type = EntityType::Rocket;
+        def.name = "Rocket";
+        def.shortName = "R";
+        def.health = 1;
+        def.size = {6.0f, 6.0f};
+        def.visionRadius = 0.0f;
+        def.visual = VisualDef::projectile();
+        registerEntity(std::move(def));
+    }
+}

@@ -1,0 +1,31 @@
+#pragma once
+
+#include "entities/Entity.h"
+
+// A lightweight homing projectile entity.
+// - Not selectable, not collidable (flies over terrain/units)
+// - Homes onto a target entity
+// - Applies damage on impact, then removes itself
+class Projectile : public Entity {
+public:
+    Projectile(EntityPtr source, EntityPtr target, int damage, float speed, sf::Color color = sf::Color::Yellow);
+    
+    static void preload();  // Preload sounds for projectile impact
+    
+    void update(float deltaTime) override;
+    
+    // Projectiles are not interactable
+    bool isSelectable() const { return false; }
+    void takeDamage(int /*damage*/) override { /* rockets are indestructible */ }
+    void takeDamage(int /*damage*/, EntityPtr /*attacker*/) override { /* rockets are indestructible */ }
+    void takeDamage(int /*damage*/, Team /*attackerTeam*/) override { /* rockets are indestructible */ }
+
+private:
+    std::weak_ptr<Entity> m_source;
+    std::weak_ptr<Entity> m_target;
+    Team m_sourceTeam;  // Store source team in case source dies before impact
+    int m_damage;
+    float m_speed;
+    
+    static constexpr float IMPACT_RADIUS = 8.0f;  // Distance at which rocket detonates
+};
