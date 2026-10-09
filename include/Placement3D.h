@@ -13,6 +13,7 @@
 #include <glm/glm.hpp>
 
 class Map;
+class Model;
 struct EntityVisual;
 
 namespace Placement3D {
@@ -42,5 +43,16 @@ Billboard placeBillboard(const Map& map, sf::Vector2f pos, sf::Vector2f spriteSi
 
 // Ray vs. billboard; t is the distance along the (unit) ray direction.
 bool rayHitsBillboard(const Camera3D::Ray& ray, const Billboard& quad, float& t);
+
+// A glTF model standing on the ground at the entity's position (its origin is
+// the feet), turned toward the entity's facing.  `lo`/`hi` are the world-space
+// axis-aligned bounds of the transformed model: its picking volume.
+struct ModelPlacement {
+    glm::mat4 transform;   // model space -> world (GL axes)
+    glm::vec3 lo;
+    glm::vec3 hi;
+};
+
+ModelPlacement placeModel(const Model& model, const EntityVisual& visual, const Map& map, sf::Vector2f pos);
 
 } // namespace Placement3D

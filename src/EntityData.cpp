@@ -192,6 +192,8 @@ void EntityRegistry::initializeDefaults() {
         EntityDef def;
         def.type = EntityType::Soldier;
         def.visual = VisualDef::unit();
+        def.visual.model      = "models/soldier.glb";
+        def.visual.modelScale = 16.0f;   // the model is about 1.8 m tall -> ~29 world units
         def.name = "Soldier";
         def.shortName = "S";
         def.mineralCost = 75;

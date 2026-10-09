@@ -31,6 +31,23 @@ sf::Texture* TextureManager::loadTexture(const std::string& filepath) {
     return ptr;
 }
 
+sf::Texture* TextureManager::loadTextureFromMemory(const std::string& key, const void* data, std::size_t size) {
+    auto it = m_textures.find(key);
+    if (it != m_textures.end()) {
+        return it->second.get();
+    }
+
+    auto texture = std::make_unique<sf::Texture>();
+    if (!texture->loadFromMemory(data, size)) {
+        std::cerr << "Failed to load texture from memory: " << key << std::endl;
+        return nullptr;
+    }
+
+    sf::Texture* ptr = texture.get();
+    m_textures[key] = std::move(texture);
+    return ptr;
+}
+
 sf::Texture* TextureManager::getTexture(const std::string& filepath) {
     auto it = m_textures.find(filepath);
     if (it != m_textures.end()) {

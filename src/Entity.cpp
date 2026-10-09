@@ -136,6 +136,7 @@ void Entity::playAnimation(const std::string& animName) {
 
 void Entity::updateSpriteDirection(sf::Vector2f movement) {
     if (std::abs(movement.x) > 0.01f || std::abs(movement.y) > 0.01f) {
+        m_facing = std::atan2(movement.y, movement.x);
         m_animatedSprite.setDirectionFromMovement(movement);
     }
 }

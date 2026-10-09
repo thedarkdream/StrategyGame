@@ -5,7 +5,9 @@
 #include "IdGenerator.h"
 #include <SFML/Graphics.hpp>
 #include <memory>
+#include <cmath>
 #include <cstdint>
+#include <string>
 
 class Entity : public std::enable_shared_from_this<Entity> {
 public:
@@ -22,6 +24,8 @@ public:
     Team getTeam() const { return m_team; }
     sf::Vector2f getPosition() const { return m_position; }
     sf::Vector2f getSize()     const { return m_size; }
+    // Direction the entity looks, radians in the game plane (atan2(dy, dx)); south until it moves.
+    float        getFacingAngle() const { return m_facing; }
     sf::FloatRect getBounds() const;
     int getHealth() const { return m_health; }
     int getMaxHealth() const { return m_maxHealth; }
@@ -40,6 +44,12 @@ public:
     virtual SpriteFrame getSpriteFrame() const {
         return m_hasSprite ? m_animatedSprite.getFrame() : SpriteFrame{};
     }
+    // Skeletal animation of the entity's 3D model: the clip to play (an AnimationState
+    // name such as "walk") and how long it has been playing.  Models without such a
+    // clip stay in their rest pose.
+    const std::string& getModelClip() const { return m_modelClip; }
+    float              getModelClipTime() const { return m_modelClipTime; }
+
     // 1 = fully solid; less while the entity is still being constructed.
     virtual float getVisualOpacity() const { return 1.0f; }
     
@@ -98,6 +108,7 @@ protected:
     Team m_team;
     sf::Vector2f m_position;
     sf::Vector2f m_size;
+    float m_facing = 1.5707963f;   // pi / 2: looking at +y (south on screen)
     int m_health;
     int m_maxHealth;
     bool m_selected = false;
@@ -119,6 +130,8 @@ protected:
     // Animation system - AnimatedSprite holds reference to shared AnimationSet
     AnimatedSprite m_animatedSprite;
     bool m_hasSprite = false;
+    std::string m_modelClip = "idle";
+    float m_modelClipTime = 0.0f;
     
     // Animation helpers
     void loadAnimations(const std::string& basePath);  // e.g., "units/worker"
@@ -127,6 +140,18 @@ protected:
     void updateSpriteDirection(sf::Vector2f movement);
     void startDeathAnimation();
     void updateDeathAnimation(float deltaTime);
+
+    // Turns the 3D model toward a world point (sprites keep their own 8-way direction).
+    void faceTowards(sf::Vector2f point) {
+        const sf::Vector2f d = point - m_position;
+        if (d.x * d.x + d.y * d.y > 1.0f) m_facing = std::atan2(d.y, d.x);
+    }
+
+    // Model clip helpers: switching clips restarts the clip, advancing moves its time.
+    void playModelClip(const char* clip) {
+        if (m_modelClip != clip) { m_modelClip = clip; m_modelClipTime = 0.0f; }
+    }
+    void advanceModelClip(float deltaTime) { m_modelClipTime += deltaTime; }
     
     // Death hook - called when entity starts dying (play sounds, effects, etc.)
     virtual void onDeath();

@@ -84,6 +84,12 @@ struct VisualDef {
     float flyHeight = 0.0f;
     bool  selectable = true;        // can show a selection ring and be picked
     bool  showsHealthBar = true;    // bar when selected or damaged
+    // glTF model (assets-relative path; empty = none, the sprite or a box is used).
+    // The model is scaled by modelScale (world units per model unit) and turned by
+    // modelYaw radians on top of the entity's facing (a model faces +Z by default).
+    std::string model;
+    float modelScale = 1.0f;
+    float modelYaw   = 0.0f;
 
     static VisualDef unit()     { return {}; }
     static VisualDef building() { VisualDef v; v.spriteAnchor = 0.22f; v.bodyHeight = 0.8f; return v; }

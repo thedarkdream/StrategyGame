@@ -15,6 +15,13 @@ EntityVisual describeVisual(const Entity& entity) {
     visual.flyHeight      = def.flyHeight;
     visual.selectable     = def.selectable;
     visual.showsHealthBar = def.showsHealthBar;
+    visual.model          = def.model;
+    visual.modelScale     = def.modelScale;
+    visual.modelYaw       = def.modelYaw;
+    visual.facing         = entity.getFacingAngle();
+    visual.modelClip      = entity.getModelClip();
+    // Offset by id so a group of units does not move in lockstep.
+    visual.modelClipTime  = entity.getModelClipTime() + static_cast<float>(entity.getId() % 64) * 0.37f;
     visual.color          = (entity.getTeam() == Team::Neutral) ? entity.getColor() : teamColor(entity.getTeam());
     return visual;
 }

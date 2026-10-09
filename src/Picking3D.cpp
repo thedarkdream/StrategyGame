@@ -2,6 +2,7 @@
 #include "Camera3D.h"
 #include "Placement3D.h"
 #include "EntityVisual.h"
+#include "ModelBatch3D.h"
 #include "Entity.h"
 #include "FogOfWar.h"
 #include "Game.h"
@@ -12,7 +13,8 @@
 
 namespace Picking3D {
 
-EntityPtr pickEntity(const Camera& camera, sf::Vector2i pixel, sf::Vector2u winSize, Game& game) {
+EntityPtr pickEntity(const Camera& camera, sf::Vector2i pixel, sf::Vector2u winSize,
+                     const ModelBatch3D& models, Game& game) {
     if (winSize.x == 0 || winSize.y == 0) return nullptr;
 
     const Map&      map    = game.getMap();
@@ -36,11 +38,16 @@ EntityPtr pickEntity(const Camera& camera, sf::Vector2i pixel, sf::Vector2u winS
         const sf::Vector2f pos  = entity->getPosition();
         const sf::Vector2f size = entity->getSize();
 
-        // Entities with artwork are hit where their sprite is drawn; the rest by their box.
-        // Among hits the one drawn in front (larger ground z) wins.
+        // Entities with a model are hit by its bounds, with artwork where their sprite is
+        // drawn, the rest by their box.  Among hits the one drawn in front (larger ground z) wins.
         float t;
         float key;
-        if (visual.hasSprite()) {
+        const Model* model = visual.hasModel() ? models.loaded(visual.model) : nullptr;
+        if (model) {
+            const Placement3D::ModelPlacement placed = Placement3D::placeModel(*model, visual, map, pos);
+            if (!Camera3D::rayHitsBox(ray, placed.lo, placed.hi, t)) continue;
+            key = pos.y + size.y * 0.5f;
+        } else if (visual.hasSprite()) {
             const Placement3D::Billboard quad =
                 Placement3D::placeBillboard(map, pos, visual.sprite.size, visual.spriteAnchor);
             if (!Placement3D::rayHitsBillboard(ray, quad, t)) continue;
@@ -62,7 +69,8 @@ EntityPtr pickEntity(const Camera& camera, sf::Vector2i pixel, sf::Vector2u winS
 }
 
 std::vector<EntityPtr> pickEntitiesInRect(const Camera& camera, sf::Vector2i cornerA, sf::Vector2i cornerB,
-                                          sf::Vector2u winSize, Team team, Game& game) {
+                                          sf::Vector2u winSize, const ModelBatch3D& models,
+                                          Team team, Game& game) {
     const Map& map = game.getMap();
 
     const float left   = static_cast<float>(std::min(cornerA.x, cornerB.x));
@@ -79,7 +87,11 @@ std::vector<EntityPtr> pickEntitiesInRect(const Camera& camera, sf::Vector2i cor
         // An entity is inside the rubber-band when the middle of what is drawn projects into it.
         const sf::Vector2f pos = entity->getPosition();
         glm::vec3 centre;
-        if (visual.hasSprite()) {
+        const Model* model = visual.hasModel() ? models.loaded(visual.model) : nullptr;
+        if (model) {
+            const Placement3D::ModelPlacement placed = Placement3D::placeModel(*model, visual, map, pos);
+            centre = (placed.lo + placed.hi) * 0.5f;
+        } else if (visual.hasSprite()) {
             const Placement3D::Billboard quad =
                 Placement3D::placeBillboard(map, pos, visual.sprite.size, visual.spriteAnchor);
             centre = quad.bottom + Camera3D::billboardUp() * (quad.height * 0.5f);

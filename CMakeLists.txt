@@ -12,6 +12,9 @@ find_package(glm CONFIG REQUIRED)
 find_package(GLEW REQUIRED)
 find_package(OpenGL REQUIRED)
 
+# glTF model loading
+find_package(fastgltf CONFIG REQUIRED)
+
 # Source files
 set(SOURCES
     src/main.cpp
@@ -45,6 +48,9 @@ set(SOURCES
     src/EntityVisual.cpp
     src/Placement3D.cpp
     src/SpriteBatch3D.cpp
+    src/Model.cpp
+    src/ModelLoader.cpp
+    src/ModelBatch3D.cpp
     src/TerrainLayer3D.cpp
     src/Picking3D.cpp
     src/Overlay3D.cpp
@@ -108,6 +114,9 @@ set(HEADERS
     include/EntityVisual.h
     include/Placement3D.h
     include/SpriteBatch3D.h
+    include/Model.h
+    include/ModelLoader.h
+    include/ModelBatch3D.h
     include/TerrainLayer3D.h
     include/Picking3D.h
     include/Overlay3D.h
@@ -147,7 +156,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
 # Link SFML 3.0
 target_link_libraries(${PROJECT_NAME} PRIVATE SFML::Graphics SFML::Window SFML::System SFML::Audio
-    glm::glm GLEW::GLEW OpenGL::GL)
+    glm::glm GLEW::GLEW OpenGL::GL fastgltf::fastgltf)
 
 # Debug flags
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")

@@ -12,6 +12,7 @@
 // individual passes live in their own classes:
 //   TerrainLayer3D  heightmap and fog overlay
 //   SpriteBatch3D   textured quads (entities, effects)
+//   ModelBatch3D    glTF models (entities); also owns the loaded models
 //   Overlay3D       rings, health bars, rally points, build preview
 //   Picking3D       mouse picking
 //
@@ -30,6 +31,7 @@ class Map;
 class InputHandler;
 class TerrainLayer3D;
 class SpriteBatch3D;
+class ModelBatch3D;
 
 class Renderer3D : public IRenderer {
 public:
@@ -61,6 +63,7 @@ private:
     std::unique_ptr<GLShader> m_shader;
     std::unique_ptr<TerrainLayer3D> m_terrain;
     std::unique_ptr<SpriteBatch3D>  m_sprites;
+    std::unique_ptr<ModelBatch3D>   m_models;
 
     GLMesh   m_entityMesh;    // lit boxes: entities without artwork, flag poles
     MeshData m_entityData;

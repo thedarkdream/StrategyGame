@@ -4,6 +4,7 @@
 #include "Camera3D.h"
 #include "TerrainLayer3D.h"
 #include "SpriteBatch3D.h"
+#include "ModelBatch3D.h"
 #include "Overlay3D.h"
 #include "Picking3D.h"
 #include "Placement3D.h"
@@ -30,12 +31,14 @@ Renderer3D::Renderer3D(sf::RenderWindow& window)
     m_shader  = std::make_unique<GLShader>(Scene3D::sceneVertexSource(), Scene3D::sceneFragmentSource());
     m_terrain = std::make_unique<TerrainLayer3D>();
     m_sprites = std::make_unique<SpriteBatch3D>();
+    m_models  = std::make_unique<ModelBatch3D>();
 }
 
 Renderer3D::~Renderer3D() {
     // GL objects owned by the meshes / shaders must be released with the
     // window's context current.
     m_window.setActive(true);
+    m_models.reset();
     m_sprites.reset();
     m_terrain.reset();
     m_shader.reset();
@@ -54,12 +57,12 @@ sf::Vector2f Renderer3D::screenToWorld(const Camera& camera, sf::Vector2i pixel,
 }
 
 EntityPtr Renderer3D::pickEntity(const Camera& camera, sf::Vector2i pixel, Game& game) const {
-    return Picking3D::pickEntity(camera, pixel, m_window.getSize(), game);
+    return Picking3D::pickEntity(camera, pixel, m_window.getSize(), *m_models, game);
 }
 
 std::vector<EntityPtr> Renderer3D::pickEntitiesInRect(const Camera& camera, sf::Vector2i cornerA,
                                                       sf::Vector2i cornerB, Team team, Game& game) const {
-    return Picking3D::pickEntitiesInRect(camera, cornerA, cornerB, m_window.getSize(), team, game);
+    return Picking3D::pickEntitiesInRect(camera, cornerA, cornerB, m_window.getSize(), *m_models, team, game);
 }
 
 // Collects everything drawn on top of the terrain: entities (as sprites or
@@ -69,6 +72,7 @@ void Renderer3D::buildFrame(Game& game) {
     m_ringData.clear();
     m_barData.clear();
     m_sprites->begin();
+    m_models->begin();
 
     const FogOfWar& fog    = game.getPlayer().getFog();
     const Map&      map    = game.getMap();
@@ -85,7 +89,14 @@ void Renderer3D::buildFrame(Game& game) {
         const sf::Vector2f size = entity.getSize();
 
         glm::vec3 topPoint;   // where the health bar hangs
-        if (visual.hasSprite()) {
+        const Model* model = visual.hasModel() ? m_models->get(visual.model) : nullptr;
+        if (model) {
+            const Placement3D::ModelPlacement placed = Placement3D::placeModel(*model, visual, map, pos);
+            m_models->add(*model, placed.transform, toVec3(visual.color),
+                          entity.isSelected() ? 1.2f : 1.0f, visual.opacity, postFog,
+                          visual.modelClip, visual.modelClipTime);
+            topPoint = glm::vec3(pos.x, placed.hi.y, pos.y);
+        } else if (visual.hasSprite()) {
             // Bottom edge on the ground, shifted toward the camera so the
             // image's ground point lands on the entity position.
             Placement3D::Billboard quad = Placement3D::placeBillboard(map, pos, visual.sprite.size, visual.spriteAnchor);
@@ -237,10 +248,13 @@ void Renderer3D::render(Game& game) {
     m_entityMesh.draw();
     m_ringMesh.draw();
 
-    // Sprites: translucent quads, sorted back to front. Remembered buildings and
-    // resource nodes first, then the fog over them, then everything currently visible.
+    // Models and sprites: opaque models first, then the translucent sprite quads
+    // sorted back to front. Remembered buildings and resource nodes first, then the
+    // fog over them, then everything currently visible.
+    m_models->draw(viewProj, Scene3D::lightDirection(), false);
     m_sprites->draw(viewProj, false);
     m_terrain->drawFog(viewProj, game.getPlayer().getFog());
+    m_models->draw(viewProj, Scene3D::lightDirection(), true);
     m_sprites->draw(viewProj, true);
     m_shader->use();
 

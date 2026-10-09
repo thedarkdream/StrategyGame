@@ -1,10 +1,35 @@
 #include "Placement3D.h"
 #include "EntityVisual.h"
+#include "Model.h"
 #include "Map.h"
+#include <glm/gtc/constants.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace Placement3D {
+
+ModelPlacement placeModel(const Model& model, const EntityVisual& visual, const Map& map, sf::Vector2f pos) {
+    // A model faces +Z; rotating by (pi/2 - facing) about Y turns that onto the
+    // game-plane direction (cos facing, sin facing).
+    glm::mat4 transform = glm::translate(glm::mat4(1.0f),
+        glm::vec3(pos.x, map.getHeightAt(pos) + visual.flyHeight, pos.y));
+    transform = glm::rotate(transform, glm::half_pi<float>() - visual.facing + visual.modelYaw, glm::vec3(0.0f, 1.0f, 0.0f));
+    transform = glm::scale(transform, glm::vec3(visual.modelScale));
+
+    const glm::vec3 a = model.boundsMin();
+    const glm::vec3 b = model.boundsMax();
+    glm::vec3 lo(std::numeric_limits<float>::max());
+    glm::vec3 hi(std::numeric_limits<float>::lowest());
+    for (int i = 0; i < 8; ++i) {
+        const glm::vec3 corner((i & 1) ? b.x : a.x, (i & 2) ? b.y : a.y, (i & 4) ? b.z : a.z);
+        const glm::vec3 world = glm::vec3(transform * glm::vec4(corner, 1.0f));
+        lo = glm::min(lo, world);
+        hi = glm::max(hi, world);
+    }
+    return { transform, lo, hi };
+}
 
 Span footprintSpan(const Map& map, sf::Vector2f pos, sf::Vector2f size) {
     const float hx = size.x * 0.5f;

@@ -21,6 +21,10 @@ public:
     
     // Legacy alias for loadTexture
     sf::Texture* load(const std::string& filepath) { return loadTexture(filepath); }
+
+    // Load a texture from encoded image bytes (PNG, JPEG...), e.g. an image embedded
+    // in a .glb.  `key` names it in the cache like a file path would.
+    sf::Texture* loadTextureFromMemory(const std::string& key, const void* data, std::size_t size);
     
     // Get already-loaded texture (returns nullptr if not loaded)
     sf::Texture* getTexture(const std::string& filepath);

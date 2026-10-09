@@ -49,6 +49,7 @@ void Unit::update(float deltaTime) {
     tickUnderAttack(deltaTime);
     
     UnitState prevState = m_state;
+    const sf::Vector2f positionBefore = m_position;
     
     switch (m_state) {
         case UnitState::Idle:
@@ -77,6 +78,27 @@ void Unit::update(float deltaTime) {
             break;
     }
     
+    // Skeletal model clip: what the unit is doing and whether it really is moving
+    // (a unit blocked by a crowd, or shooting from range, does not walk on the spot).
+    {
+        constexpr float kMovingSpeed = 6.0f;   // world units per second
+        const sf::Vector2f step = m_position - positionBefore;
+        const bool moving = step.x * step.x + step.y * step.y > (kMovingSpeed * deltaTime) * (kMovingSpeed * deltaTime);
+        switch (m_state) {
+            case UnitState::Attacking:
+            case UnitState::AttackMoving:   // stops to shoot when an enemy is in range
+                playModelClip(moving ? AnimationState::Walk : AnimationState::Attack);
+                break;
+            case UnitState::Gathering:
+                playModelClip(AnimationState::Gather);
+                break;
+            default:
+                playModelClip(moving ? AnimationState::Walk : AnimationState::Idle);
+                break;
+        }
+        advanceModelClip(deltaTime);
+    }
+
     // Update animations
     if (m_hasSprite) {
         m_animatedSprite.update(deltaTime);
@@ -273,6 +295,7 @@ void Unit::updateAttackMove(float deltaTime) {
             
             if (distance <= m_attackRange) {
                 // In range - attack if cooldown ready
+                faceTowards(enemy->getPosition());
                 if (m_attackTimer <= 0.0f) {
                     fireAttack(enemy);
                     m_attackTimer = m_attackCooldown;
@@ -396,6 +419,7 @@ void Unit::updateCombat(float deltaTime) {
         followPath(deltaTime);
     } else {
         // In range - attack if cooldown ready
+        faceTowards(target->getPosition());
         if (m_attackTimer <= 0.0f) {
             fireAttack(target);
             m_attackTimer = m_attackCooldown;

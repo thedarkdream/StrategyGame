@@ -11,6 +11,7 @@
 
 #include "AnimatedSprite.h"
 #include <SFML/Graphics/Color.hpp>
+#include <string>
 
 class Entity;
 
@@ -24,7 +25,16 @@ struct EntityVisual {
     bool        showsHealthBar = true;
     sf::Color   color;                    // stand-in box colour
 
+    // glTF model replacing the sprite/box (empty path = none).
+    std::string model;
+    float       modelScale = 1.0f;
+    float       modelYaw   = 0.0f;        // extra turn of the model, radians
+    float       facing     = 0.0f;        // direction the entity looks, radians in the game plane (atan2(dy, dx))
+    std::string modelClip;                // animation clip of a skinned model (see Entity::getModelClip)
+    float       modelClipTime = 0.0f;     // seconds into the clip
+
     bool hasSprite() const { return sprite.valid(); }
+    bool hasModel()  const { return !model.empty(); }
 };
 
 EntityVisual describeVisual(const Entity& entity);
