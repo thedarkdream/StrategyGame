@@ -1,0 +1,241 @@
+﻿#include "entities/Building.h"
+#include "entities/EntityData.h"
+#include "core/Constants.h"
+#include "fx/EffectsManager.h"
+#include "media/TextureManager.h"
+
+#include <cmath>
+#include <cstdint>
+
+Building::Building(EntityType type, Team team, sf::Vector2f position)
+    : Entity(type, team, position)
+{
+    // Use ENTITY_DATA for size and health
+    m_size = ENTITY_DATA.getSize(type);
+    m_maxHealth = ENTITY_DATA.getHealth(type);
+    m_health = m_maxHealth;
+    
+    m_rallyPoint = position + sf::Vector2f(m_size.x, 0.0f);
+    
+    // Load building sprite
+    switch (type) {
+        case EntityType::Base:
+            loadStaticSprite("buildings/base.png");
+            break;
+        case EntityType::Barracks:
+            loadStaticSprite("buildings/barracks.png");
+            break;
+        case EntityType::Factory:
+            loadStaticSprite("buildings/factory.png");
+            break;
+        default:
+            break;
+    }
+}
+
+void Building::takeDamage(int damage) {
+    if (m_isDying) return;  // Already dying
+
+    markUnderAttack();
+    bool wasAlive = m_health > 0;
+    m_health -= damage;
+    
+    if (m_health <= 0) {
+        m_health = 0;
+        
+        // Spawn explosion effect when building is destroyed
+        if (wasAlive && m_context) {
+            // Scale explosion based on building size
+            float explosionScale = std::max(m_size.x, m_size.y) / 128.0f;
+            m_context->effectsManager().spawnExplosion(m_position, explosionScale);
+        }
+        
+        // Buildings don't have death animations, so they are immediately removed
+        // (m_isDying stays false, isReadyForRemoval returns true)
+    }
+}
+
+void Building::update(float deltaTime) {
+    // Handle death animation if any
+    if (m_isDying) {
+        updateDeathAnimation(deltaTime);
+        return;
+    }
+
+    if (!isAlive()) return;
+
+    tickUnderAttack(deltaTime);
+    
+    if (m_isConstructing) {
+        // Construction progress handled externally by workers
+    }
+    
+    if (isConstructed()) {
+        updateProduction(deltaTime);
+    }
+}
+
+bool Building::canTrain(EntityType unitType) const {
+    if (!isConstructed()) return false;
+    if (auto* buildingDef = ENTITY_DATA.getBuildingDef(m_type)) {
+        for (EntityType produceable : buildingDef->producesUnits) {
+            if (produceable == unitType) return true;
+        }
+    }
+    return false;
+}
+
+bool Building::trainUnit(EntityType unitType) {
+    if (!canTrain(unitType)) return false;
+    
+    ProductionOrder order;
+    order.unitType = unitType;
+    order.timeRequired = getTrainingTime(unitType);
+    order.timeElapsed = 0.0f;
+    
+    m_productionQueue.push_back(order);
+    m_isProducing = true;
+    
+    return true;
+}
+
+float Building::getProductionProgress() const {
+    if (m_productionQueue.empty()) return 0.0f;
+    
+    const auto& current = m_productionQueue.front();
+    return current.timeElapsed / current.timeRequired;
+}
+
+EntityType Building::getCurrentProductionType() const {
+    if (m_productionQueue.empty()) return EntityType::None;
+    return m_productionQueue.front().unitType;
+}
+
+void Building::cancelProduction() {
+    if (!m_productionQueue.empty()) {
+        EntityType cancelledType = m_productionQueue.front().unitType;
+        m_productionQueue.pop_front();
+        m_isProducing = !m_productionQueue.empty();
+
+        if (m_context)
+            m_context->refundProductionCost(cancelledType, getTeam());
+    }
+}
+
+void Building::cancelProductionAtIndex(int index) {
+    if (index < 0 || index >= static_cast<int>(m_productionQueue.size())) {
+        return;
+    }
+
+    EntityType cancelledType = m_productionQueue[index].unitType;
+    m_productionQueue.erase(m_productionQueue.begin() + index);
+    m_isProducing = !m_productionQueue.empty();
+
+    if (m_context)
+        m_context->refundProductionCost(cancelledType, getTeam());
+}
+
+std::vector<EntityType> Building::getProductionQueue() const {
+    std::vector<EntityType> result;
+    result.reserve(m_productionQueue.size());
+    for (const auto& order : m_productionQueue) {
+        result.push_back(order.unitType);
+    }
+    return result;
+}
+
+void Building::addConstructionProgress(float amount) {
+    float oldProgress = m_constructionProgress;
+    m_constructionProgress += amount;
+    
+    // Increase HP proportionally during construction
+    // HP goes from 1 to maxHP as progress goes from 0 to 1
+    int targetHp = 1 + static_cast<int>((m_maxHealth - 1) * m_constructionProgress);
+    int oldTargetHp = 1 + static_cast<int>((m_maxHealth - 1) * oldProgress);
+    int hpGain = targetHp - oldTargetHp;
+    if (hpGain > 0) {
+        m_health = std::min(m_health + hpGain, m_maxHealth);
+    }
+    
+    if (m_constructionProgress >= 1.0f) {
+        m_constructionProgress = 1.0f;
+        m_isConstructing = false;
+        releaseBuilder();
+    }
+}
+
+void Building::startConstruction() {
+    m_constructionProgress = 0.0f;
+    m_isConstructing = true;
+    m_health = 1;  // Start with 1 HP, increases during construction
+}
+
+bool Building::hasBuilder() const {
+    return !m_builder.expired();
+}
+
+bool Building::assignBuilder(EntityPtr worker) {
+    if (isConstructed()) return false;
+    if (hasBuilder()) return false;  // Already has a builder
+    m_builder = worker;
+    m_isConstructing = true;
+    return true;
+}
+
+void Building::releaseBuilder() {
+    m_builder.reset();
+    if (!isConstructed()) {
+        m_isConstructing = false;  // Pause construction when no builder
+    }
+}
+
+float Building::getConstructionTime() const {
+    return ENTITY_DATA.getConstructionTime(m_type);
+}
+
+void Building::updateProduction(float deltaTime) {
+    if (m_productionQueue.empty()) {
+        m_isProducing = false;
+        return;
+    }
+    
+    auto& current = m_productionQueue.front();
+    current.timeElapsed += deltaTime;
+    
+    if (current.timeElapsed >= current.timeRequired) {
+        // Unit produced — notify the game world through the context interface.
+        if (m_context)
+            m_context->notifyUnitProduced(current.unitType, this);
+
+        m_productionQueue.pop_front();
+        m_isProducing = !m_productionQueue.empty();
+    }
+}
+
+float Building::getTrainingTime(EntityType unitType) const {
+    return ENTITY_DATA.getTrainingTime(unitType);
+}
+
+sf::Vector2f Building::getSpawnPoint() const {
+    // Spawn near the building, not at the rally point
+    return m_position + sf::Vector2f(m_size.x, 0.0f);
+}
+
+void Building::setRallyPoint(sf::Vector2f point) {
+    m_rallyPoint = point;
+    m_rallyTarget.reset();  // Clear entity target when setting position
+}
+
+void Building::setRallyTarget(EntityPtr target) {
+    if (target) {
+        m_rallyTarget = target;
+        m_rallyPoint = target->getPosition();  // Also update position for rendering
+    }
+}
+
+void Building::preload() {
+    TEXTURES.loadStaticSprite("buildings/base.png");
+    TEXTURES.loadStaticSprite("buildings/barracks.png");
+    TEXTURES.loadStaticSprite("buildings/factory.png");
+}
+

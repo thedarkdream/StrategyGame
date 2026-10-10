@@ -7,111 +7,28 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Find SFML 3.0
 find_package(SFML 3.0 COMPONENTS Graphics Window System Audio REQUIRED)
 
-# Source files
-set(SOURCES
-    src/main.cpp
-    src/Game.cpp
-    src/Application.cpp
-    src/MenuScreen.cpp
-    src/GameScreen.cpp
-    src/MapEditorScreen.cpp
-    src/MapSerializer.cpp
-    src/Map.cpp
-    src/Pathfinder.cpp
-    src/TerrainRenderer.cpp
-    src/Entity.cpp
-    src/EntityDrawing.cpp
-    src/EditorPanel.cpp
-    src/EntityData.cpp
-    src/EntityWorld.cpp
-    src/Unit.cpp
-    src/Worker.cpp
-    src/Soldier.cpp
-    src/Brute.cpp
-    src/Building.cpp
-    src/ResourceNode.cpp
-    src/Player.cpp
-    src/InputHandler.cpp
-    src/Renderer.cpp
-    src/Minimap.cpp
-    src/ResourceManager.cpp
-    src/AIController.cpp
-    src/AIScript.cpp
-    src/ActionBar.cpp
-    src/TextureManager.cpp
-    src/Animation.cpp
-    src/AnimatedSprite.cpp
-    src/Effect.cpp
-    src/EffectsManager.cpp
-    src/SoundManager.cpp
-    src/FontManager.cpp
-    src/PlayerActions.cpp
-    src/LightTank.cpp
-    src/Turret.cpp
-    src/Projectile.cpp
-    src/GameStatistics.cpp
-    src/VictoryScreen.cpp
-    src/DebugConsole.cpp
-    src/FogOfWar.cpp
-)
+# 3D rendering: math (GLM), GL function loader (GLEW), system OpenGL
+find_package(glm CONFIG REQUIRED)
+find_package(GLEW REQUIRED)
+find_package(OpenGL REQUIRED)
 
-# Header files
-set(HEADERS
-    include/Game.h
-    include/Screen.h
-    include/DebugConsole.h
-    include/IdGenerator.h
-    include/Application.h
-    include/MenuScreen.h
-    include/GameScreen.h
-    include/MapEditorScreen.h
-    include/EditorPanel.h
-    include/Map.h
-    include/Pathfinder.h
-    include/TerrainRenderer.h
-    include/Entity.h
-    include/Unit.h
-    include/Worker.h
-    include/Soldier.h
-    include/Brute.h
-    include/Building.h
-    include/ResourceNode.h
-    include/Player.h
-    include/InputHandler.h
-    include/Renderer.h
-    include/ResourceManager.h
-    include/AIController.h
-    include/AIScript.h
-    include/Constants.h
-    include/Types.h
-    include/IGameContext.h
-    include/EntityDrawing.h
-    include/PlayerActions.h
-    include/EntityData.h
-    include/ActionBar.h
-    include/MathUtil.h
-    include/TextureManager.h
-    include/Animation.h
-    include/AnimatedSprite.h
-    include/Effect.h
-    include/EffectsManager.h
-    include/SoundManager.h
-    include/LightTank.h
-    include/Turret.h
-    include/Projectile.h
-    include/GameStatistics.h
-    include/VictoryScreen.h
-    include/FogOfWar.h
-)
+# glTF model loading
+find_package(fastgltf CONFIG REQUIRED)
+
+# Sources: every .cpp / .h under src/ (one folder per module, see README.md).
+# CONFIGURE_DEPENDS makes the build re-glob when files are added or removed.
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/*.cpp)
+file(GLOB_RECURSE HEADERS CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/*.h)
 
 # Create executable
 add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 
 # Include directories
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
 # Link SFML 3.0
-target_link_libraries(${PROJECT_NAME} PRIVATE SFML::Graphics SFML::Window SFML::System SFML::Audio)
+target_link_libraries(${PROJECT_NAME} PRIVATE SFML::Graphics SFML::Window SFML::System SFML::Audio
+    glm::glm GLEW::GLEW OpenGL::GL fastgltf::fastgltf)
 
 # Debug flags
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
